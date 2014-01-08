@@ -1,0 +1,20 @@
+# Fill in your AWS Access Key ID and Secret Access Key
+# http://aws.amazon.com/security-credentials
+access_key_id: YOUR_ACCESS_KEY_ID
+secret_access_key: YOUR_SECRET_ACCESS_KEY
+
+# Name of queue to which to send test messages. If the queue doesn't exist,
+# the test programs will create one with this name.
+queue_name: Test_queue
+
+# Name of the Amazon S3 bucket to use for S3 tests. You need to provide
+# a unique name since S3 uses a global namespace. If in doubt, create the bucket
+# manually with the S3 web interface and then put the bucket name in here.
+# The s3_... tests will create this bucket if it doesn't exist and then upload
+# the files Hello.txt and Hello.txt.gz to it for testing purposes. You're 
+# responsible for manually deleting the files (or the whole bucket).
+s3_bucket: ""
+
+# Uri from which to fecth something to test uri fetching. Something real should
+# exist at the endpoint of the uri.
+uri: ""

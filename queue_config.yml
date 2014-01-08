@@ -1,0 +1,196 @@
+# To see a compact version of this configuration file which does not include
+# comments, see compact_config.yml
+
+# Fill in your AWS Access Key ID and Secret Access Key
+# http://aws.amazon.com/security-credentials
+access_key_id: YOUR_ACCESS_KEY_ID
+secret_access_key: YOUR_SECRET_ACCESS_KEY
+
+# Name of SQS queue attached to the account with above access_key_id
+receive_queue_name: Test_queue
+
+# Queue type: raw, s3, url
+#   raw: The message body of queue messages will be sent directly to 
+#        process_command (and optionally decompressed by zlib)
+#   s3:  The message body is formatted as yaml, containing at least two fields,
+#        one called 'bucket' which points to an s3 bucket, and one called 'key',
+#        which points to a specific file object in the bucket. This file
+#        will be downloaded, optionally decompressed by zlib, then passed to 
+#        process_command.
+#   uri: The message body is formatted as yaml, containing at least one field
+#        called 'uri' which contains a normal uri. The referenced file will
+#        be downloaded, optionally decompressed by zlib, then passed to 
+#        process_command
+recieve_queue_type: raw
+
+# If true, the entire message, with all its meta-information, will be written 
+# to the file $id.message, where $id is the same as the $id parameter sent to 
+# process_command. Set this field to true if your queue messages contain
+# information that is unused by THIS_APPLICATION, but which is needed 
+# by your processing application, or if you wish access to message 
+# meta-information such as time stamps. The meta-information stored with
+# messages can be customized by the :attributes variable of polling_options.
+store_message: false
+
+# Should the message or referenced file be decompressed with zlib? (true/false)
+# The message or referenced file *must* have been compressed either directly
+# with zlib, or with gzip.
+# If receive_queue_type is 'raw', the message will be run through Ruby's
+# Base64 decoder before being decompressed. (SQS won't accept binary data into
+# a queue, so you must have encoded it in Base64, right? Right!?)
+decompress_message: false
+
+# Command to run for processing messages. 
+#
+# This command should return exit code 0 if the message was processed 
+# successfully and should be deleted from the queue. It should return anything
+# other than zero if processing failed and the message should not be deleted 
+# from the queue. 
+#
+# Commands should specified as a string in double quotes ("mycommand"), 
+# including any arguments to the process command. Three special variables are 
+# available to be expanded inside the command string: 
+# $input_file, $id, and $full_msg_file. These variables are expanded *before*
+# passing the command to the system's shell.
+#   $input file: The named file contains the contents of the message body 
+#                (or the contents to the referenced file in the case of s3 or 
+#                url queue types). 
+#   $id:         A string containing a unique ID associated with a message. 
+#                If no cleanup_command is specified (it's an option farther
+#                down in this config file), this ID should be used by the 
+#                processor to separate results of sequential messages by, 
+#                for example, placing results into separate files or directories
+#                whose name contains the ID. See the documentation for 
+#                result_queue_type for more information about a specific use of
+#                this ID. 
+#   $full_msg_file: The named file containins the full message. This file only 
+#                exists if store_message is set to true.
+#
+# Example: 
+#process_command: "cat $input_file > $id.output; ls -Fal $full_msg_file"
+process_command: "cat $input_file"
+
+# Should process_command be re-run on the *same message* if processing failed?
+# (true/false)
+retry_on_failure: false
+
+# Number of times we should retry on failure for a single messsage. This field
+# has meaning only if retry_on_failure is true.
+retries: 0
+
+# Polling options that are passed directly to the call to poll. Use '{}' for 
+# no options. Example:
+#   polling_options: 
+#     :wait_time_seconds: 20
+#     :batch_size: 2
+#
+# !!Be sure to use the leading colon on option names!! It's not 'batch_size';
+# it's ':batch_size'. Indentation is important -- all options should be 
+# indented by the same amount below polling_options.
+#
+# If a batch size larger than 1 is used, the EZQ will request that
+# number of messages at a time, cache the messages, then hand them one by one
+# to process_command. If retry_on_failure is true, retries will occur on a 
+# message before moving to the next message in the cache.
+#
+# The effect of a non-zero :idle_timeout is to exit EZQ after waiting the 
+# specified number of seconds with no messages received. If you want to poll 
+# indefinitely (and you probably do!), do not specify an idle_timeout.
+#
+# See SQS documentation at 
+# http://docs.aws.amazon.com/AWSRubySDK/latest/AWS/SQS/Queue.html#poll-instance_method 
+# for a full explanation of all available options.
+polling_options:
+  :wait_time_seconds: 20
+
+# What step should be taken after successful processing of a message?
+# none, post_to_results_queue
+#   none: The processing command itself takes care of anything that needs 
+#         to be done with results.
+#   post_to_result_queue: post a message to the results queue. Like the 
+#         message queue, this queue has a type which indicates what
+#         information should be posted. The queue must already exist; EZQ makes
+#         no attempt to create the result_queue if it does not exist.
+result_step: none
+
+# Name of the queue to which to post results. This and all subsequent fields
+# only have meaning if result_step is set tp post_to_results_queue. The queue 
+# must already exist; EZQ makes no attempt to create the result_queue if it 
+# does not exist.
+result_queue_name: ""
+
+# Queue type: raw, s3
+# In both cases, a message formatted in yaml will be posted to the queue. It
+# will contain at least one field: 'processed_message_id'. In both cases,
+# 'processed_message_id' will contain the id of the message that was processed
+# to produce this result. The other contents of the message will differ as 
+# follows. $id refers to the $id parameter which was passed to process_command.
+#   raw: The contents of the file output_$id.txt will be optionally 
+#        compressed via zlib and encoded as base64, then placed directly into a 
+#        field named 'notes'. 
+#        If the file output_$id.txt does not exist, then the 'notes' field will
+#        contain the text 'No output'.
+#   s3:  The contents of the file output_$id.tar will be optionally compressed
+#        via gzip, then uploaded to the Amazon s3 bucket specified in 
+#        the option result_s3_bucket. The bucket name and key will be placed 
+#        into the 'notes' field as yaml. If output_$id.tar does
+#        not exist, nothing will be uploaded, and the 'notes' field will contain
+#        the text 'No output'.
+result_queue_type: raw
+
+# The name of the s3 bucket in which to store results. Option is meaningful only
+# if result_queue_type is set to 's3'. The bucket should exist; EZQ makes no
+# attempt to create the bucket if it doesn't exist.
+result_s3_bucket: ""
+
+# Should the results file be compressed with zlib? (true/false)
+compress_result: false
+
+# If true, THIS_APPLICATION will not delete most of the temporary input or 
+# output files created during the course of processing messages. This includes
+# $input_file, output_$id.txt or output_$id.tar, and $id.message (if 
+# store_message was true). Temporary files that are created when compressing or
+# decompressing queue messages are always deleted, regardless of the value of 
+# this option.
+keep_trail: false
+
+# The command to run to cleanup after processing has succeeded and the message
+# has been deleted from the receive_queue. The same variables that can be 
+# expanded for process_command function here, too. The cleanup command is 
+# responsible for deleting any desired temporary files created by 
+# process_command, as well as all the files generated by THIS_APPLICATION if 
+# keep_trail was set to true. Set this option to "" if you don't require 
+# special cleanup.
+cleanup_command: ""
+
+# If true, EZQ will stop or terminate -- whichever is set in halt_type -- the 
+# EC2 instance running this when queue polling times out. This only has an 
+# effect if EZQ is running on an Amazon EC2 instance and if polling_options 
+# has a non-zero :idle_timeout. You probably don't want to turn this
+# option on. Really. You probably want the option after this one. Just leave
+# this one false unless you're absolutely positive this is what you want.
+halt_instance_on_timeout: false
+
+# Setting this option to a positive, non-zero value causes EZQ to stop or 
+# terminate -- whichever is set in halt_type -- the instance if no message has 
+# been received in N seconds AND if the uptime of the machine is less than 
+# 60 seconds from rolling over to the next hour. Halting an instance before 
+# rolling over into the next hour helps maximize the compute/cost ratio for an
+# instance. 
+#
+# You'll probably want to set the value fairly high to avoid 
+# unneccesarily halting instances when there is just a short lull in 
+# activity near an hour boundary. If you're using AWS AutoScale to scale 
+# up/down your compute nodes, you will need to consider carefully how this 
+# auto-halting might interact with your external scaling rules.
+#
+# Setting this option to anything greater than zero will turn it on *and* will
+# override any :idle_timeout setting specified in polling_options. Setting the
+# option to 0 or any negative number will turn it off.
+smart_halt_when_idle_N_seconds: 0
+
+# Whether to stop or terminate when either halt_instance_on_timeout or 
+# smart_halt_when_idle_N_seconds is set. [stop/terminate]
+#
+# In most scaling scenarios, terminate will be the appropriate option.
+halt_type: terminate

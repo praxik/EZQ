@@ -1,0 +1,23 @@
+#This file contains all the same options as queue_config.yml, but without the
+#explanatory comments.
+access_key_id: YOUR_ACCESS_KEY_ID
+secret_access_key: YOUR_SECRET_ACCESS_KEY
+receive_queue_name: YOUR_QUEUE_FROM_WHICH_TO_RECEIVE_JOBS
+recieve_queue_type: raw
+store_message: false
+decompress_message: false
+process_command: "cat $input_file"
+retry_on_failure: false
+retries: 0
+polling_options:
+  :wait_time_seconds: 20
+result_step: none
+result_queue_name: ""
+result_queue_type: raw
+result_s3_bucket: ""
+compress_result: false
+keep_trail: false
+cleanup_command: ""
+halt_instance_on_timeout: false
+smart_halt_when_idle_N_seconds: 0
+halt_type: stop

@@ -1,0 +1,71 @@
+﻿The basic idea of EZQ is to provide a simple configuration-style interface 
+to processing messages from an Amazon SQS queue. The application you use to 
+process messages (your process_command) doesn't have to know anything about 
+AWS. EZQ wraps up all the logic of polling a queue for messages, retrieving the 
+messages, taking a few pre-defined actions that can be encoded into the 
+messages (such as download a file from Amazon S3, uncompress a file or message, 
+etc.), and then optionally posting a “Hey I'm done with that job” message 
+to a separate result queue. You can also set EZQ up to push result files back 
+out to an S3 bucket, or, if you know the result file is going to be small 
+enough, you can post it directly to the result queue. Even better, you tell EZQ 
+to gzip it, base64 encode it, and stick it in the body of the result message. 
+If you set up an AMI containing your process_command, and set that AMI to run 
+EZQ on startup, you have instant scalability for a message processing type 
+application.
+
+================================================================================
+To test the bare basics:
+
+0. Ensure the aws-sdk gem is installed. If in doubt, issue 
+'gem install aws-sdk'. It may take a few minutes to download and build some 
+parts.
+
+1. Go into test_programs subdir. Edit the file config_for_tests.yml, and fill 
+in your access key id and secret key. Also fill out the s3 bucket name and uri 
+if you want to be able to test those parts. I've defaulted the queue_name to 
+Test_queue. You can use a different name if you wish.
+
+2. Run the test program add_raw.rb. This will add 4 raw messages to the sqs 
+queue you named in step one.
+
+3. Back up into the main EZQ directory and edit queue_config.yml. For now, 
+these are the fields you should touch:
+	access_key_id
+	secret_access_key
+	receive_queue_name
+Ensure receive_queue_name has the same value you gave queue_name in step one if 
+you modified that. Now look at the value of process_command. This is what will 
+be done to the messages as they are received. Notice that process_command could 
+be anything you can do from the commandline.
+
+4. Run processor.rb. As per the settings in queue_config.yml, it will pull raw 
+messages from your named queue, pass them to 'cat', and then do nothing else.
+
+5. Use ctrl-c to stop processor.rb.
+
+================================================================================
+To test using a result queue:
+1. Go back into queue_config.yml and change result_step from 'none' to 
+'post_to_result_queue', and enter a queue name in result_queue_name. This name 
+should be different from your receive queue. You'll also need to manually 
+create this queue on the SQS web interface. Leave the web interface for the 
+queue open; we'll use it again in a moment.
+
+2. Run test_programs/add_raw.rb again, and then start up processor.rb. This 
+time, it will pull messages, cat them, and then post a result message to the 
+result_queue. You can select “Refresh” on the right hand side of the SQS 
+web interface to see that messages have been posted to that queue.
+
+3. Use ctrl-c to stop processor.rb
+
+================================================================================
+Now just read through the comments in queue_config.yml to see all the settings 
+that can be tweaked. You can set it up to pull data from s3 or a uri, post data 
+back to s3, compress and decompress messages and files, do an optional cleanup 
+step, etc. And then check out the smart_halt_when_idle_N_seconds option. Oh 
+yeah. Be sure to set halt_type to stop before you test that one on EC2, though, 
+unless you've set up an AMI that is termination-friendly. There are scripts in 
+test_programs that help you test out messages pointing to s3, to a uri, using 
+compression, not using compression, etc. You'll need to alter your 
+queue_config.yml to deal with each of the different message types that are 
+produced by the different test programs.
