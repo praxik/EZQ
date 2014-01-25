@@ -14,11 +14,26 @@ require './x_queue'
 
 module EZQ
 
+# Processor is a wrapper program which fetches messages from a queue, performs
+# some light pre-processing on them, and then passes the result to the
+# +process_command+ specified in the configuration. Processor can then take
+# results from this processing and optionally post them to a +result_queue+.
 class Processor
 
+  protected
+  # Set up a hash containing default values of everything we pulled from a
+  # configuration file
+  def make_var( name, default_value )
+    @var_hash[ name ] = default_value
+    instance_variable_set(name,default_value)
+  end
 
+  public
   # Create a processor based on a configuration hash
-  # @param [Hash] config The configuration hash to use.
+  #
+  # @param [Hash] configuration The configuration hash to use. The full list of 
+  #   configurable options is detailed in {file:Processor_Config_Details.md}.
+  # @param [Logger] logger The logger to use for logging internal output 
   def initialize(configuration,logger = nil)
     if !logger
       logger = Logger.new(STDOUT)
@@ -38,27 +53,32 @@ class Processor
     credentials['access_key_id'] = config['access_key_id']
     credentials['secret_access_key'] = config['secret_access_key']
     AWS.config(credentials)
+   
+    # Create empty instance variables. 
+    @receive_queue_name = nil
+    @polling_options = nil
+    @halt_instance_on_timeout = nil
+    @smart_halt_when_idle_N_seconds = nil
+    @halt_type = nil
+    @receive_queue_type = nil
+    @store_message = nil
+    @decompress_message = nil
+    @process_command = nil
+    @retry_on_failure = nil
+    @retries = nil
+    @result_step = nil
+    @result_queue_name = nil
+    @result_queue_type  = nil
+    @result_s3_bucket = nil
+    @compress_result  = nil
+    @keep_trail = nil
+    @cleanup_command = nil
 
-    # Populate instance variables
-    @receive_queue_name = config['receive_queue_name']
-    @receive_queue_type = config['recieve_queue_type']
-    @store_message = config['store_message']
-    @decompress_message = config['decompress_message']
-    @process_command = config['process_command']
-    @retry_on_failure = config['retry_on_failure']
-    @retries = config['retries']
-    @polling_options = config['polling_options']
-    @result_step = config['result_step']
-    @result_queue_name = config['result_queue_name']
-    @result_queue_type = config['result_queue_type']
-    @result_s3_bucket = config['result_s3_bucket']
-    @compress_result = config['compress_result']
-    @keep_trail = config['keep_trail']
-    @cleanup_command = config['cleanup_command']
-    @halt_instance_on_timeout = config['halt_instance_on_timeout']
-    @smart_halt_when_idle_N_seconds = config['smart_halt_when_idle_N_seconds']
-    @halt_type = config['halt_type']
-    
+    # This will automatically create an instance variable based on each option
+    # in the configuration file. It will also populate each of our manually-
+    # created ivars above with the default value as specified in the config.
+    @var_hash = {}
+    config.each { |k,v| make_var("@#{k}",v) }
     
     # Check for existence of receive queue
     @in_queue = AWS::SQS::X_queue.new(AWS::SQS.new.queues.named(@receive_queue_name).url)
@@ -69,11 +89,7 @@ class Processor
     
     # Get the result queue, if one was specified
     if @result_step == 'post_to_result_queue'
-      @result_queue = AWS::SQS.new.queues.named(@result_queue_name)
-      if !@in_queue.exists?
-        @logger.fatal "No queue named #{@result_queue_name} exists."
-        raise "No queue named #{@result_queue_name} exists."
-      end
+      get_result_queue
     end  
     
     # Are we running on an EC2 instance?
@@ -98,7 +114,23 @@ class Processor
   end
   
   
+  protected
+  # Call into AWS to get the result queue and put it into the variable 
+  # @result_queue. No call to AWS is made if the result queue already exists
+  # and has the name of the currently-specified queue.
+  def get_result_queue
+    if (!@result_queue) || ( @result_queue && (@result_queue.name != @result_queue_name) )
+      @result_queue = AWS::SQS.new.queues.named(@result_queue_name)
+    end
+    if !@result_queue.exists?
+      @logger.fatal "No queue named #{@result_queue_name} exists."
+      raise "No queue named #{@result_queue_name} exists."
+    end
+  end
   
+  
+  
+  protected
   # Parse a configuration file as yaml
   def parse_config_file(filename)
     @logger.info "Parsing configuration file #{filename}"
@@ -120,6 +152,7 @@ class Processor
   
   
   
+  protected
   # Decompresses the file and stores the result in a file with the same name.
   def decompress_file(filename)
     @logger.info "Decompressing file #{filename}"
@@ -136,6 +169,7 @@ class Processor
   
   
   
+  protected
   # Compresses the file and stores the result in filename.gz
   def compress_file(filename)
     @logger.info "Compressing file #{filename}"
@@ -148,12 +182,13 @@ class Processor
   
   
   
+  protected
   # Write the raw message body to the input file
-  # @param [AWS::SQS::RecievedMessage] msg The message on which to operate
+  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
   # @param [String] infile The filename to which to write the message body 
   def get_raw(msg,infile)
     @logger.info 'Processing raw message'
-    body = msg.body
+    body = msg.body.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')
     if @decompress_message
       @logger.info 'Decompressing message'
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
@@ -165,9 +200,10 @@ class Processor
   
 
 
+  protected
   # Parse the message body to find an s3 bucket and key, then download the
   # referenced object and store it as infile.
-  # @param [AWS::SQS::RecievedMessage] msg The message on which to operate
+  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
   # @param [String] infile The filename in which to store the downloaded object
   def get_s3(msg,infile)
     body = YAML.load(msg.body)
@@ -181,9 +217,10 @@ class Processor
 
 
 
+  protected
   # Parse the message body to find a uri, then download the referenced file and 
   # store it as infile.
-  # @param [AWS::SQS::RecievedMessage] msg The message on which to operate
+  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
   # @param [String] infile The filename in which to store the downloaded object
   def get_uri(msg,infile)
     body = YAML.load(msg.body)
@@ -196,6 +233,7 @@ class Processor
 
 
 
+  protected
   # Replace a set of pre-defined tokens in str with appropriate strings
   # based on the message id.
   # @param [String] str The string containing tokens that need to be replaced
@@ -211,17 +249,29 @@ class Processor
   end
   
   
+  protected
+  # Save the entire message in case processors need access to meta information
+  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
+  # @param [String] id The id of this message to use for forming filename
+  def save_message(msg,id)
+    tmp = {}
+    tmp['body'] = msg.body
+    tmp['sender_id'] = msg.sender_id
+    tmp['sent_at'] = msg.sent_at
+    tmp['receive_count'] = msg.receive_count
+    tmp['first_received_at'] = msg.first_received_at
+    File.open( "#{id}.message", 'w' ) { |output| output << tmp.to_yaml }  
+  end
   
+  
+  protected
   # Runs the process_command on a job with id, on a given message and input file
-  # @param [AWS::SQS::RecievedMessage] msg The message associated with this run
-  # @param [String] input_filename String that will replace the $input_file token
-  #                                in proces_command
+  # @param [AWS::SQS::ReceivedMessage] msg The message associated with this run
+  # @param [String] input_filename String that will replace the $input_file 
+  # token in process_command
   # @param [String] id Unique id associated with the current message
   def run_process_command(msg,input_filename,id)
-    if @store_message
-      # write the whole message and all its meta-data to arg2.message
-      File.open( "#{id}.message", 'w' ) { |output| output << msg.to_yaml } 
-    end
+    save_message(msg,id) if @store_message
     commandline = expand_vars(@process_command,input_filename,id)
     @logger.info "Running command '#{commandline}'"
     
@@ -238,8 +288,44 @@ class Processor
   end
   
   
+  protected
+  # Resets to the default configuration specified in the config file parsed at
+  # startup, unless the default value has been permanently changed
+  def reset_configuration
+    @var_hash.each {|k,v| instance_variable_set(k,v) }
+  end
+  
+  
+  protected
+  # Parse a message body to override settings for this one message. Some
+  # settings cannot be overridden:
+  # * 'receive_queue_name'
+  # * 'polling_options'
+  # * 'smart_halt_when_idle_N_seconds'
+  # Other overrides are permanent, since there is no logical interpretation of 
+  # "only for this message":
+  # * 'halt_instance_on_timeout'
+  # * 'halt_type'
+  def override_configuration( body )
+    @logger.info "override_configuration"
+    protected_vars = ['receive_queue_name','polling_options','smart_halt_when_idle_N_seconds']
+    change_default_vars = ['halt_instance_on_timeout','halt_type']
+    cfg = YAML.load(body)
+    return if !cfg.kind_of? Hash
+    cfg = cfg['EZQ']
+    cfg.each do |k,v|
+      if @var_hash.has_key? "@#{k}"
+        instance_variable_set("@#{k}",v) unless protected_vars.include?(k)
+        @var_hash["@#{k}"] = v if change_default_vars.include?(k)
+        puts "overrode config for #{k}"
+      end
+    end
+  end
 
+
+  protected
   # Perform cleanup operations on job associated with id and input_filename
+  #
   # @param [String] input_filename Name of input file for this job
   # @param [String] id ID of this job
   def cleanup(input_filename,id)
@@ -259,10 +345,11 @@ class Processor
       @logger.info "Performing custom cleanup with command '#{cleaner}'"
       system(cleaner)
     end
+    reset_configuration
   end
 
 
-
+  protected
   # Perform result_step
   def do_result_step
     @logger.debug 'Result step'
@@ -278,11 +365,11 @@ class Processor
   end
   
   
-  
+  protected
   # Post a message to result_queue
   def post_to_result_queue
     msg = ""
-    
+    get_result_queue
     case @result_queue_type
     when 'raw'
       msg = make_raw_result
@@ -301,8 +388,8 @@ class Processor
   end
   
   
-  
-  #
+  protected
+  # Form a result message suitable for a 'raw' result_queue_type
   def make_raw_result
     @logger.info 'Forming message for raw result queue type'
     fname = "output_#{@id}.txt"
@@ -323,8 +410,8 @@ class Processor
   end
   
   
-  
-  #
+  protected
+  # Form a result message suitable for an 's3' result_queue_type
   def make_s3_result
     @logger.info 'Forming message for s3 result queue type'
     fname = "output_#{@id}.tar"
@@ -349,13 +436,16 @@ class Processor
   end
   
   
-  
+  protected
   # Do the actual processing of a single message
   def process_message(msg)
     @logger.fatal '------------------------------------------'
-    @logger .unknown "Received message #{msg.id}"
+    @logger.fatal "Received message #{msg.id}"
     @input_filename = msg.id + '.in'
     @id = msg.id
+    
+    # Inspect the message for configuration overrides
+    override_configuration( msg.body )
     
     case @receive_queue_type
     when 'raw'
@@ -381,7 +471,8 @@ class Processor
   end
 
 
-
+  protected
+  # Poll the in_queue, handling arrays of messages appropriately
   def poll_queue
     @in_queue.poll_no_delete(@polling_options) do |msg|
       if msg.is_a? Array
@@ -393,6 +484,8 @@ class Processor
   end
 
 
+
+  public
   # Start the main processing loop which requests messages from the queue,
   # pre-processes them according to queue type, passes that information to the 
   # chosen processing command, calls the result_step, and then cleans up.
@@ -412,8 +505,8 @@ class Processor
     end
   end
   
-  
-  
+    
+  protected
   # Halt this EC2 instance
   def halt_instance
     case @halt_type
@@ -424,11 +517,8 @@ class Processor
     end
   end
   
-  
-  
 end # class
 end # module
-
 
 
 
@@ -479,4 +569,6 @@ if __FILE__ == $0
   end
 end
 ################################################################################
+
+
 
