@@ -21,7 +21,8 @@ use_compression = ARGV[1] == 'true' ? true : false
 msgs_text = []
 case queue_type
 when 'raw'
-  msgs_text = ['Hello 1', 'Hello 2', 'Hello 3', 'Hello 4']
+  msgs_text = ['raw_1.txt', 'raw_2.txt', 'raw_3.txt', 'raw_4.txt']
+  msgs_text.map!{|fname| File.read(File.join(File.dirname(__FILE__),fname))}
   if use_compression
     puts "Using compression"
     msgs_text.map!{ |txt| Zlib::Deflate.deflate(txt,9) }
