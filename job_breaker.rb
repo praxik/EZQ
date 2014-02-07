@@ -38,6 +38,13 @@ module EZQ
 # Ruby programs acting as job_creators should set <tt>$stdout.sync = true</tt> 
 # to ensure the STDOUT buffer is flushed each time +puts+ is called.
 #
+# A single task looks like this:
+#
+#    {
+#      "Task ID" : "Task 1",
+#      ...
+#    }
+#
 # When creating a batch of Tasks from a Job, it is often desirable to cache
 # files needed for the Tasks in Amazon S3. Job_Breaker provides a simple 
 # mechanism to support this need without having to bake it directly into the 
