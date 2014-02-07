@@ -54,13 +54,16 @@ class Processor
     credentials['secret_access_key'] = config['secret_access_key']
     AWS.config(credentials)
    
-    # Create empty instance variables. 
+    # Create empty instance variables.
+    @s3_files = []
+    @s3_outs = []
+    @uri_files = []
+    @s3_endpoints = []
     @receive_queue_name = nil
     @polling_options = nil
     @halt_instance_on_timeout = nil
     @smart_halt_when_idle_N_seconds = nil
     @halt_type = nil
-    @receive_queue_type = nil
     @store_message = nil
     @decompress_message = nil
     @process_command = nil
@@ -68,9 +71,7 @@ class Processor
     @retries = nil
     @result_step = nil
     @result_queue_name = nil
-    @result_queue_type  = nil
-    @result_s3_bucket = nil
-    @compress_result  = nil
+    @compress_result_message  = nil
     @keep_trail = nil
     @cleanup_command = nil
 
@@ -119,7 +120,7 @@ class Processor
   # @result_queue. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def get_result_queue
-    if (!@result_queue) || ( @result_queue && (@result_queue.name != @result_queue_name) )
+    if (!@result_queue) || ( @result_queue && (@result_queue.arn.split(':').last != @result_queue_name) )
       @result_queue = AWS::SQS.new.queues.named(@result_queue_name)
     end
     if !@result_queue.exists?
@@ -179,58 +180,6 @@ class Processor
       gz.write IO.binread(filename)
     end
   end
-  
-  
-  
-  protected
-  # Write the raw message body to the input file
-  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
-  # @param [String] infile The filename to which to write the message body 
-  def get_raw(msg,infile)
-    @logger.info 'Processing raw message'
-    body = msg.body.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')
-    if @decompress_message
-      @logger.info 'Decompressing message'
-      zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-      body = zi.inflate(Base64.decode64(body))
-      zi.close
-    end
-    File.open( "#{infile}", 'w' ) { |output| output << body }
-  end
-  
-
-
-  protected
-  # Parse the message body to find an s3 bucket and key, then download the
-  # referenced object and store it as infile.
-  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
-  # @param [String] infile The filename in which to store the downloaded object
-  def get_s3(msg,infile)
-    body = YAML.load(msg.body)
-    @logger.info "Getting object #{body['key']} from bucket #{body['bucket']}"
-    s3 = AWS::S3.new
-    bucket = s3.buckets[ body['bucket'] ]
-    obj = bucket.objects[ body['key'] ]
-    File.open(infile,'wb'){ |file| obj.read {|chunk| file.write(chunk)} }
-    decompress_file(infile) if @decompress_message
-  end
-
-
-
-  protected
-  # Parse the message body to find a uri, then download the referenced file and 
-  # store it as infile.
-  # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
-  # @param [String] infile The filename in which to store the downloaded object
-  def get_uri(msg,infile)
-    body = YAML.load(msg.body)
-    @logger.info "Getting object at uri #{body['uri']}"
-    uri = URI.parse(body['uri'])
-    response = Net::HTTP.get_response(uri)
-    File.open( "#{infile}", 'w' ) { |output| output << response.body }
-    decompress_file(infile) if @decompress_message
-  end
-
 
 
   protected
@@ -241,11 +190,14 @@ class Processor
   # @param [String] id String version of the message id
   def expand_vars(str,input_filename,id)
     @logger.debug "Expanding vars in string '#{str}'"
-    str = str.gsub('$full_msg_file', "#{id}.message")
-    str = str.gsub('$input_file',input_filename)
-    str = str.gsub('$id',id)
-    @logger.debug "Expanded string: '#{str}'"
-    str
+    strc = str.clone
+    strc.gsub!('$full_msg_file', "#{id}.message")
+    strc.gsub!('$input_file',input_filename)
+    @s3_files.each_with_index { |file,idx| strc.gsub!("$s3_#{idx + 1}",file) }
+    @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
+    strc.gsub!('$id',id)
+    @logger.debug "Expanded string: '#{strc}'"
+    return strc
   end
   
   
@@ -307,8 +259,8 @@ class Processor
   # * 'halt_instance_on_timeout'
   # * 'halt_type'
   def override_configuration( body )
-    @logger.info "override_configuration"
-    protected_vars = ['receive_queue_name','polling_options','smart_halt_when_idle_N_seconds']
+    @logger.debug "override_configuration"
+    protected_vars = ['receive_queue_name','polling_options','smart_halt_when_idle_N_seconds','get_files']
     change_default_vars = ['halt_instance_on_timeout','halt_type']
     cfg = YAML.load(body)
     return if !cfg.kind_of? Hash
@@ -317,7 +269,7 @@ class Processor
       if @var_hash.has_key? "@#{k}"
         instance_variable_set("@#{k}",v) unless protected_vars.include?(k)
         @var_hash["@#{k}"] = v if change_default_vars.include?(k)
-        puts "overrode config for #{k}"
+        @logger.info "overrode config for #{k}"
       end
     end
   end
@@ -330,7 +282,6 @@ class Processor
   # @param [String] id ID of this job
   def cleanup(input_filename,id)
     @logger.info "Performing default cleanup for id #{id}"
-    # Do other cleanup? Delete message files, other temporaries, etc?
     File.delete("output_#{id}.txt.gz") if File.exists?("output_#{id}.txt.gz")
     File.delete("output_#{id}.tar.gz") if File.exists?("output_#{id}.tar.gz")
     if !@keep_trail
@@ -353,6 +304,7 @@ class Processor
   # Perform result_step
   def do_result_step
     @logger.debug 'Result step'
+    put_s3_files
     case @result_step
     when 'none'
       return true
@@ -369,14 +321,13 @@ class Processor
   # Post a message to result_queue
   def post_to_result_queue
     msg = ""
-    get_result_queue
-    case @result_queue_type
-    when 'raw'
-      msg = make_raw_result
-    when 's3'
-      msg = make_s3_result
-    end
+    preamble = {'EZQ'=>{}}
+    body = make_raw_result(preamble)
+    preamble['EZQ']['processed_message_id'] = @id
+    preamble['EZQ']['get_s3_files'] = @s3_outs if !@s3_outs.empty?
+    msg = "#{preamble.to_yaml}...\n#{body}"
     digest = Digest::MD5.hexdigest(msg)
+    get_result_queue
     sent = @result_queue.send_message(msg)
     if digest == sent.md5
       @logger.info "Posted result message #{sent.id} to queue '#{@result_queue_name}'"
@@ -389,52 +340,113 @@ class Processor
   
   
   protected
-  # Form a result message suitable for a 'raw' result_queue_type
-  def make_raw_result
-    @logger.info 'Forming message for raw result queue type'
+  # Pull the contents of the output file into the result message.
+  def make_raw_result(preamble)
     fname = "output_#{@id}.txt"
-    body = {}
-    body['processed_message_id'] = @id
-    note = ""
+    body = ""
     if File.exists?(fname)
-      note = File.read(fname)
+      body = File.read(fname)
+      # Pull out any preamble set directly in the body.
+      if !body.empty?
+        by = YAML.load(body)
+        if by.kind_of?(Hash) && by.has_key?('EZQ')
+          preamble.merge!(by)
+          body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
+        end
+      end
     else
-      note = 'No output'
+      body = 'No output'
     end
-    if @compress_result
+    if @compress_result_message
       @logger.info 'Compressing raw message'
-      note = Base64.encode64(Zlib::Deflate.deflate(note,9))
+      body = Base64.encode64(Zlib::Deflate.deflate(body,9))
     end
-    body['notes'] = note
-    body.to_yaml
+    return body
+  end
+  
+
+
+  protected
+  # Send any specified results files to s3 endpoints,
+  def put_s3_files
+    @s3_outs.clear
+    @s3_endpoints.each do |ep|
+      fname = ep['filename']
+      if File.exists?(fname)
+        s3 = AWS::S3.new
+        bucket = s3.buckets[ep['bucket']]
+        obj = bucket.objects.create(ep['key'],Pathname.new(fname))
+        info = {'bucket'=>ep['bucket'],'key'=>ep['key']}
+        @s3_outs.push(info)
+      end
+    end
   end
   
   
   protected
-  # Form a result message suitable for an 's3' result_queue_type
-  def make_s3_result
-    @logger.info 'Forming message for s3 result queue type'
-    fname = "output_#{@id}.tar"
-    body = {}
-    body['processed_message_id'] = @id
-    note = ""
-    if File.exists?(fname)
-      if @compress_result
-        compress_file(fname)
-        fname = "#{fname}.gz"
-      end
-      s3 = AWS::S3.new
-      bucket = s3.buckets[@result_s3_bucket]
-      obj = bucket.objects.create(fname,Pathname.new(fname))
-      info = {'bucket'=>@result_s3_bucket,'key'=>fname}
-      note = info.to_yaml
-    else
-      note = 'No output'
-    end
-    body['notes'] = note
-    body.to_yaml
+  # Strips out the message preamble containing explicit EZQ directives
+  def strip_directives(msg)
+	msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
   end
-  
+
+
+  protected
+  def fetch_s3(msg)
+  @s3_files.clear
+	body = YAML.load(msg.body)
+  return nil if !body.kind_of?(Hash)
+  return nil if !body.has_key?('EZQ')
+  preamble = body['EZQ']
+	return nil if !preamble.has_key?('get_s3_files')
+	files = preamble['get_s3_files']
+	files.each do |props|
+	  @logger.info "Getting object #{props['key']} from bucket #{props['bucket']}"
+    @s3_files.push(props['key'])
+	  s3 = AWS::S3.new
+	  bucket = s3.buckets[ props['bucket'] ]
+	  obj = bucket.objects[ props['key'] ]
+	  File.open(props['key'],'wb'){ |file| obj.read {|chunk| file.write(chunk)} }
+      # TODO:
+      # Perhaps I'll reinstate decompression ability via another file-specific
+      # k-v pair:  decompress: true/false
+      # Really need to support something more than zlib for this to be useful
+      #decompress_file(infile) if @decompress_message
+    end
+  end
+
+
+  protected
+  def fetch_uri(msg)
+    @uri_files.clear
+    body = YAML.load(msg.body)
+    return nil if !body.kind_of?(Hash)
+    return nil if !body.has_key?('EZQ')
+    preamble = body['EZQ']
+    return nil if !preamble.has_key?('get_uri_contents')
+    files = preamble['get_uri_contents']
+    files.each_with_index do |props,idx|
+      @logger.info "Getting object at uri #{props['uri']}"
+      save_name = props.has_key?('save_name') ? props['save_name'] : "uri#{idx+1}"
+      @uri_files.push(save_name)
+      uri = URI.parse(props['uri'])
+      response = Net::HTTP.get_response(uri)
+      File.open( "#{save_name}", 'w' ) { |output| output << response.body }
+      # see TODO in fetch_s3
+      #decompress_file(infile) if @decompress_message
+    end
+  end
+
+
+  protected
+  def store_s3_endpoints(msg)
+    @s3_endpoints.clear
+    body = YAML.load(msg.body)
+    return nil if !body.kind_of?(Hash)
+    return nil if !body.has_key?('EZQ')
+    preamble = body['EZQ']
+    @s3_endpoints = preamble['put_s3_files'] if preamble.has_key?('put_s3_files')
+    return nil
+  end
   
   protected
   # Do the actual processing of a single message
@@ -444,19 +456,20 @@ class Processor
     @input_filename = msg.id + '.in'
     @id = msg.id
     
-    # Inspect the message for configuration overrides
-    override_configuration( msg.body )
+    override_configuration(msg.body)
+    fetch_s3(msg)
+    fetch_uri(msg)
+    store_s3_endpoints(msg)
+    strip_directives(msg)
     
-    case @receive_queue_type
-    when 'raw'
-      get_raw(msg,@input_filename)
-    when 's3'
-      get_s3(msg,@input_filename)
-    when 'uri'
-      get_uri(msg,@input_filename)
-    else
-      raise "Invalid receive_queue_type: #{receive_queue_type}. Must be one of [raw,s3,uri]."
-    end 
+    body = msg.body
+    if !body.empty? && @decompress_message
+      @logger.info 'Decompressing message'
+      zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+      body = zi.inflate(Base64.decode64(body))
+      zi.close
+    end
+    File.open( "#{@input_filename}", 'w' ) { |output| output << body }
     
     if run_process_command(msg,@input_filename,@id)
       # Do result_step before deleting the message in case result_step fails.
@@ -475,11 +488,20 @@ class Processor
   # Poll the in_queue, handling arrays of messages appropriately
   def poll_queue
     @in_queue.poll_no_delete(@polling_options) do |msg|
-      if msg.is_a? Array
-        msg.each {|item| process_message(item)}
-      else
-        process_message(msg)
-      end
+      Array(msg).each {|item| process_message(item)}
+    end
+  end
+
+
+
+  protected
+  # Halt this EC2 instance
+  def halt_instance
+    case @halt_type
+    when 'stop'
+      @instance.stop
+    when 'terminate'
+      @instance.terminate
     end
   end
 
@@ -506,16 +528,7 @@ class Processor
   end
   
     
-  protected
-  # Halt this EC2 instance
-  def halt_instance
-    case @halt_type
-    when 'stop'
-      @instance.stop
-    when 'terminate'
-      @instance.terminate
-    end
-  end
+  
   
 end # class
 end # module
