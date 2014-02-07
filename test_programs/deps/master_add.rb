@@ -29,24 +29,21 @@ when 'raw'
     msgs_text.map!{|item| Base64.encode64(item)}
   end
 when 's3'
-  m = {}
-  m['bucket'] = cf.s3_bucket
-  if use_compression
-    m['key'] = 'Hello.txt.gz'
-  else
-    m['key'] = 'Hello.txt'
-  end
-  msgs_text = [m.to_yaml, m.to_yaml,m.to_yaml,m.to_yaml]
+  msgs_text = ['s3.txt','s3.txt','s3.txt','s3.txt']
+  msgs_text.map!{|fname| File.read(File.join(File.dirname(__FILE__),fname))}
   # Create bucket and put the two test files in if needed
   s3 = AWS::S3.new
   bucket = s3.buckets[cf.s3_bucket]
   s3.buckets.create(cf.s3_bucket) unless bucket.exists?
-  obj = bucket.objects['Hello.txt']
-  bucket.objects[m['key']].write(Pathname.new(m['key'])) unless obj.exists?
+  str = msgs_text[0]
+  m = YAML.load(str)
+  m['EZQ']['get_s3_files'].each do |file|
+    obj = bucket.objects[file['key']]
+    bucket.objects[file['key']].write(Pathname.new(File.join(File.dirname(__FILE__),file['key']))) unless obj.exists?
+  end
 when 'uri'
-  m = {}
-  m['uri'] = cf.uri
-  msgs_text = [m.to_yaml, m.to_yaml,m.to_yaml,m.to_yaml]
+  msgs_text = ['uri.txt','uri.txt','uri.txt','uri.txt']
+  msgs_text.map!{|fname| File.read(File.join(File.dirname(__FILE__),fname))}
 end
 
 
