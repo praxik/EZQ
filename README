@@ -2,11 +2,15 @@
 EZQ
 ===
 
-EZQ provides a simple configuration-style interface 
-to processing messages in an Amazon SQS queue. The application you use to 
-process messages (your `*process_command*`) doesn't have to know anything about 
-AWS. If you set up an AMI containing your `*process_command*`, and set that AMI to run 
-EZQ on startup, you have instant scalability for a message processing type application.
+Synopsis
+--------
+
+EZQ provides a simple configuration-style interface to processing messages
+in an Amazon SQS queue. The application you use to process messages (your
+`*process_command*`) doesn't have to know anything about AWS. If you set up
+an AMI containing your `*process_command*`, and set that AMI to run EZQ on
+startup, you have instant scalability for a message processing type
+application.
 
 EZQ wraps up all the logic of:
 
@@ -14,9 +18,9 @@ EZQ wraps up all the logic of:
 * optionally performing a set of pre-processing operations that can be encoded 
   into the messages, such as
   
-    * fetching a file from Amazon S3
-    * fetching the contents of a uri
-    * decompressing the downloaded file with zlib
+    * fetching one or more files from Amazon S3
+    * fetching the contents of one or more uris
+    * decompressing the message body with zlib
   
 * executing the `process_command` to process the message (or downloaded file)
 * optionally storing job results in Amazon S3, or posting them to a result queue
@@ -28,6 +32,12 @@ the instance when no new messages have arrived in certain period of time.
 The full list of configurable options is detailed in 
 {file:Processor_Config_Details.md}.
 
+{file:Processor_Message_Details.md} explains in more depth the structure of
+messages and how to embed pre-processing directives.
+
+{file:Processor_Example_Use.md} shows an example application using
+EZQ::Processor. This shows how "it all fits together."
+
 Simplest Use-Case
 -----------------
 Once you've setup an appropriate configuration file for EZQ, running a processor
@@ -36,6 +46,7 @@ is as simple as
     $ Processor.rb -c my_config_file.yml
     
 It's just a matter of getting your configuration file setup correctly....
+
 
 Getting your feet wet
 ----------------------
@@ -60,9 +71,10 @@ Getting your feet wet
     step one if you modified that. Now look at the value of `process_command`. 
     This is what will be done to the messages as they are received. Notice that 
     `process_command` could be absolutely anything you can run from the 
-    commandline.
+    commandline. If you're using MS-Windows, you may need to replace the
+    command `cat` with `type`.
 5.  Run `processor.rb`. As per the settings in `queue_config.yml`, it will pull 
-    raw messages from your named queue, pass them to 'cat', and then do nothing 
+    messages from your named queue, pass them to 'cat', and then do nothing 
     else.
 6.  Use `ctrl-c` to stop `processor.rb`
 

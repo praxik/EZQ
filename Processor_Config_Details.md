@@ -15,22 +15,13 @@ without having to specify a config filename on the commandline.
 
 Any configuration option marked as *Overridable* can be overridden by 
 embedding EZQ directives into a message. These directives should be in YAML
-format using the key EZQ. For example:
-
-    EZQ:
-     store_message: true
-     keep_trail: true
-
-Overridden settings only stay overridden for the duration of the message which
-overrode them, unless marked as *Overridable:sticky*
-
-If +receive_queue_type+ is set to to "raw", then EZQ directives can be safely 
-added by putting a YAML block like this at the *head* of the message:
+format using the key EZQ, and should appear in an explicit YAML document
+block. For example:
 
     ---
     EZQ:
-     option1: value1
-     option2: value2
+     store_message: true
+     keep_trail: true
     ...
 
 The `---` and `...` mark the block as YAML. EZQ will strip out this entire block
@@ -39,6 +30,9 @@ message is also YAML, don't worry: it won't be touched. EZQ only attempts to
 pre-process the first YAML document in the message stream, and only strip it
 from the message if it matches this regexp: `/-{3}\nEZQ.+?\.{3}\n/m`
 
+Overridden settings only stay overridden for the duration of the message which
+overrode them, unless marked as *Overridable:sticky*
+
 Example Configuration File
 ==========================
 Contents of an example +queue_config.yml+:
@@ -46,7 +40,6 @@ Contents of an example +queue_config.yml+:
     access_key_id: YOUR_ACCESS_KEY_ID
     secret_access_key: YOUR_SECRET_ACCESS_KEY
     receive_queue_name: YOUR_QUEUE_FROM_WHICH_TO_RECEIVE_JOBS
-    recieve_queue_type: raw
     store_message: false
     decompress_message: false
     process_command: "cat $input_file"
@@ -56,9 +49,7 @@ Contents of an example +queue_config.yml+:
       :wait_time_seconds: 20
     result_step: none
     result_queue_name: ""
-    result_queue_type: raw
-    result_s3_bucket: ""
-    compress_result: false
+    compress_result_message: false
     keep_trail: false
     cleanup_command: ""
     halt_instance_on_timeout: false
@@ -82,20 +73,6 @@ Configuration Options
 ---------------------------------
   Name of SQS queue, attached to the account with above +access_key_id+, which
   should be polled for messages to process.
-  
-+receive_queue_type+ (String,_Overridable_)
------------------------------------------------
-  Queue type. Valid values: 
-    * **"raw"** -- After extracting and stripping EZQ directives, the remaining 
-      body will be sent directly to +process_command+.
-    * **"s3"** -- The message body is formatted as yaml containing two fields: 
-      *bucket* and *key*, which refer to the Amazon S3 properties of the same 
-      name. The referenced file will be downloaded then passed to 
-      +process_command+.
-    * **"uri"** -- The message body is formatted as yaml, containing at least 
-      one field called 'uri' which contains a normal uri. The referenced file 
-      will be downloaded, optionally decompressed by zlib, then passed to 
-      +process_command+
       
 +store_message+ (String,_Overridable_)
 --------------------------------------
@@ -110,12 +87,13 @@ Configuration Options
 
 +decompress_message+ (String,_Overridable_)
 -------------------------------------------
-  Should the message or 
-  referenced file be decompressed with zlib? (true/false) The message or 
-  referenced file *must* have been compressed either directly with zlib, or 
-  with gzip. If +receive_queue_type+ is 'raw', the message will be run through 
-  Ruby's Base64 decoder before being decompressed. (SQS won't accept binary 
-  data into a queue, so you must have encoded it in Base64, right? Right!?)
+  Should the message be decompressed with zlib? (true/false)
+  The message *must* have been compressed either directly with zlib, or 
+  with gzip. Any EZQ preamble containing directives must *not* be uncompressed
+  plain text that appears before the compressed portion of the message.
+  The message will be run through Ruby's Base64 decoder before being
+  decompressed. (SQS won't accept binary data into a queue, so you must have
+  encoded it in Base64, right? Right!?)
  
 +process_command+ (String,_Overridable_)
 ----------------------------------------
@@ -129,22 +107,31 @@ Configuration Options
   Example: 
    
          process_command: "cat $input_file > $id.output; ls -Fal $full_msg_file"
-  Three special variables are available to be expanded inside the command 
-  string: 
-  **$input_file**, **$id**, and **$full_msg_file**. These variables are expanded *before*
-  passing the command to the system's shell.
+         
+  The following special variables are available to be expanded inside the
+  command string: 
+  **$input_file**, **$id**, **$full_msg_file**, **$s3_n**, **$uri_n**.
+  These variables are expanded *before* passing the command to the system's
+  shell.
    
-  * **$input file** -- The named file contains the contents of the message body 
-               (or the contents to the referenced file in the case of s3 or url 
-               queue types). 
+  * **$input file** -- The named file contains the contents of the message body,
+               exclusive of any EZQ directive preamble that may have been part
+               of the full message
                        
   * **$id** -- A string containing a unique ID associated with a message. 
-               See the example process_command above as well as the 
-               documentation for +result_queue_type+ for more information 
-               about a specific use of this ID. 
+               EZQ::Processor expects any output that should be included in
+               the body of a result message to be written into the file
+               $id.output. Note this is only meaningful is +result_step+
+               is set to _post_to_result_queue_.
                 
-  * **$full_msg_file** -- The named file containins the full message. This 
-               file only exists if +store_message+ is set to true.
+  * **$full_msg_file** -- The named file contains the full message, including
+               any EZQ directive preamble. This file only exists if
+               +store_message+ is set to true.
+
+  * **$s3_n** -- Refers to the *n*th file specified in a get_s3_files directive.
+
+  * **$uri_n** -- Refers to the *n*th file specified in a get_uri_contents
+                  directive.
          
 +retry_on_failure+ (String,_Overridable_)
 -----------------------------------------
@@ -187,59 +174,32 @@ Configuration Options
   What to do following successful processing of a message. Valid values are:
   
   * **none** -- The processing command itself takes care of anything that 
-        needs to be done with results.
+        needs to be done with results aside from any explicit directives
+        in the message's EZQ directive preamble.
   * **post_to_result_queue** -- post a message to the results queue. 
-        Like +receive_queue+, this queue has a type which indicates what
-        information should be posted. The queue must already exist; EZQ makes
+        The queue must already exist; EZQ makes
         no attempt to create +result_queue+ if it does not exist.
   
 +result_queue_name+ (String,_Overridble_)
 -----------------------------------------
   Name of the queue to which to post results. This and all subsequent fields
-  only have meaning if +result_step+ is set to _post_to_results_queue_. The queue 
-  must already exist; EZQ makes no attempt to create the +result_queue+ if it 
-  does not exist.
+  only have meaning if +result_step+ is set to _post_to_results_queue_. The
+  queue must already exist; EZQ makes no attempt to create the +result_queue+
+  if it does not exist.
   
-+result_queue_type+ (String,_Overridable_)
-------------------------------------------
-  The type of result queue. Valid values are:
-  
-  * **raw** -- The contents of the file `output\_$id.txt` will be optionally 
-           compressed via zlib and encoded as base64, then placed directly into a 
-           field named 'notes'. 
-           If the file `output\_$id.txt` does not exist, then the 'notes' field will
-           contain the text 'No output'.
-  * **s3** --  The contents of the file `output\_$id.tar` will be optionally 
-           compressed via zlib, then uploaded to the Amazon s3 bucket specified 
-           in the option +result_s3_bucket+. The bucket name and key will be 
-           placed into the 'notes' field as yaml. If `output\_$id.tar` does
-           not exist, nothing will be uploaded, and the 'notes' field will 
-           contain the text 'No output'. **NB**: The file must have the 
-           extension ".tar" even if it is not actually an archive.
-  
-  In both cases, a message formatted in yaml will be posted to the queue. It
-  will contain at least one field: 'processed_message_id', the value of which is
-  the id of the message that was processed to produce this result. The other 
-  contents of the message will differ as specified above. *$id* refers to the 
-  *$id* parameter which was passed to +process_command+.
-  
-+result_s3_bucket+ (String,_Overridable_)
------------------------------------------
-  The name of the s3 bucket in which to store results. Option is meaningful only
-  if +result_queue_type+ is set to 's3'. The bucket should exist; EZQ makes no
-  attempt to create the bucket if it doesn't exist.
-  
-+compress_result+ (String,_Overridable_)
++compress_result_message+ (String,_Overridable_)
 ----------------------------------------
-  Should the results file be compressed with zlib? (true/false)
+  Should the result message body be compressed with zlib? (true/false)
+  This will not compress any EZQ directive preamble that was added to the
+  message.
   
 +keep_trail+ (String,_Overridable_)
 -----------------------------------
   If true, EZQ will not delete most of the temporary input or 
   output files created during the course of processing messages. This includes
   *$input_file*, *output_$id.txt* or *output_$id.tar*, and *$id.message* (if 
-  +store_message+ was true). Temporary files that are created when compressing or
-  decompressing queue messages are always deleted, regardless of the value of 
+  +store_message+ was true). Temporary files that are created when compressing
+  or decompressing queue messages are always deleted, regardless of the value of 
   this option.
   
 +cleanup_command+ (String,_Overridable_)
