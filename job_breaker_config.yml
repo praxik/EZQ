@@ -3,3 +3,6 @@ secret_access_key: YOUR_SECRET_ACCESS_KEY
 task_queue_name: 'Test_queue'
 job_creator_command: ""
 preamble: ""
+repeat_message_n_times: 0
+# collection or inline
+repeat_message_type: collection

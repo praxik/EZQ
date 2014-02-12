@@ -7,6 +7,7 @@ require 'aws-sdk'
 #require 'base64'
 require 'logger'
 require 'digest/md5'
+require 'deep_merge'
 
 module EZQ
 
@@ -83,6 +84,10 @@ class Job_Breaker
     @job_creator_command = config['job_creator_command']
     @task_queue_name = config['task_queue_name']
     @preamble = config['preamble']
+    @repeat_message_n_times = config['repeat_message_n_times']
+    @repeat_message_type = config['repeat_message_type']
+    @enqueued_tasks = []
+    
    
     get_queue
     if job_string.empty? && !@job_creator_command.empty?
@@ -100,10 +105,10 @@ class Job_Breaker
   # @result_queue. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def get_queue
-    @queue = AWS::SQS.new.queues.named(@job_queue_name)
+    @queue = AWS::SQS.new.queues.named(@task_queue_name)
     if !@queue.exists?
-      @logger.fatal "No queue named #{@job_queue_name} exists."
-      raise "No queue named #{@job_queue_name} exists."
+      @logger.fatal "No queue named #{@task_queue_name} exists."
+      raise "No queue named #{@task_queue_name} exists."
     end
   end
   
@@ -114,11 +119,21 @@ class Job_Breaker
     IO.popen([@job_creator_command])  do |io| 
       while !io.eof?
         msg = io.gets
+        msg = unescape(msg)
+        msg.sub!(/^"/,'')
+        msg.sub!(/"$/,'')
         if msg =~ /^push_file/
           push_file( msg.sub!(/^push_file\s*:\s*/,'') )
         else
+          msg = add_preamble(msg)
           enqueue_task(msg)
+          @enqueued_tasks.push(msg)
         end
+      end
+    end
+    if @repeat_message_type == 'collection'
+      @repeat_message_n_times.times do
+        @enqueued_tasks.each{|task| enqueue_task(task)}
       end
     end
   end
@@ -128,19 +143,27 @@ class Job_Breaker
   protected
   # Breaks up a job batch into individual tasks and enqueues then
   def split_job(json)
-    json['tasks'].each do |job|
-      enqueue_job(job.to_json)
+    json['tasks'].each do |task|
+      msg = add_preamble(task.to_json)
+      enqueue_task(msg)
+      @enqueued_tasks.push(msg)
+    end
+  end
+
+
+  protected
+  # Enqueues a task, handling inline repeats if specified
+  def enqueue_task(task)
+    enqueue_task_impl(task)
+    if @repeat_message_type == 'inline'
+      @repeat_message_n_times.times {enqueue_task_impl(task)}
     end
   end
   
   
-  
   protected
-  # Enqueues a task
-  def enqueue_task(task)
-    msg = "#{@preamble}\n#{task}"
-    puts msg
-    return
+  # Does the true heavy-lifting of enqueueing a task
+  def enqueue_task_impl(msg)
     digest = Digest::MD5.hexdigest(msg)
     sent = @queue.send_message(msg)
     if digest == sent.md5
@@ -149,19 +172,55 @@ class Job_Breaker
       @logger.error "Failed to enqueue msg:\n#{msg}\n-----------------------"
     end
   end
-  
+
+
+  protected
+  # Deep merges the config preamble with the task-embedded preamble, favoring
+  # the task-embedded preamble in any conflicts.
+  def add_preamble(task)
+    preamble = @preamble
+    task_pa = YAML.load(task)
+    if task_pa.kind_of?(Hash) && task_pa.has_key?('EZQ')
+      pa = YAML.load(preamble)
+      task_pa.deep_merge(pa)
+      preamble = "#{task_pa.to_yaml}\n..."
+    end
+    return "#{preamble}\n#{task.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')}"
+  end
   
   
   protected
   # Pushes a file into S3. Argument should be string in form "bucket,filename"
   def push_file(bucket_comma_filename)
-    bname, fname = bucket_comma_filename.split(',')
+    bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
     if File.exists?(fname)
       s3 = AWS::S3.new
       bucket = s3.buckets[bname]
       obj = bucket.objects.create(fname,Pathname.new(fname))
     end
   end
+
+
+  protected
+  # Un-escapes an escaped string. Code cribbed from
+  # 
+  def unescape(str)
+    # Escape all the things
+    str.gsub(/\\(?:([#{UNESCAPES.keys.join}])|u([\da-fA-F]{4}))|0?x([\da-fA-F]{2})/) {
+      if $1
+        UNESCAPES[$1] # escape characters
+      elsif $2 # escape \u0000 unicode
+        ["#$2".hex].pack('U*')
+      elsif $3 # escape \0xff or \xff
+        [$3].pack('H2')
+      end
+    }
+  end
+
+  UNESCAPES = { 'a' => "\x07", 'b' => "\x08", 't' => "\x09",
+                'n' => "\x0a", 'v' => "\x0b", 'f' => "\x0c",
+                'r' => "\x0d", 'e' => "\x1b", '\\' => '\\',
+                "\"" => "\x22", "'" => "\x27" }
   
 end #class
 end #module
