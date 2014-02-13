@@ -1,4 +1,4 @@
 {
 "Task ID" : "The UUID for this task",
-"mmp360 input data" : { "soi_file" : "location", "skel_file" : "location", }
+"mmp360 input data" : { "soi_file" : "location", "skel_file" : "location", "musym" : "soilname" , "mukey" : "keyvalue", "slope" : 10.0 }
 }
