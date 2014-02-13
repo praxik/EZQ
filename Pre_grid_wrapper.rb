@@ -5,9 +5,12 @@ $stdout.sync = true
 
 require 'yaml'
 require 'securerandom'
+require 'AWS'
 
 @command = './emit_test_jobs.rb'
 @pushed_files = []
+@access_key = ''
+@secret_key = ''
 
 
 def start
@@ -19,7 +22,7 @@ def start
       if msg =~ /^push_file/
         bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
         @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
-        print msg
+        puts msg
       else
         msg.insert(0,make_preamble)
         puts msg.dump
@@ -30,6 +33,9 @@ end
 
 def create_result_queue
   #puts "Would be creating result queue named '#{@job_id}'"
+  sqs = AWS::SQS.new( :access_key_id => @access_key,
+                      :secret_access_key => @secret_key)
+  sqs.queues.create("#{@job_id}")
 end
 
 def make_preamble
@@ -45,4 +51,7 @@ def make_preamble
   end
 end
 
+config = YAML.load(File.read('pre_grid_config.yml'))
+@access_key = config['access_key_id']
+@secret_key = config['secret_access_key']
 start
