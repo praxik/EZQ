@@ -1,0 +1,5 @@
+{
+"bucket" : "Name of an S3 bucket",
+"key" : "Key of the file containing the full results of this task",
+"Task ID" : "The UUID for this task"
+}
