@@ -54,6 +54,8 @@ class Processor
     credentials['access_key_id'] = config['access_key_id']
     credentials['secret_access_key'] = config['secret_access_key']
     AWS.config(credentials)
+
+    @pid = Process.pid
    
     # Create empty instance variables.
     @s3_files = []
@@ -197,6 +199,7 @@ class Processor
     @s3_files.each_with_index { |file,idx| strc.gsub!("$s3_#{idx + 1}",file) }
     @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
     strc.gsub!('$id',id)
+    strc.gsub!('$pid',@pid)
     @logger.debug "Expanded string: '#{strc}'"
     return strc
   end
