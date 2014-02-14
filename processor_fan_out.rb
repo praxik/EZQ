@@ -3,7 +3,7 @@
 # This script runs EZQ::Processor in each of the 44 separate deploy subdirs.
 
 #command ="echo $PWD"
-command = 'ruby processor.rb'
+command = 'ruby processor.rb -c 6k_worker_queue_config.yml'
 Dir.chdir(File.dirname(__FILE__))
 
 pids = []
