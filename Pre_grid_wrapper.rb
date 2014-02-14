@@ -3,6 +3,7 @@
 # Ensure STDOUT buffer is flushed with each call to `puts`
 $stdout.sync = true
 
+require 'bundler/setup'
 require 'yaml'
 require 'securerandom'
 require 'aws-sdk'

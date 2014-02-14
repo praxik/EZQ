@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'bundler/setup'
 require 'yaml'
 require 'aws-sdk'
 require 'zlib'
@@ -572,7 +573,7 @@ if __FILE__ == $0
     if quiet && log_file == STDOUT
       log.level = Logger::UNKNOWN
     else
-      log.level = Logger::INFO
+      log.level = Logger::DEBUG
     end
     EZQ::Processor.new(config_file,log).start
   # Handle Ctrl-C gracefully
