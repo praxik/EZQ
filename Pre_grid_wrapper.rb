@@ -5,7 +5,7 @@ $stdout.sync = true
 
 require 'yaml'
 require 'securerandom'
-require 'AWS'
+require 'aws-sdk'
 
 @command = './emit_test_jobs.rb'
 @pushed_files = []
