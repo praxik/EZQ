@@ -20,7 +20,7 @@ end
 print_usage if ARGV[0].to_i < 1
 print_usage if !File.exists?('deployfiles.txt')
   
-files = File.readlines('deployfiles.txt').map{|file| file.strip}
+files = File.readlines('deployfiles.txt').map{|file| Dir[file.strip]}.flatten
 n = ARGV[0].to_i
 
 n.times do |idx|
