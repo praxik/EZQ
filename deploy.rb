@@ -12,7 +12,7 @@ def print_usage
     where N is a natural number
     The file deployfiles.txt must exist in the present working directory.
     This file should contain a list of the files to be copied into each
-    subdirectory, one file per line.
+    subdirectory, one file per line. Globbing is supported.
   END
   exit 1
 end
@@ -26,5 +26,5 @@ n = ARGV[0].to_i
 n.times do |idx|
   subdir = "%02d" % idx
   Dir.mkdir(subdir)
-  FileUtils.cp(files,subdir)
+  FileUtils.cp_r(files,subdir)
 end
