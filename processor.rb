@@ -574,7 +574,13 @@ if __FILE__ == $0
 
   begin
     puts "EZQ.Processor started.\n\n" unless quiet
-    log = Logger.new(log_file)
+    if log_file != STDOUT
+      lf = File.new(log_file, 'a')
+      log = Logger.new(lf)
+      $stderr = lf
+    else
+      log = Logger.new(log_file)
+    end
     if quiet && log_file == STDOUT
       log.level = Logger::UNKNOWN
     else
