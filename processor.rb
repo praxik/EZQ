@@ -231,8 +231,8 @@ class Processor
     save_message(msg,id) if @store_message
     commandline = expand_vars(@process_command,input_filename,id)
     @logger.info "Running command '#{commandline}'"
-    
     success = system(commandline)
+    @logger.fatal "Command does not exist!" if success == nil
     if @retry_on_failure && !success
       num = @retries.to_i
       num.times do
