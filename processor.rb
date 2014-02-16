@@ -200,7 +200,7 @@ class Processor
     @s3_files.each_with_index { |file,idx| strc.gsub!("$s3_#{idx + 1}",file) }
     @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
     strc.gsub!('$id',id)
-    strc.gsub!('$pid',@pid)
+    strc.gsub!('$pid',@pid.to_s)
     @logger.debug "Expanded string: '#{strc}'"
     return strc
   end
