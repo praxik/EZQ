@@ -9,6 +9,7 @@ require 'net/http'
 require 'uri'
 require 'logger'
 require 'digest/md5'
+require 'fileutils'
 
 require './x_queue'
 
@@ -409,6 +410,7 @@ class Processor
 	  s3 = AWS::S3.new
 	  bucket = s3.buckets[ props['bucket'] ]
 	  obj = bucket.objects[ props['key'] ]
+    FileUtils.mkdir_p(File.dirname(props['key']))
 	  File.open(props['key'],'wb'){ |file| obj.read {|chunk| file.write(chunk)} }
       # TODO:
       # Perhaps I'll reinstate decompression ability via another file-specific
