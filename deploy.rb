@@ -25,6 +25,6 @@ n = ARGV[0].to_i
 
 n.times do |idx|
   subdir = "%02d" % idx
-  Dir.mkdir(subdir)
+  Dir.mkdir(subdir) if !File.exists?(subdir)
   FileUtils.cp_r(files,subdir)
 end
