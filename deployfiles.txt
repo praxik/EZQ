@@ -1,0 +1,3 @@
+*.rb
+*.yml
+C:/6k/worker/*
