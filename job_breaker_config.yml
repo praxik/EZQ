@@ -1,5 +1,3 @@
-access_key_id: YOUR_ACCESS_KEY_ID
-secret_access_key: YOUR_SECRET_ACCESS_KEY
 task_queue_name: '6k_task_test_44'
 job_creator_command: "./Pre_grid_wrapper.rb"
 preamble: ""

@@ -33,7 +33,6 @@ def start
 end
 
 def create_result_queue
-  #puts "Would be creating result queue named '#{@job_id}'"
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
   sqs.queues.create("#{@job_id}")
@@ -48,11 +47,10 @@ def make_preamble
     ezq['get_s3_files'] = @pushed_files unless @pushed_files.empty?
     @preamble = @preamble.to_yaml
     @preamble += "...\n"
-    #puts @preamble.inspect
   end
 end
 
-config = YAML.load(File.read('pre_grid_config.yml'))
-@access_key = config['access_key_id']
-@secret_key = config['secret_access_key']
+creds = YAML.load(File.read('credentials.yml'))
+@access_key = creds['access_key_id']
+@secret_key = creds['secret_access_key']
 start

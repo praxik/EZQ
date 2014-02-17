@@ -66,11 +66,15 @@ class Job_Breaker
   # Creates and starts a Job_Breaker instance
   #
   # @param [Hash] config A configuration hash
+  # @param [Hash] credentials The AWS credentials hash to use. It should contain
+  #   two key-value pairs: access_key_id and secret_access_key_id. See
+  #   http://aws.amazon.com/security-credentials for more information about the
+  #   value of each key.
   # @param [String] job_string A JSON job string that will be broken up into
   #                 separate tasks and enqueued. This value will be ignored if
   #                 config::job_creator_command is set.
   # @param [Logger] logger The logger to use for logging internal output 
-  def initialize(config,job_string = '',logger = nil)
+  def initialize(config,credentials,job_string = '',logger = nil)
     if !logger
       logger = Logger.new(STDOUT)
       logger.level = Logger::INFO
@@ -78,9 +82,9 @@ class Job_Breaker
     @logger = logger
     
     # Set up AWS with the specified credentials
-    credentials = {}
-    credentials['access_key_id'] = config['access_key_id']
-    credentials['secret_access_key'] = config['secret_access_key']
+    #~credentials = {}
+    #~credentials['access_key_id'] = config['access_key_id']
+    #~credentials['secret_access_key'] = config['secret_access_key']
     AWS.config(credentials)
     
     @job_creator_command = config['job_creator_command']
@@ -237,6 +241,7 @@ if __FILE__ == $0
   config_file = 'job_breaker_config.yml'
   jobs_file = ''
   preamble = ''
+  creds_file = 'credentials.yml'
   log_file = STDOUT
   op = OptionParser.new do |opts|
     opts.banner = "Usage: job_breaker.rb [options]"
@@ -255,6 +260,9 @@ if __FILE__ == $0
     end
     opts.on("-p", "--preamble [PREAMBLE]","Overrides the preamble set in the configuration file with contents of the string PREAMBLE") do |text|
       preamble = text
+    end
+    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE") do |file|
+      creds_file = file
     end
   end
 
@@ -293,8 +301,19 @@ if __FILE__ == $0
     
     #Override the preamble if one was passed in on the cmdline
     config['preamble'] = preamble if !preamble.empty?
+
+    if !File.exists?(creds_file)
+      warn "Credentials file '#{creds_file}' does not exist! Aborting."
+      exit 1
+    end
+
+    credentials = YAML.load(File.read(creds_file))
+    if !credentials.kind_of?(Hash)
+      warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
+      exit 1
+    end
     
-    EZQ::Job_Breaker.new(config,job)
+    EZQ::Job_Breaker.new(config,credentials,job)
   # Handle Ctrl-C gracefully
   rescue Interrupt
     warn "\nEZQ.Job_Breaker aborted!"

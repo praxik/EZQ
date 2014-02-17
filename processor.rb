@@ -33,10 +33,16 @@ class Processor
   public
   # Create a processor based on a configuration hash
   #
-  # @param [Hash] configuration The configuration hash to use. The full list of 
+  # @param [Hash or String] configuration The configuration hash to use. The full list of 
   #   configurable options is detailed in {file:Processor_Config_Details.md}.
+  #   If configuration is a string, it will be interpreted as a file to open
+  #   and parse as YAML.
+  # @param [Hash] credentials The AWS credentials hash to use. It should contain
+  #   two key-value pairs: access_key_id and secret_access_key_id. See
+  #   http://aws.amazon.com/security-credentials for more information about the
+  #   value of each key.
   # @param [Logger] logger The logger to use for logging internal output 
-  def initialize(configuration,logger = nil)
+  def initialize(configuration,credentials,logger = nil)
     if !logger
       logger = Logger.new(STDOUT)
       logger.level = Logger::INFO
@@ -51,9 +57,9 @@ class Processor
       config = parse_config_file(configuration)
     end
     # Set up AWS with the specified credentials
-    credentials = {}
-    credentials['access_key_id'] = config['access_key_id']
-    credentials['secret_access_key'] = config['secret_access_key']
+    #~credentials = {}
+    #~credentials['access_key_id'] = config['access_key_id']
+    #~credentials['secret_access_key'] = config['secret_access_key']
     AWS.config(credentials)
 
     @pid = Process.pid
@@ -548,6 +554,7 @@ if __FILE__ == $0
   require 'optparse'
   quiet = false
   config_file = 'queue_config.yml'
+  creds_file = 'credentials.yml'
   log_file = STDOUT
   op = OptionParser.new do |opts|
     opts.banner = "Usage: processor.rb [options]"
@@ -560,6 +567,9 @@ if __FILE__ == $0
     end
     opts.on("-l", "--log [LOG_FILE]","Log to file LOG_FILE") do |file|
       log_file = file
+    end
+    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE") do |file|
+      creds_file = file
     end
   end
 
@@ -586,7 +596,19 @@ if __FILE__ == $0
     else
       log.level = Logger::DEBUG
     end
-    EZQ::Processor.new(config_file,log).start
+
+    if !File.exists?(creds_file)
+      warn "Credentials file '#{creds_file}' does not exist! Aborting."
+      exit 1
+    end
+
+    credentials = YAML.load(File.read(creds_file))
+    if !credentials.kind_of?(Hash)
+      warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
+      exit 1
+    end
+    
+    EZQ::Processor.new(config_file,credentials,log).start
   # Handle Ctrl-C gracefully
   rescue Interrupt
     warn "\nEZQ.Processor aborted!"

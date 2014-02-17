@@ -37,8 +37,6 @@ Example Configuration File
 ==========================
 Contents of an example +queue_config.yml+:
 
-    access_key_id: YOUR_ACCESS_KEY_ID
-    secret_access_key: YOUR_SECRET_ACCESS_KEY
     receive_queue_name: YOUR_QUEUE_FROM_WHICH_TO_RECEIVE_JOBS
     store_message: false
     decompress_message: false
@@ -58,16 +56,6 @@ Contents of an example +queue_config.yml+:
 
 Configuration Options
 =====================
-
-+access_key_id+ (String)
-------------------------
-  Your AWS Access Key ID 
-  (for more details: http://aws.amazon.com/security-credentials )
-
-+secret_access_key+ (String)
-----------------------------
-  Your AWS Secret Access Key 
-  (for more details: http://aws.amazon.com/security-credentials )
 
 +receive_queue_name+ (String)
 ---------------------------------
