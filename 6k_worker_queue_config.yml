@@ -1,5 +1,3 @@
-access_key_id: Put key here
-secret_access_key: Put key here
 receive_queue_name: "6k_task_test_44"
 
 # (true/false)
