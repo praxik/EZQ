@@ -1,5 +1,5 @@
-access_key_id: YOUR_ACCESS_KEY_ID
-secret_access_key: YOUR_SECRET_ACCESS_KEY
+access_key_id: Put key here
+secret_access_key: Put key here
 receive_queue_name: "6k_task_test_44"
 
 # (true/false)
@@ -11,7 +11,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "./6k_worker --connector ODBC --ssurgoconnstr '' --gdbname <path to the iowammp.gdb file> --inputfilename $input_file --workerid $pid"
+process_command: "./6k_worker.exe --connector ODBC --leafconnstr Server=10.1.2.5;Port=5432; --ssurgoconnstr Server=10.1.2.8;Port=5432; --gdbname iowammp.gdb --inputfilename $input_file --workerid 1"
 
 # (true/false)
 retry_on_failure: false
