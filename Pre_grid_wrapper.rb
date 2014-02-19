@@ -8,16 +8,21 @@ require 'yaml'
 require 'securerandom'
 require 'aws-sdk'
 
-@command = './emit_test_jobs.rb'
+# Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
+# below via #{ARGV[0]}, #{ARGV[1]}, etc.
+@command = "./emit_test_jobs.rb"
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
 
 
 def start
+  # If a $input_file was passed down as a cmdline arg, it might already
+  # contain a job_id. Need to decide if job_id will be assigned here or at the
+  # web front-end.
   @job_id = SecureRandom.uuid
   create_result_queue
-  IO.popen([@command])  do |io| 
+  IO.popen(@command)  do |io| 
     while !io.eof?
       msg = io.gets
       if msg =~ /^push_file/
