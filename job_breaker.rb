@@ -92,10 +92,11 @@ class Job_Breaker
     @preamble = config['preamble']
     @repeat_message_n_times = config['repeat_message_n_times']
     @repeat_message_type = config['repeat_message_type']
+    @dry_run = config['dry_run']
     @enqueued_tasks = []
     
    
-    get_queue
+    get_queue unless @dry_run
     if job_string.empty? && !@job_creator_command.empty?
       wrap_job_creator
     else  
@@ -122,7 +123,7 @@ class Job_Breaker
   protected
   # Starts up the job_creator_command and listens to its STDOUT for tasks
   def wrap_job_creator
-    IO.popen([@job_creator_command])  do |io| 
+    IO.popen(@job_creator_command)  do |io| 
       while !io.eof?
         msg = io.gets
         msg = unescape(msg)
@@ -170,6 +171,10 @@ class Job_Breaker
   protected
   # Does the true heavy-lifting of enqueueing a task
   def enqueue_task_impl(msg)
+    if @dry_run
+      puts "#Would be enqueuing this: #{msg}"
+      return
+    end
     digest = Digest::MD5.hexdigest(msg)
     sent = @queue.send_message(msg)
     if digest == sent.md5
@@ -199,6 +204,10 @@ class Job_Breaker
   # Pushes a file into S3. Argument should be string in form "bucket,filename"
   def push_file(bucket_comma_filename)
     bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
+    if @dry_run
+      puts "Would be pushing '#{fname}' into bucket '#{bname}'"
+      return
+    end
     if File.exists?(fname)
       s3 = AWS::S3.new
       bucket = s3.buckets[bname]
@@ -242,6 +251,8 @@ if __FILE__ == $0
   jobs_file = ''
   preamble = ''
   creds_file = 'credentials.yml'
+  jcc = ''
+  dry_run = false
   log_file = STDOUT
   op = OptionParser.new do |opts|
     opts.banner = "Usage: job_breaker.rb [options]"
@@ -249,10 +260,10 @@ if __FILE__ == $0
     opts.on("-q", "--quiet", "Run quietly") do |q|
       quiet = q
     end
-    opts.on("-c", "--config [CONFIG_FILE]", "Use configuration file CONFIG_FILE") do |file|
+    opts.on("-c", "--config [CONFIG_FILE]", "Use configuration file CONFIG_FILE. The file ./job_breaker_config.yml is used if this option is not specified.") do |file|
       config_file = file
     end
-    opts.on("-l", "--log [LOG_FILE]","Log to file LOG_FILE") do |file|
+    opts.on("-l", "--log [LOG_FILE]","Log to file LOG_FILE. STDOUT is used if this option is not specified.") do |file|
       log_file = file
     end
     opts.on("-j", "--jobs [JOBS_FILE]","Read jobs from file JOBS_FILE") do |file|
@@ -261,8 +272,14 @@ if __FILE__ == $0
     opts.on("-p", "--preamble [PREAMBLE]","Overrides the preamble set in the configuration file with contents of the string PREAMBLE") do |text|
       preamble = text
     end
-    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE") do |file|
+    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE. The file ./credentials.yml is used if this option is not specified.") do |file|
       creds_file = file
+    end
+    opts.on("-e", "--execute [COMMAND_STRING]","Override the job_creator_command specified in the configuration file with COMMAND_STRING") do |cmd|
+      jcc = cmd
+    end
+    opts.on("-d", "--dry-run","Output tasks to STDOUT rather than placing into real queue. This is useful for checking the output of a job_creator_command while setting up a workflow.") do |d|
+      dry_run = true
     end
   end
 
@@ -298,9 +315,13 @@ if __FILE__ == $0
       log.fatal "File #{config_file} is formatted incorrectly."
       exit 1
     end
+
+    config['dry_run'] = dry_run == true ? true : false
     
     #Override the preamble if one was passed in on the cmdline
     config['preamble'] = preamble if !preamble.empty?
+    #Override the job_creator_command if one was passed in on the cmdline
+    config['job_creator_command'] = jcc if !jcc.empty?
 
     if !File.exists?(creds_file)
       warn "Credentials file '#{creds_file}' does not exist! Aborting."
