@@ -10,7 +10,7 @@ require 'aws-sdk'
 
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
-@command = "./emit_test_jobs.rb"
+@command = "./emit_test_jobs.rb #{ARGV[0]}"
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
