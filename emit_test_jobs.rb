@@ -4,6 +4,7 @@ $stdout.sync = true
 require 'json'
 
 # Emit some push_file directives
+
 puts "push_file: 6k_test.praxik,skel/08842505P7000_.skel"
 
 puts "push_file: 6k_test.praxik,soils/IA015_2550232-543033.soi"
@@ -33,6 +34,12 @@ puts "push_file: 6k_test.praxik,soils/IA153_412965-560925.soi"
   #~end
 #~end
 
+# The file passed in on cmdline will contain nothing but an integer. This
+# simulates having a meaningful job message on which to operate. For this
+# test, we will simply read that integer and enqueue that number of jobs.
+
+max = File.read(ARGV[0]).strip.to_i
+
 test_task = <<-END
     {
       "Task ID" : "1",
@@ -43,7 +50,7 @@ test_task = <<-END
 test_json = JSON.parse(test_task)
 count = 0
 
-1.upto(200) do |idx|
+1.upto(max) do |idx|
   test_json['Task ID'] = idx.to_s
   puts test_json.to_json
   sleep(2)
