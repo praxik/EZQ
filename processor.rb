@@ -130,6 +130,7 @@ class Processor
   # @result_queue. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def get_result_queue
+    return if @result_queue_name.empty?
     if (!@result_queue) || ( @result_queue && (@result_queue.arn.split(':').last != @result_queue_name) )
       @result_queue = AWS::SQS.new.queues.named(@result_queue_name)
     end
