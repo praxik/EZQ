@@ -217,7 +217,8 @@ class Job_Breaker
 
 
   protected
-  # Un-escapes an escaped string. Code cribbed from
+  # Un-escapes an escaped string. Cribbed from
+  # http://stackoverflow.com/questions/8639642/whats-the-best-way-to-escape-and-unescape-strings
   # 
   def unescape(str)
     # Escape all the things
