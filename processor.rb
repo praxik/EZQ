@@ -41,14 +41,19 @@ class Processor
   #   two key-value pairs: access_key_id and secret_access_key_id. See
   #   http://aws.amazon.com/security-credentials for more information about the
   #   value of each key.
-  # @param [Logger] logger The logger to use for logging internal output 
-  def initialize(configuration,credentials,logger = nil)
+  # @param [Logger] logger The logger to use for logging internal output
+  # @param [Hash] overrides Overrides anything specified in configuration with
+  #   the values in this hash. This is particularly useful for keeping a base
+  #   configuration file shared by multiple processes and overriding a small
+  #   number of values for each instance.
+  def initialize(configuration,credentials,logger = nil,overrides={})
     if !logger
       logger = Logger.new(STDOUT)
       logger.level = Logger::INFO
     end
     @logger = logger
     @logger.fatal "\n\n=============================================================="
+
     config = {}
     case configuration
     when Hash
@@ -56,37 +61,39 @@ class Processor
     when String
       config = parse_config_file(configuration)
     end
+    # Override config with values in overrides
+    config.merge!(overrides)
+    
     # Set up AWS with the specified credentials
-    #~credentials = {}
-    #~credentials['access_key_id'] = config['access_key_id']
-    #~credentials['secret_access_key'] = config['secret_access_key']
     AWS.config(credentials)
 
     @pid = Process.pid
    
-    # Create empty instance variables.
+    # Create instance variables with sensible defaults
     @s3_files = []
     @s3_outs = []
     @uri_files = []
     @s3_endpoints = []
-    @receive_queue_name = nil
-    @polling_options = nil
-    @halt_instance_on_timeout = nil
-    @smart_halt_when_idle_N_seconds = nil
-    @halt_type = nil
-    @store_message = nil
-    @decompress_message = nil
-    @process_command = nil
-    @retry_on_failure = nil
-    @retries = nil
-    @result_step = nil
-    @result_queue_name = nil
-    @compress_result_message  = nil
-    @keep_trail = nil
-    @cleanup_command = nil
+    @receive_queue_name = ''
+    @polling_options = {:wait_time_seconds => 20}
+    @halt_instance_on_timeout = false
+    @smart_halt_when_idle_N_seconds = 0
+    @halt_type = 'terminate'
+    @store_message = false
+    @decompress_message = false
+    @process_command = ''
+    @retry_on_failure = false
+    @retries = 0
+    @result_step = 'none'
+    @result_queue_name = ''
+    @compress_result_message = false
+    @keep_trail = false
+    @cleanup_command = ''
+    @dont_hit_disk = false
+    @msg_contents = ''
 
     # This will automatically create an instance variable based on each option
-    # in the configuration file. It will also populate each of our manually-
+    # in the config. It will also populate each of our manually-
     # created ivars above with the default value as specified in the config.
     @var_hash = {}
     config.each { |k,v| make_var("@#{k}",v) }
@@ -208,6 +215,7 @@ class Processor
     @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
     strc.gsub!('$id',id)
     strc.gsub!('$pid',@pid.to_s)
+    strc.gsub!('$msg_contents',@msg_contents)
     @logger.debug "Expanded string: '#{strc}'"
     return strc
   end
@@ -482,7 +490,8 @@ class Processor
       body = zi.inflate(Base64.decode64(body))
       zi.close
     end
-    File.open( "#{@input_filename}", 'w' ) { |output| output << body }
+    @msg_contents = body
+    File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
     
     if run_process_command(msg,@input_filename,@id)
       # Do result_step before deleting the message in case result_step fails.
@@ -556,6 +565,7 @@ if __FILE__ == $0
   quiet = false
   config_file = 'queue_config.yml'
   creds_file = 'credentials.yml'
+  queue = nil
   log_file = STDOUT
   op = OptionParser.new do |opts|
     opts.banner = "Usage: processor.rb [options]"
@@ -563,14 +573,17 @@ if __FILE__ == $0
     opts.on("-q", "--quiet", "Run quietly") do |q|
       quiet = q
     end
-    opts.on("-c", "--config [CONFIG_FILE]", "Use configuration file CONFIG_FILE") do |file|
+    opts.on("-c", "--config [CONFIG_FILE]", "Use configuration file CONFIG_FILE. Defaults to queue_config.yml if not specified.") do |file|
       config_file = file
     end
     opts.on("-l", "--log [LOG_FILE]","Log to file LOG_FILE") do |file|
       log_file = file
     end
-    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE") do |file|
+    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE. Defaults to credentials.yml if not specified.") do |file|
       creds_file = file
+    end
+    opts.on("-q", "--queue [QUEUE_NAME]","Poll QUEUE_NAME for tasks rather than the receive_queue specified in the config file") do |q|
+      queue = q
     end
   end
 
@@ -608,8 +621,9 @@ if __FILE__ == $0
       warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
       exit 1
     end
-    
-    EZQ::Processor.new(config_file,credentials,log).start
+
+    overrides = queue ? {"receive_queue_name"=>queue} : {}
+    EZQ::Processor.new(config_file,credentials,log,overrides).start
   # Handle Ctrl-C gracefully
   rescue Interrupt
     warn "\nEZQ.Processor aborted!"
