@@ -1,4 +1,4 @@
-receive_queue_name: "this_will_be_overridden_by_run_r2_polling_at_startup"
+receive_queue_name: "6k_report_gen_test_44"
 
 # (true/false)
 store_message: false
@@ -6,12 +6,12 @@ store_message: false
 # (true/false)
 decompress_message: false
 
-dont_hit_disk: true
+dont_hit_disk: false
 
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "./rusle2_aggregator.rb $msg_contents"
+process_command: "./run_r2_polling $input_file"
 
 # (true/false)
 retry_on_failure: false
