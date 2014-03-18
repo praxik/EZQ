@@ -134,7 +134,7 @@ class Processor
   
   protected
   # Call into AWS to get the result queue and put it into the variable 
-  # @result_queue. No call to AWS is made if the result queue already exists
+  # +@result_queue+. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def get_result_queue
     return if @result_queue_name.empty?
