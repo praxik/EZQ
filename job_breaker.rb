@@ -127,8 +127,8 @@ class Job_Breaker
       while !io.eof?
         msg = io.gets
         msg = unescape(msg)
-        msg.sub!(/^"/,'')
-        msg.sub!(/"$/,'')
+        msg.sub!(/^"/,'') # Remove initial wrapping quote
+        msg.sub!(/"$/,'') # Remove final wrapping quote
         if msg =~ /^push_file/
           push_file( msg.sub!(/^push_file\s*:\s*/,'') )
         else
