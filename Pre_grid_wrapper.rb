@@ -23,19 +23,27 @@ def start
   @job_id = SecureRandom.uuid
   task_ids = []
   create_result_queue
+  listening = false
   IO.popen(@command)  do |io| 
     while !io.eof?
       msg = io.gets
-      if msg =~ /^push_file/  # *Starts* with 'push_file'...
-        bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
-        @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
-        puts msg
+      if listening
+        if msg =~ /^pregrid_end_messages/ # Stop listening when we get this.
+          listening = false
+        elsif msg =~ /^push_file/  # *Starts* with 'push_file'...
+          bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
+          @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
+          puts msg
+        else
+          task_ids.push( YAML.load(msg)['task_id'] )
+          msg.insert(0,make_preamble)
+          puts msg.dump
+          # Don't accumulate files across tasks
+          @pushed_files.clear
+        end
       else
-        task_ids.push( YAML.load(msg)['task_id'] )
-        msg.insert(0,make_preamble)
-        puts msg.dump
-        # Don't accumulate files across tasks
-        @pushed_files.clear
+        if msg =~ /^pregrid_begin_messages/ # @command will only output
+          listening = true                  # valid messages now. It promises.
       end
     end
   end
