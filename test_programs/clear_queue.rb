@@ -12,8 +12,8 @@ begin
   puts "This may appear to hang for ~20 seconds at the end. Nothing is wrong." 
   puts "That's just the effect of the long-polling wait timeout you've set on the queue."
   puts "Once you stop seeing 'Deleting...' messages, feel free to interrupt with ctrl-c.\n\n"
-  queue.poll(:idle_timeout => 2) do |msg|
-    puts "Deleting message #{msg.id}"
+  queue.poll(:idle_timeout => 2,:batch_size => 10) do |msg|
+    Array(msg).each {|item| puts "Deleting message #{item.id}"}
   end
 rescue Interrupt
   warn "\nclear_queue aborted."
