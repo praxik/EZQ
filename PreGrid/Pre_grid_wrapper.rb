@@ -10,7 +10,8 @@ require 'aws-sdk'
 
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
-@command = "./emit_test_jobs.rb #{ARGV[0]}"
+#@command = "./emit_test_jobs.rb #{ARGV[0]}"
+@command = ""
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
@@ -42,8 +43,8 @@ def start
           @pushed_files.clear
         end
       else
-        if msg =~ /^pregrid_begin_messages/ # @command will only output
-          listening = true                  # valid messages now. It promises.
+        listening = true if msg =~ /^pregrid_begin_messages/
+        # @command will only output valid messages now. It promises.
       end
     end
   end
