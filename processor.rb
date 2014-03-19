@@ -414,10 +414,10 @@ class Processor
   def fetch_s3(msg)
   @s3_files.clear
 	body = YAML.load(msg.body)
-  return nil if !body.kind_of?(Hash)
-  return nil if !body.has_key?('EZQ')
+  return true if !body.kind_of?(Hash)
+  return true if !body.has_key?('EZQ')
   preamble = body['EZQ']
-	return nil if !preamble.has_key?('get_s3_files')
+	return true if !preamble.has_key?('get_s3_files')
 	files = preamble['get_s3_files']
 	files.each do |props|
 	  @logger.info "Getting object #{props['key']} from bucket #{props['bucket']}"
@@ -426,12 +426,17 @@ class Processor
 	  bucket = s3.buckets[ props['bucket'] ]
 	  obj = bucket.objects[ props['key'] ]
     FileUtils.mkdir_p(File.dirname(props['key']))
-	  File.open(props['key'],'wb'){ |file| obj.read {|chunk| file.write(chunk)} }
+    begin
+      File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
+      return true
       # TODO:
       # Perhaps I'll reinstate decompression ability via another file-specific
       # k-v pair:  decompress: true/false
       # Really need to support something more than zlib for this to be useful
       #decompress_file(infile) if @decompress_message
+    rescue
+      @logger.error "Unable to fetch #{props['key']} from S3."
+      return false  
     end
   end
 
@@ -478,7 +483,10 @@ class Processor
     @id = msg.id
     
     override_configuration(msg.body)
-    fetch_s3(msg)
+    if !fetch_s3(msg)
+      cleanup(@input_filename,@id)
+      return
+    end
     fetch_uri(msg)
     store_s3_endpoints(msg)
     strip_directives(msg)
