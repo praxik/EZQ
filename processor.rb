@@ -215,7 +215,7 @@ class Processor
     @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
     strc.gsub!('$id',id)
     strc.gsub!('$pid',@pid.to_s)
-    strc.gsub!('$msg_contents',@msg_contents)
+    strc.gsub!('$msg_contents',@msg_contents.dump) #Have to escape msg conts!
     @logger.debug "Expanded string: '#{strc}'"
     return strc
   end
@@ -248,6 +248,7 @@ class Processor
     @logger.info "Running command '#{commandline}'"
     success = system(commandline)
     @logger.fatal "Command does not exist!" if success == nil
+    @logger.warn "Command '#{commandline}' failed" if !success
     if @retry_on_failure && !success
       num = @retries.to_i
       num.times do
@@ -285,6 +286,7 @@ class Processor
     cfg = YAML.load(body)
     return if !cfg.kind_of? Hash
     cfg = cfg['EZQ']
+    return if !cfg
     cfg.each do |k,v|
       if @var_hash.has_key? "@#{k}"
         instance_variable_set("@#{k}",v) unless protected_vars.include?(k)
@@ -412,31 +414,32 @@ class Processor
 
   protected
   def fetch_s3(msg)
-  @s3_files.clear
-	body = YAML.load(msg.body)
-  return true if !body.kind_of?(Hash)
-  return true if !body.has_key?('EZQ')
-  preamble = body['EZQ']
-	return true if !preamble.has_key?('get_s3_files')
-	files = preamble['get_s3_files']
-	files.each do |props|
-	  @logger.info "Getting object #{props['key']} from bucket #{props['bucket']}"
-    @s3_files.push(props['key'])
-	  s3 = AWS::S3.new
-	  bucket = s3.buckets[ props['bucket'] ]
-	  obj = bucket.objects[ props['key'] ]
-    FileUtils.mkdir_p(File.dirname(props['key']))
-    begin
-      File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
-      return true
-      # TODO:
-      # Perhaps I'll reinstate decompression ability via another file-specific
-      # k-v pair:  decompress: true/false
-      # Really need to support something more than zlib for this to be useful
-      #decompress_file(infile) if @decompress_message
-    rescue
-      @logger.error "Unable to fetch #{props['key']} from S3."
-      return false  
+    @s3_files.clear
+    body = YAML.load(msg.body)
+    return true if !body.kind_of?(Hash)
+    return true if !body.has_key?('EZQ')
+    preamble = body['EZQ']
+    return true if !preamble.has_key?('get_s3_files')
+    files = preamble['get_s3_files']
+    files.each do |props|
+      @logger.info "Getting object #{props['key']} from bucket #{props['bucket']}"
+      @s3_files.push(props['key'])
+      s3 = AWS::S3.new
+      bucket = s3.buckets[ props['bucket'] ]
+      obj = bucket.objects[ props['key'] ]
+      FileUtils.mkdir_p(File.dirname(props['key']))
+      begin
+        File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
+        return true
+        # TODO:
+        # Perhaps I'll reinstate decompression ability via another file-specific
+        # k-v pair:  decompress: true/false
+        # Really need to support something more than zlib for this to be useful
+        #decompress_file(infile) if @decompress_message
+      rescue
+        @logger.error "Unable to fetch #{props['key']} from S3."
+        return false  
+      end
     end
   end
 
