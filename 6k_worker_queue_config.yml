@@ -1,7 +1,7 @@
 receive_queue_name: "6k_task_test_44"
 
 # (true/false)
-store_message: true
+store_message: false
 
 # (true/false)
 decompress_message: false
@@ -9,7 +9,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "./6k_worker.exe --connector ODBC --leafconnstr Server=10.1.2.5;Port=5432; --ssurgoconnstr Server=10.1.2.8;Port=5432; --gdbname iowammp.gdb --inputfilename $input_file --workerid $pid"
+process_command: "6k_worker_leafapps.exe --connector ODBC --leafconnstr Server=10.1.2.5;Port=5432; --ssurgoconnstr Server=10.1.2.8;Port=5432; --gdbname iowammp.gdb --inputfilename $input_file --workerid $pid -o output_$id.txt"
 
 # (true/false)
 retry_on_failure: false
@@ -22,7 +22,7 @@ polling_options:
     - :all
 
 # none, post_to_result_queue
-result_step: none
+result_step: post_to_result_queue
 
 result_queue_name: ""
 
@@ -30,7 +30,7 @@ result_queue_name: ""
 compress_result_message: false
 
 # (true/false)
-keep_trail: true
+keep_trail: false
 
 # Available vars: see process_command
 cleanup_command: ""
