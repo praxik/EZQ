@@ -1,12 +1,9 @@
 #!/usr/bin/env ruby
 
 require 'bundler/setup'
-
 require 'json'
 require 'yaml'
 require 'aws-sdk'
-#require 'zlib'
-#require 'base64'
 require 'logger'
 require 'digest/md5'
 require 'deep_merge'

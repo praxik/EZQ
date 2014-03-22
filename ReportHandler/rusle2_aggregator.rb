@@ -2,7 +2,7 @@
 
 # The message passed to this program on the commandline will be parsed and
 # placed into a PostgreSQL database.
-
+require 'bundler/setup'
 require 'pg'
 require 'json'
 require 'socket'

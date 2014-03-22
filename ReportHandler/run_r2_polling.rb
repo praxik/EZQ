@@ -1,7 +1,7 @@
 #!/use/bin/env ruby
 
 # This application serves the role of ReportHandler for rusle2 data.
-
+require 'bundler/setup'
 require './processor.rb'
 require 'json'
 
