@@ -7,11 +7,12 @@ require 'bundler/setup'
 require 'yaml'
 require 'securerandom'
 require 'aws-sdk'
+require 'json'
 
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
 #@command = "./emit_test_jobs.rb #{ARGV[0]}"
-@command = ""
+@command = "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=10.1.2.6;Port=5432; --ssurgoconnstr Server=10.1.2.8;Port=5432; --gdbname iowammp.gdb"
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
@@ -35,7 +36,7 @@ def start
           bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
           @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
           puts msg
-        else
+        else # This is a task to pass to job_breaker
           task_ids.push( YAML.load(msg)['task_id'] )
           msg.insert(0,make_preamble)
           puts msg.dump
@@ -53,17 +54,19 @@ def start
   #    "Job ID" : "My Job ID",
   #    "Task IDs" : ["TaskID_0","TaskID_1","TaskID_...","TaskID_5999"]
   #  }
-  report_gen = { "Job ID" => @job_id }
-  report_gen['Task IDs'] = task_ids
+  report_gen = { "job_id" => @job_id }
+  report_gen['task_ids'] = task_ids
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
-  sqs.queues['6k_report_gen_test_44'].send_message(report_gen.to_yaml)
+  sqs.queues.named('6k_report_gen_test_44').send_message(report_gen.to_json)
 end
 
 def create_result_queue
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
-  sqs.queues.create("#{@job_id}")
+  q = sqs.queues.create("#{@job_id}")
+  # Block until the queue is available
+  sleep (1000) until q.exists?
 end
 
 def make_preamble
