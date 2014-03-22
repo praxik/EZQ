@@ -2,7 +2,7 @@
 
 # This application serves the role of ReportHandler for rusle2 data.
 
-require '../processor.rb'
+require './processor.rb'
 require 'json'
 
 
@@ -33,8 +33,8 @@ class RusleReport < EZQ::Processor
     exit 1 if !File.exists?(filename)
     job_details = JSON.parse(File.read(filename))
 
-    @rr_job_id = job_details['Job ID']
-    @rr_task_ids = job_details['Task IDs']
+    @rr_job_id = job_details['job_id']
+    @rr_task_ids = job_details['task_ids']
 
     # Each time a task is completed, we remove it from rr_remaining_tasks.
     # When rr_remaining_tasks is empty, we know we've processed all tasks
@@ -50,9 +50,16 @@ class RusleReport < EZQ::Processor
   # Override of EZQ::Processor method to add logic to keep track of completed
   # tasks.
   def run_process_command(msg,input_filename,id)
+    # Open up the results and insert the current job id
+    parsed_msg = JSON.parse(msg)
+    parsed_msg['job_id'] = @rr_job_id
+    msg = parsed_msg.to_json
+    
     success = super
+
+    # If parent processing was successful, mark the task as completed
     if success
-      task_id = JSON.parse(@msg_contents)['Task ID']
+      task_id = JSON.parse(msg)['task_id']
       @rr_remaining_tasks.delete(task_id)
       return true
     else
