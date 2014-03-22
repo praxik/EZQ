@@ -4,6 +4,7 @@
 require 'bundler/setup'
 require './processor.rb'
 require 'json'
+require 'aws-sdk'
 
 
 # What I want to do here is to call EZQ::processor, giving it job_id as the
@@ -74,7 +75,10 @@ class RusleReport < EZQ::Processor
     @in_queue.poll_no_delete(@polling_options) do |msg|
       Array(msg).each do |item|
         process_message(item)
-        exit(0) if @rr_remaining_tasks.empty?
+        if @rr_remaining_tasks.empty?
+          AWS::SQS.new.queues.named("#{@job_id}").delete
+          exit(0)
+        end
       end
     end
   end
