@@ -26,10 +26,10 @@ num = y['number_of_processes'].to_i
 pids = []
 
 num.times do |idx|
-  Dir.chdir("%02d" % idx) {pids << spawn(command)}
+  #Dir.chdir("%02d" % idx) {pids << spawn(command)}
   # To run directly in place rather than in numbered subdirs, comment
   # out the previous line and uncomment the following:
-  #pids << spawn(command)
+  pids << spawn(command)
 end
 
 pids.each do |pid| 
