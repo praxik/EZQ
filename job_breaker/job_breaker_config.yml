@@ -1,5 +1,5 @@
 task_queue_name: '6k_task_test_44'
-job_creator_command: "../PreGrid/Pre_grid_wrapper.rb"
+job_creator_command: "ruby Pre_grid_wrapper.rb"
 preamble: ""
 repeat_message_n_times: 0
 # collection or inline

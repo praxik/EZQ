@@ -11,7 +11,7 @@ dont_hit_disk: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "./run_r2_polling $input_file"
+process_command: "ruby run_r2_polling -c aggregator_queue_config.yml $input_file"
 
 # (true/false)
 retry_on_failure: false

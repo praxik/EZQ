@@ -1,4 +1,4 @@
-receive_queue_name: "this_will_be_overridden_by_run_r2_polling_at_startup"
+receive_queue_name: ""
 
 # (true/false)
 store_message: false
@@ -11,7 +11,7 @@ dont_hit_disk: true
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "./rusle2_aggregator.rb $msg_contents"
+process_command: "ruby rusle2_aggregator.rb $msg_contents"
 
 # (true/false)
 retry_on_failure: false
