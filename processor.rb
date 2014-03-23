@@ -619,7 +619,7 @@ if __FILE__ == $0
     if quiet && log_file == STDOUT
       log.level = Logger::UNKNOWN
     else
-      log.level = Logger::DEBUG
+      log.level = Logger::INFO
     end
 
     if !File.exists?(creds_file)
