@@ -5,7 +5,10 @@ require './deps/configulator'
 begin
   cf = Configulator.new
 
-  queue = AWS::SQS.new.queues.named(cf.queue_name)
+  q = String.new(ARGV[0])
+  q = q.empty? ? cf.queue_name : q
+
+  queue = AWS::SQS.new.queues.named(q) 
 
   # Get each message from the queue using block form that autodeletes.
   puts "\nClearing queue #{cf.queue_name}."
