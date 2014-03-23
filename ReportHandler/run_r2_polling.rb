@@ -52,15 +52,15 @@ class RusleReport < EZQ::Processor
   # tasks.
   def run_process_command(msg,input_filename,id)
     # Open up the results and insert the current job id
-    parsed_msg = JSON.parse(msg)
+    parsed_msg = JSON.parse(@msg_contents)
     parsed_msg['job_id'] = @rr_job_id
-    msg = parsed_msg.to_json
+    @msg_contents = parsed_msg.to_json
     
     success = super
 
     # If parent processing was successful, mark the task as completed
     if success
-      task_id = JSON.parse(msg)['task_id']
+      task_id = JSON.parse(@msg_contents)['cell_id']
       @rr_remaining_tasks.delete(task_id)
       return true
     else
@@ -76,7 +76,7 @@ class RusleReport < EZQ::Processor
       Array(msg).each do |item|
         process_message(item)
         if @rr_remaining_tasks.empty?
-          AWS::SQS.new.queues.named("#{@job_id}").delete
+          AWS::SQS.new.queues.named("#{@rr_job_id}").delete
           exit(0)
         end
       end
@@ -136,7 +136,7 @@ if __FILE__ == $0
     if quiet && log_file == STDOUT
       log.level = Logger::UNKNOWN
     else
-      log.level = Logger::DEBUG
+      log.level = Logger::INFO
     end
 
     if !File.exists?(creds_file)
