@@ -26,6 +26,7 @@ num = y['number_of_processes'].to_i
 pids = []
 
 num.times do |idx|
+  command += " --log ./processor_" + "%02d" % idx + ".log"
   #Dir.chdir("%02d" % idx) {pids << spawn(command)}
   # To run directly in place rather than in numbered subdirs, comment
   # out the previous line and uncomment the following:
