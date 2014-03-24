@@ -28,8 +28,23 @@ class Rusle2Aggregator < SingletonApp
     end
     # These two lines are the only things hard-coded to refer to the
     # rusle2 output. Everything else is generic.
-    @tablename = 'rusle2'
-    @db.exec("CREATE TABLE IF NOT EXISTS rusle2 (job_id TEXT, cell_id TEXT, eros REAL, sci REAL)")
+    @tablename = 'inl_results'
+    sql = %{
+      create table if not exists #{@tablename}(
+        job_id text,
+        cell_id text,
+        abbr text,
+        mukey text,
+        cokey text,
+        sci float,
+        scier float,
+        scifo float,
+        sciom float,
+        toteros float,
+        watereros float,
+        winderos float,
+        totbiorem float ) }
+    @db.exec( sql )
   end
 
 

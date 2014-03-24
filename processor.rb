@@ -430,7 +430,6 @@ class Processor
       FileUtils.mkdir_p(File.dirname(props['key']))
       begin
         File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
-        return true
         # TODO:
         # Perhaps I'll reinstate decompression ability via another file-specific
         # k-v pair:  decompress: true/false
@@ -441,6 +440,7 @@ class Processor
         return false  
       end
     end
+    return true
   end
 
 
