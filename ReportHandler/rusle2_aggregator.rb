@@ -32,10 +32,15 @@ class Rusle2Aggregator < SingletonApp
     sql = %{
       create table if not exists #{@tablename}(
         job_id text,
-        cell_id text,
+        cell_id int,
         abbr text,
+        musym text,
         mukey text,
         cokey text,
+        slope float,
+        man text,
+        rotation text,
+        yields text,
         sci float,
         scier float,
         scifo float,
