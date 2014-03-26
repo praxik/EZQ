@@ -12,7 +12,8 @@ require 'json'
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
 #@command = "./emit_test_jobs.rb #{ARGV[0]}"
-@command = "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik; --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres; --gdbname inl.gdb -m 1 -x 12"
+@command = YAML.load(File.read('pre_grid_command.yml')['command']
+#@command = "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik; --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres; --gdbname inl.gdb -m 1 -x 12"
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
