@@ -11,7 +11,7 @@ begin
     exit 1
   end
 
-  credentials = YAML.load(File.read('../credentials.yml'))
+  credentials = YAML.load(File.read('credentials.yml'))
   AWS.config(credentials)
 
   queue = AWS::SQS.new.queues.named(q) 
