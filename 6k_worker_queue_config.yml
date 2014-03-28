@@ -1,5 +1,7 @@
 receive_queue_name: "6k_task_test_44"
 
+error_queue_name: "6k_error_test_44"
+
 # (true/false)
 store_message: false
 

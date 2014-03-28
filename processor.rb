@@ -75,6 +75,7 @@ class Processor
     @uri_files = []
     @s3_endpoints = []
     @receive_queue_name = ''
+    @error_queue_name = ''
     @polling_options = {:wait_time_seconds => 20}
     @halt_instance_on_timeout = false
     @smart_halt_when_idle_N_seconds = 0
@@ -256,8 +257,29 @@ class Processor
         success = system(commandline)
         break if success
       end
-    end  
+    end
+    if !success
+      err_msg = "Command '#{commandline}' failed under pid #{@pid.to_s} "
+      err_msg += "on instance #{@instance_id} " if !@instance_id .empty?
+      err_msg += "with message contents:\n\n"
+      err_msg += @msg_contents
+      send_error(err_msg) unless success
+    end
     return success
+  end
+
+
+  protected
+  # Sends an error message to the named error queue
+  # @param [String] msg The message to put in the error queue
+  def send_error( msg )
+    return if @error_queue_name.empty?
+    err_q = AWS::SQS.new.queues.named(@error_queue_name)
+    if !err_q.exists?
+      @logger.error "Unable to connect to error queue #{@error_queue_name}."
+      return
+    end
+    err_q.send_message( msg )
   end
   
   
