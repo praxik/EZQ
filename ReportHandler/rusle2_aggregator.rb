@@ -8,6 +8,7 @@ require 'json'
 require 'socket'
 require 'tmpdir'
 require './singleton_app'
+require './data_spec_parser.rb'
 
 class Rusle2Aggregator < SingletonApp
 
@@ -26,29 +27,11 @@ class Rusle2Aggregator < SingletonApp
         user: 'app',
         password: 'app')
     end
-    # These two lines are the only things hard-coded to refer to the
-    # rusle2 output. Everything else is generic.
-    @tablename = 'inl_results'
-    sql = %{
-      create table if not exists #{@tablename}(
-        job_id text,
-        cell_id int,
-        abbr text,
-        musym text,
-        mukey text,
-        cokey text,
-        slope float,
-        man text,
-        rotation text,
-        yields text,
-        sci float,
-        scier float,
-        scifo float,
-        sciom float,
-        toteros float,
-        watereros float,
-        winderos float,
-        totbiorem float ) }
+
+    data_spec = DataSpecParser::get_data_spec('main.cxx')
+    @tablename = data_spec[:tablename]
+    
+    sql = "create table if not exists #{@tablename}( #{data_spec[:fields]} )"
     @db.exec( sql )
   end
 
@@ -93,7 +76,9 @@ class Rusle2Aggregator < SingletonApp
       val_holders.push("$#{i+1}")
       bindings.push(v)
     end
-    result = @db.exec_params( "INSERT INTO #{@tablename} (#{cols.join(',')}) VALUES(#{val_holders.join(',')})", bindings)
+    result = @db.exec_params( %[ INSERT INTO #{@tablename} (#{cols.join(',')})
+                                 VALUES(#{val_holders.join(',')}) ],
+                                 bindings)
     result.check
     return true
   rescue => e
