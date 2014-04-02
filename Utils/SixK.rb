@@ -25,7 +25,7 @@ class SixK
     # These cannot be overridden on commandline
     vpc_id = 'vpc-e894b787'
     vpc_subnet = 'subnet-fc94b793'
-    security_groups = ['dev-persistence-server','dev-kibitz-worker']
+    security_groups = ['dev-base','dev-kibitz-worker']
 
     # Options that can be orverridden on commandline
     count = 1                 # number of instances to start up simultaneously
