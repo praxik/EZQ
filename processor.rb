@@ -633,6 +633,7 @@ if __FILE__ == $0
     puts "EZQ.Processor started.\n\n" unless quiet
     if log_file != STDOUT
       lf = File.new(log_file, 'a')
+      lf.sync = true
       log = Logger.new(lf)
       $stderr = lf
     else
