@@ -20,7 +20,7 @@ class SixK
     # Allow choice from these AMIs only
     imgs = { 'worker'        => 'ami-43a9bd2a',
              'pregrid'       => '????????????',
-             'reporthandler' => '????????????' }
+             'reporthandler' => 'ami-1352417a' }
 
     # These cannot be overridden on commandline
     vpc_id = 'vpc-e894b787'
@@ -96,12 +96,25 @@ class SixK
       exit 1
     end
 
+    userdata = {}
+    userdata['deploy_bucket'] = '6k_test.praxik'
+    case type
+    when 'worker'
+      userdata['deploy_key'] = 'arks/default/worker.zip'
+    when 'pregrid'
+      userdata['deploy_key'] = 'arks/default/pregrid.zip'
+    when 'reporthandler'
+      userdata['deploy_key'] = 'arks/default/reporthandler.zip'
+    end
+    userdata['processes'] = processes
+
+
     option_hash = { :image_id => imgs[type],
                 :subnet => vpc_subnet,
                 :security_groups => security_groups,
                 :instance_type => size,
                 :count => count,
-                :user_data => "processes: #{processes}" }
+                :user_data => userdata.to_yaml }
 
     instances = Array(AWS::EC2.new.instances.create(option_hash))
 
