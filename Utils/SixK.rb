@@ -18,8 +18,8 @@ class SixK
     args = Array(argv)
 
     # Allow choice from these AMIs only
-    imgs = { 'worker'        => 'ami-43a9bd2a',
-             'pregrid'       => '????????????',
+    imgs = { 'worker'        => 'ami-ede2f184',
+             'pregrid'       => 'ami-ede2f184',
              'reporthandler' => 'ami-1352417a' }
 
     # These cannot be overridden on commandline
@@ -106,7 +106,7 @@ class SixK
     when 'reporthandler'
       userdata['deploy_key'] = 'arks/default/reporthandler.zip'
     end
-    userdata['processes'] = processes
+    userdata['number_of_processes'] = processes
 
 
     option_hash = { :image_id => imgs[type],
@@ -180,7 +180,7 @@ class SixK
       opts.on("-f","--idfile FILE",
                     "File containing list of instance IDs to",
                     "#{action}.") do |f|
-        id_file = i
+        id_file = f
       end
       opts.on("-p","--ips LIST", Array,
                     "List of instance IP addresses to ",
@@ -243,6 +243,9 @@ class SixK
       end
       type = ['worker','pregrid','reporthandler'] if type == ['all']
       type.map! {|e| "6k_#{e}"}
+      # Get instances limited to those with a Type tag matching one of our
+      # allowed tags. This prevents us from being able to accidentally
+      # stop or terminate a non-6k instance.
       instances = Array(AWS::EC2.new.instances)
                     .reduce(AWS::EC2::InstanceCollection.new) do |c,i|
                       c << i if type.include?(i.tags['Type'])
@@ -253,7 +256,7 @@ class SixK
     # Gather together all ids from both possible id sources
     begin
       if !id_file.empty?
-        id_list << File.readlines(id_file)
+        id_list << File.readlines(id_file).map {|l| l.strip}
       end
     rescue
       warn "Error opening or reading #{id_file}. Aborting."
@@ -274,16 +277,27 @@ class SixK
     instances = instances.filter('private-ip-adddress',ip_list) if !ip_list.empty?
     instances = instances.filter('instance-id',id_list) if !id_list.empty?
 
+
     # Select only the running or pending ones if halting
     if ['stop','terminate'].include?(action)
       instances = instances.filter('instance-state-name','running','pending')
     else # Or stopped ones if starting
       instances = instances.filter('instance-state-name','stopped')
     end
+
     
     # Really start|stop|terminate these?
     unless no_prompt
-      puts "The following instances will be #{action}-ed:"
+      verbed = ''
+      case action
+      when 'start'
+        verbed = 'started'
+      when 'stop'
+        verbed = 'stopped'
+      when 'terminate'
+        verbed = 'terminated'
+      end
+      puts "The following instances will be #{verbed}:"
       instances.each {|i| puts "%-10s  %-30s  %-12s  %-10s" % [i.id,
                           i.tags['Name'],i.private_ip_address,i.instance_type] }
       puts ""
@@ -296,7 +310,7 @@ class SixK
       end
     end
 
-    case #{action}
+    case action
     when 'start'
       instances.each {|i| i.start}
       puts 'Started instances.'
@@ -380,6 +394,10 @@ class SixK
       exit 0
     end
 
+    puts '---------------------------------------------------------------------'
+    puts "%-10s  %-30s  %-3s  %-12s  %-10s" %
+      ['ID','Name','State','Priv. IP','Size']
+    puts '---------------------------------------------------------------------'
     all_inst.each do |k,v|
       v.insert(0,k)
       str = "%-10s  %-30s  %-3s  %-12s  %-10s" % v
