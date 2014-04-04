@@ -8,6 +8,10 @@ begin
   q = String.new(ARGV[0])
   if q.empty?
     warn 'You must specify a queue name'
+    warn 'Usage: clear_queue QUEUE_NAME'
+    warn ''
+    warn 'This application naively assumes that a credentials.yml is in the'
+    warn 'current directory'
     exit 1
   end
 
