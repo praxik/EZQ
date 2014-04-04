@@ -245,7 +245,8 @@ class SixK
       type.map! {|e| "6k_#{e}"}
       # Get instances limited to those with a Type tag matching one of our
       # allowed tags. This prevents us from being able to accidentally
-      # stop or terminate a non-6k instance.
+      # stop or terminate a non-6k instance. This protection only works if a 
+      # type was sepcified, though!
       instances = Array(AWS::EC2.new.instances)
                     .reduce(AWS::EC2::InstanceCollection.new) do |c,i|
                       c << i if type.include?(i.tags['Type'])
@@ -334,13 +335,39 @@ class SixK
 
   def self.list(argv=[])
     args = Array(argv)
+
+    status_flags = []
     
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
-        Usage: 6k list TYPE
+        Usage: 6k list TYPE [options]
           where TYPE is one of [all, worker, pregrid, reporthandler]
-        
+
+        The options p, r, s, and t can be combined into a single switch, eg.
+          6k list all -pr
+          6k list all -tsrp
+
+        Omitting the p, r, s, and t options entirely has the same effect as
+          specifying all of them.
+
+        Options:
         END
+      opts.on("-p","--pending",
+                    "List pending instances.") do |f|
+        status_flags << :pending
+      end
+      opts.on("-r","--running",
+                    "List running instances.") do |f|
+        status_flags << :running
+      end
+      opts.on("-s","--stopped",
+                    "List stopped/stopping instances.") do |f|
+        status_flags << :stopped << :stopping
+      end
+      opts.on("-t","--terminated",
+                    "List terminated/shutting-down instances.") do |f|
+        status_flags << :terminated << :shutting_down
+      end
     end
 
     # User issued 6k help list
@@ -377,10 +404,15 @@ class SixK
                             :terminated => 'T',
                             :stopping => 'Sg',
                             :stopped => 'S' }
+
+    if status_flags.empty?
+      status_flags =
+               [:pending,:running,:shutting_down,:terminated,:stopping,:stopped]
+    end
                             
     ec2 = AWS::EC2.new
     all_inst = ec2.instances.filter('tag-key','Type').reduce({}) do |h, i|
-      if type.include?( i.tags['Type'] )
+      if type.include?( i.tags['Type'] ) and status_flags.include?(i.status)
         h[i.id] = [i.tags['Name'],
                    status_replacements[i.status],
                    i.private_ip_address,
