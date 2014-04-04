@@ -6,24 +6,8 @@ require './processor.rb'
 require 'json'
 require 'aws-sdk'
 
-
-# What I want to do here is to call EZQ::processor, giving it job_id as the
-# receive_queue_name, and have it in turn call rusle2_aggregator.rb with
-# each result message. The problem is that this program has no way of knowing
-# when a given message has been pulled down and stored in the db. It leaves no
-# way to remove tasks from remaining_tasks.
-
-# One option is to copy over the queue polling code from EZQ::processor and
-# manually do that work here instead of starting up an EZQ::processor.
-
-# A somewhat better strategy would be to inherit from EZQ::processor and
-# override run_process_command, storing the return value of super in a
-# boolean. If true, then here I can look at the msg contents, identify the
-# task id, and remove it from my list.
-
-# That last one seems like a better strategy than messing with EZQ::processor
-# to hack some sort socket or stdout communication into it, which would be
-# another option.
+# This class overrides a few chosen methods of EZQ processor to insert task
+# tracking into the flow.
 
 class RusleReport < EZQ::Processor
 
@@ -80,6 +64,17 @@ class RusleReport < EZQ::Processor
           exit(0)
         end
       end
+    end
+    # Polling has timed out based on value of :idle_timeout
+    if !@rr_remaining_tasks.empty?
+      errm = <<-END
+        Reporthandler on instance #{@instance_id} has timed out while
+        awaiting results from job #{@rr_job_id}.
+        #{@rr_remaining_tasks.size} result sets have not been received.
+
+        Their IDs are: #{@rr_remaining_tasks}
+        END
+      send_error(errm)
     end
   end
 
