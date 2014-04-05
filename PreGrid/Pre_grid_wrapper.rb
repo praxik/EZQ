@@ -8,18 +8,21 @@ require 'yaml'
 require 'securerandom'
 require 'aws-sdk'
 require 'json'
+require 'logger'
 
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
 #@command = "./emit_test_jobs.rb #{ARGV[0]}"
-@command = YAML.load(File.read('pre_grid_command.yml')['command']
+@command = YAML.load(File.read('pre_grid_command.yml'))['command']
 #@command = "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik; --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres; --gdbname inl.gdb -m 1 -x 12"
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
-
+    
 
 def start
+  @log.info '------------------------------------------------------------------'
+  @log.info 'Pre_grid_wrapper started'
   # If a $input_file was passed down as a cmdline arg, it might already
   # contain a job_id. Need to decide if job_id will be assigned here or at the
   # web front-end.
@@ -33,11 +36,14 @@ def start
       if listening
         if msg =~ /^pregrid_end_messages/ # Stop listening when we get this.
           listening = false
+          @log.info 'Stopped listening for messages'
         elsif msg =~ /^push_file/  # *Starts* with 'push_file'...
+          @log.info 'Push file message'
           bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
           @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
           puts msg
         else # This is a task to pass to job_breaker
+          @log.info 'Task message'
           task_ids.push( YAML.load(msg)['task_id'] )
           msg.insert(0,make_preamble)
           puts msg.dump
@@ -46,9 +52,11 @@ def start
         end
       else
         listening = true if msg =~ /^pregrid_begin_messages/
+        @log.info 'Listening for messages'
         # @command will only output valid messages now. It promises.
       end
     end
+  @log.info 'Pre_grid_wrapper stopping'
   end
   # Form and send off Report Gen Queue message
   #  {
@@ -80,6 +88,12 @@ def make_preamble
   preamble += "...\n"
   return preamble
 end
+
+lf = File.new('Pre_grid_wrapper.log', 'a')
+lf.sync = true
+@log = Logger.new(lf)
+$stderr = lf
+@log.level = Logger::INFO
 
 creds = YAML.load(File.read('credentials.yml'))
 @access_key = creds['access_key_id']
