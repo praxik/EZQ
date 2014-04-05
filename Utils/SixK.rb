@@ -18,8 +18,8 @@ class SixK
     args = Array(argv)
 
     # Allow choice from these AMIs only
-    imgs = { 'worker'        => 'ami-ede2f184',
-             'pregrid'       => 'ami-ede2f184',
+    imgs = { 'worker'        => 'ami-830b19ea',
+             'pregrid'       => 'ami-830b19ea',
              'reporthandler' => 'ami-1352417a' }
 
     # These cannot be overridden on commandline
@@ -32,6 +32,8 @@ class SixK
     processes = 1             # number of processes to start up on each machine
     size = 't1.micro'         # machine size on which to run
     name = ''                 # name with which to tag instance(s)
+    manage = false            # whether to start up a management instance
+                              # of a functioning _type_ instance
     
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
@@ -66,6 +68,13 @@ class SixK
                     "  m1.large, m1.xlarge, c3.8xlarge].",
                     "  Default: t1.micro") do |s|
         size = s
+      end
+      opts.on("-m","--manage",
+                    "Starts an instance lacking the userdata",
+                    "  needed by bootstrap. This allows you",
+                    "  to alter the base AMI and save as a new",
+                    "  AMI.") do |p|
+        manage = true
       end
     end
 
@@ -108,6 +117,10 @@ class SixK
     end
     userdata['number_of_processes'] = processes
 
+    # Clearing out the userdata ensures that bootstrap exits due to lack
+    # of info about what to start up.
+    userdata = {} if manage
+
 
     option_hash = { :image_id => imgs[type],
                 :subnet => vpc_subnet,
@@ -120,6 +133,7 @@ class SixK
 
     # Slap a Name and Type tag on each of these instances
     name = "6k_#{type}" if name.empty?
+    name = "#{name}_manage" if manage
     ec2 = AWS::EC2.new
     instances.each do |inst|
       ec2.tags.create(inst, 'Name', :value => name)
@@ -227,7 +241,7 @@ class SixK
       exit 1
     end
 
-    if id_list.empty? and id_file.empty? and ip_list.empty? and ip_file.empty?
+    if id_list.empty? and id_file.empty? and ip_list.empty? and ip_file.empty? and type.empty?
       warn "Error: Must specify one or more of [--ids, --idfile, --ips, --idfile]"
       puts ''
       puts op
@@ -241,17 +255,19 @@ class SixK
         warn "Invalid type \"#{type}\"; must be one of #{allowable}"
         exit 1
       end
+      type = Array(type)
       type = ['worker','pregrid','reporthandler'] if type == ['all']
       type.map! {|e| "6k_#{e}"}
       # Get instances limited to those with a Type tag matching one of our
       # allowed tags. This prevents us from being able to accidentally
       # stop or terminate a non-6k instance. This protection only works if a 
       # type was sepcified, though!
-      instances = Array(AWS::EC2.new.instances)
-                    .reduce(AWS::EC2::InstanceCollection.new) do |c,i|
-                      c << i if type.include?(i.tags['Type'])
-                      c
-                    end
+      filter_string = ''
+      type.each do |t|
+        filter_string += "'#{t}',"
+      end
+      filter_string.slice!(filter_string.length - 1) # chomp the terminal comma
+      instances = eval("instances.filter('tag:Type',#{filter_string})")
     end
 
     # Gather together all ids from both possible id sources
