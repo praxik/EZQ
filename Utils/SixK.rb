@@ -291,7 +291,7 @@ class SixK
     end
 
     # Filter instances by id and ip
-    instances = instances.filter('private-ip-adddress',ip_list) if !ip_list.empty?
+    instances = instances.filter('private-ip-address',ip_list) if !ip_list.empty?
     instances = instances.filter('instance-id',id_list) if !id_list.empty?
 
 
