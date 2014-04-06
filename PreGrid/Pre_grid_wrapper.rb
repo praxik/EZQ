@@ -51,9 +51,12 @@ def start
           @pushed_files.clear
         end
       else
-        listening = true if msg =~ /^pregrid_begin_messages/
-        @log.info 'Listening for messages'
-        # @command will only output valid messages now. It promises.
+        @log.info "Extraneous message: #{msg}"
+        if msg =~ /^pregrid_begin_messages/
+          listening = true 
+          @log.info 'Listening for messages'
+          # @command will only output valid messages now. It promises.
+        end
       end
     end
   @log.info 'Pre_grid_wrapper stopping'
