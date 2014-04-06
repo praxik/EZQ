@@ -58,6 +58,8 @@ def start
           # @command will only output valid messages now. It promises.
         end
       end
+      io.close
+      exit $?.to_i # Propagate success or failure up the chain
     end
   @log.info 'Pre_grid_wrapper stopping'
   end
