@@ -16,6 +16,13 @@ class Rusle2Aggregator < SingletonApp
   # Keeps a single connection to the db open while we process everything. Only
   # called on the singleton-proper.
   def start_application
+
+   
+    lf = File.new('rusle2_aggregator.log', 'a')
+    lf.sync = true
+    @log = Logger.new(lf)
+    $stderr = lf
+    @log.level = Logger::INFO
     # Any commandline arg to the first instance will be interpreted as a local
     # database name so we can do local testing.
     if ARGV[0]
@@ -42,7 +49,8 @@ class Rusle2Aggregator < SingletonApp
   def handle_data_from_client(connection)
     data = {}
     return false if !get_json(connection,data)
-    puts "Rec'd: #{data}"
+    @log "Rec'd: #{data}"
+    #puts "Rec'd: #{data}"
     return store_data(data)
   end
 
