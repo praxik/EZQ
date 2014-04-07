@@ -99,7 +99,7 @@ class Job_Breaker
     else  
       split_job(JSON.parse(job_string))
     end
-    
+    exit @exit_status
   end
   
   
@@ -134,6 +134,8 @@ class Job_Breaker
           @enqueued_tasks.push(msg)
         end
       end
+      io.close
+      @exit_status =  $?.to_i
     end
     if @repeat_message_type == 'collection'
       @repeat_message_n_times.times do
