@@ -9,7 +9,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "ruby job_breaker.rb -c 6k_job_breaker_config.yml -e \"ruby Pre_grid_wrapper.rb $input_file\""
+process_command: "ruby job_breaker.rb --log job_breaker.log -c 6k_job_breaker_config.yml -e \"ruby Pre_grid_wrapper.rb $input_file\""
 
 # (true/false)
 retry_on_failure: false
