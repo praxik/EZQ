@@ -58,21 +58,29 @@ def start
           # @command will only output valid messages now. It promises.
         end
       end
-      io.close
-      exit $?.to_i # Propagate success or failure up the chain
     end
-  @log.info 'Pre_grid_wrapper stopping'
+    io.close
+    @exit_status = $?.to_i # Propagate success or failure up the chain
   end
+  
   # Form and send off Report Gen Queue message
   #  {
   #    "Job ID" : "My Job ID",
   #    "Task IDs" : ["TaskID_0","TaskID_1","TaskID_...","TaskID_5999"]
   #  }
-  report_gen = { "job_id" => @job_id }
-  report_gen['task_ids'] = task_ids
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
-  sqs.queues.named('6k_report_gen_test_44').send_message(report_gen.to_json)
+  if !task_ids.empty?
+    report_gen = { "job_id" => @job_id }
+    report_gen['task_ids'] = task_ids
+    sqs.queues.named('6k_report_gen_test_44').send_message(report_gen.to_json)
+  else
+    # No tasks were generate for some reason, so delete the task queue
+    sqs.queues.named(@job_id).delete
+  end
+  
+  @log.info "Pre_grid_wrapper stopping with exit status #{@exit_status}"
+  exit @exit_status
 end
 
 def create_result_queue
