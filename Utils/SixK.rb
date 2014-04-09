@@ -18,8 +18,8 @@ class SixK
     args = Array(argv)
 
     # Allow choice from these AMIs only
-    imgs = { 'worker'        => 'ami-05b3a16c',
-             'pregrid'       => 'ami-05b3a16c',
+    imgs = { 'worker'        => 'ami-b1b4a9d8',
+             'pregrid'       => 'ami-b1b4a9d8',
              'reporthandler' => 'ami-1352417a' }
 
     # These cannot be overridden on commandline
