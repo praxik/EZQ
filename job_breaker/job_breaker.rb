@@ -99,6 +99,7 @@ class Job_Breaker
     else  
       split_job(JSON.parse(job_string))
     end
+    @logger.info "Exit status #{@exit_status}"
     exit @exit_status
   end
   
@@ -120,6 +121,7 @@ class Job_Breaker
   protected
   # Starts up the job_creator_command and listens to its STDOUT for tasks
   def wrap_job_creator
+    @logger.info "Running: #{@job_creator_command}"
     IO.popen(@job_creator_command)  do |io| 
       while !io.eof?
         msg = io.gets
