@@ -1,1 +1,1 @@
-command: "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik; --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres; --gdbname inl.gdb"
+command: "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik; --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres; --gdbname inl.gdb -m 1 -x 12"
