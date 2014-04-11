@@ -18,8 +18,8 @@ class SixK
     args = Array(argv)
 
     # Allow choice from these AMIs only
-    imgs = { 'worker'        => 'ami-d1170bb8',
-             'pregrid'       => 'ami-d1170bb8',
+    imgs = { 'worker'        => 'ami-a39a86ca',
+             'pregrid'       => 'ami-a39a86ca',
              'reporthandler' => 'ami-1352417a' }
 
     # These cannot be overridden on commandline
@@ -295,10 +295,16 @@ class SixK
     instances = instances.filter('instance-id',id_list) if !id_list.empty?
 
 
-    # Select only the running or pending ones if halting
-    if ['stop','terminate'].include?(action)
-      instances = instances.filter('instance-state-name','running','pending')
-    else # Or stopped ones if starting
+    # Select only the running or pending ones if stopping
+    case action
+    when 'stop'
+      instances = instances.filter('instance-state-name','running',
+                                                         'pending')
+    when 'terminate'
+      instances = instances.filter('instance-state-name','running',
+                                                         'pending',
+                                                         'stopped')
+    when 'start'
       instances = instances.filter('instance-state-name','stopped')
     end
 
@@ -384,6 +390,20 @@ class SixK
                     "List terminated/shutting-down instances.") do |f|
         status_flags << :terminated << :shutting_down
       end
+      #opts.on("-c","--ssh_connect",
+                    #"Prompt for ssh connection to an instance.") do |f|
+        #ssh_connect = true
+      #end
+      #opts.on("-L","--ssh_tunnel LOCAL_PORT:REMOTE_PORT",
+                    #"Prompt for ssh port tunnel to an instance.",
+                    #"LOCAL_PORT is the local port to bind,",
+                    #"REMOTE_PORT is the remote port to bind") do |f|
+        #ssh_connect = true
+      #end
+      #opts.on("-i","--",
+                    #"Prompt for ssh connection to an instance.") do |f|
+        #ssh_connect = true
+      #end
     end
 
     # User issued 6k help list
