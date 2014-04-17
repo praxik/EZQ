@@ -16,23 +16,19 @@ require 'logger'
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
-@man_bucket = ''
-@man_key = ''
+@man_files = []
     
 
 def start
   @log.info '------------------------------------------------------------------'
   @log.info 'Pre_grid_wrapper started'
-  # $input_file passed on cmdline contains some info about management files that
-  # will be used to populate part of the task header.
+  
+  # $input_file passed on cmdline contains some info about job-specific files
+  # that will be used to populate part of the task header.
   inputfile = ARGV[0]
   if File.exists?(inputfile)
     input = YAML.load(File.read(inputfile))
-    # This assummes a single manfile.zip. Need to re-think this if we want to
-    # support multiple zips or multiple uncompressed files. This will probably
-    # be required.
-    @man_bucket = input['man_bucket']
-    @man_key = input['man_key']
+    @job_files = Array(input['job_files'])
   end
   
   # If a $input_file was passed down as a cmdline arg, it might already
@@ -108,11 +104,7 @@ def make_preamble
   ezq = {}
   preamble['EZQ'] = ezq
   ezq['result_queue_name'] = @job_id
-  # Add management file/archive to list of files to be fetched.
-  decompress = File.extname(@man_key) == '.zip' ? true : false
-  @pushed_files.push(Hash["bucket"=>@man_bucket,
-                          "key"=>@man_key,
-                          "decompress"=>decompress]) unless @man_key.empty?
+  @pushed_files = @pushed_files + @job_files
   ezq['get_s3_files'] = @pushed_files
   preamble = preamble.to_yaml
   preamble += "...\n"
