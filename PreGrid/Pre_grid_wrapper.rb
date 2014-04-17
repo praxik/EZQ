@@ -12,17 +12,26 @@ require 'logger'
 
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
-#@command = "./emit_test_jobs.rb #{ARGV[0]}"
 @command = YAML.load(File.read('pre_grid_command.yml'))['command']
-#@command = "6k_pregrid_leafapps.exe --connector ODBC --leafconnstr Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik; --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres; --gdbname inl.gdb -m 1 -x 12"
 @pushed_files = []
 @access_key = ''
 @secret_key = ''
+@man_bucket = ''
+@man_key = ''
     
 
 def start
   @log.info '------------------------------------------------------------------'
   @log.info 'Pre_grid_wrapper started'
+  # $input_file passed on cmdline contains some info about management files that
+  # will be used to populate part of the task header.
+  inputfile = ARGV[0]
+  if File.exists?(inputfile)
+    input = YAML.load(File.read(inputfile))
+    @man_bucket = input['man_bucket']
+    @man_key = input['man_key']
+  end
+  
   # If a $input_file was passed down as a cmdline arg, it might already
   # contain a job_id. Need to decide if job_id will be assigned here or at the
   # web front-end.
@@ -96,7 +105,12 @@ def make_preamble
   ezq = {}
   preamble['EZQ'] = ezq
   ezq['result_queue_name'] = @job_id
-  ezq['get_s3_files'] = @pushed_files unless @pushed_files.empty?
+  # Add management file/archive to list of files to be fetched.
+  decompress = File.extname(@man_key) == '.zip' ? true : false
+  @pushed_files.push(Hash["bucket"=>@man_bucket,
+                          "key"=>@man_key,
+                          "decompress"=>decompress]) unless @man_key.empty?
+  ezq['get_s3_files'] = @pushed_files
   preamble = preamble.to_yaml
   preamble += "...\n"
   return preamble
