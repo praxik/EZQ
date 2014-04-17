@@ -15,6 +15,7 @@ require "#{File.expand_path(File.dirname(__FILE__))}/SixK.rb"
 
 
 @creds_file = 'credentials.yml' # credentials file
+config = 'nimbus_config.yml'
 
 def setup_AWS
   if !File.exists?(@creds_file)
@@ -52,6 +53,11 @@ op = OptionParser.new do |opts|
 
     options:
     END
+  opts.on("-c","--config CONFIG",
+                    "Configuration details.",
+                    "  Default: #{config}") do |c|
+    config = c
+  end
   opts.on("-r","--credentials CREDS_FILE",
                "Use credentials file CREDS_FILE.",
                "  Defaults to credentials.yml.") do |file|
@@ -78,7 +84,7 @@ when 'help'
     exit 0
   else
     begin
-      SixK.method(help_target).call
+      SixK.method(help_target).call(config)
     rescue
       warn "No command named '#{help_target}'."
       puts ""
@@ -88,19 +94,19 @@ when 'help'
   end
 when 'launch'
   setup_AWS
-  SixK.launch(ARGV)
+  SixK.launch(config,ARGV)
 when 'start'
   setup_AWS
-  SixK.start(ARGV)
+  SixK.start(config,ARGV)
 when 'stop'
   setup_AWS
-  SixK.stop(ARGV)
+  SixK.stop(config,ARGV)
 when 'terminate'
   setup_AWS
-  SixK.terminate(ARGV)
+  SixK.terminate(config,ARGV)
 when 'list'
   setup_AWS
-  SixK.list(ARGV)
+  SixK.list(config,ARGV)
 else
   warn "No command named '#{command}'."
   puts ""

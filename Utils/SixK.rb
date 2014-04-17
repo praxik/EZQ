@@ -10,35 +10,68 @@ class SixK
     
   end
 
+################################################################################
+
+  # Parse the config and set up the parts that never get overridden
+  def self.load_config(filename)
+    if !File.exists?(filename)
+      warn "Error: Unable to open configuration file '#{filename}'."
+      exit 1
+    end
+    @config = YAML.load(File.read(filename))
+
+    @imgs = {}
+    @config['ami_map'].each { |k,v| @imgs[k] = v }
+
+    @types = @imgs.keys
+  end
+
+################################################################################
+
+  # Finish setting up the configuration based on the type being used.
+  def self.setup_by_type(type)
+    return nil if !@types.include?(type)
+
+    security = @config['security']['base']
+    if @config['security'].has_key?(type)
+      security.merge!(@config['security'][type])
+    end
+    @vpc_id = security['vpc_id']
+    @vpc_subnet = security['vpc_subnet']
+    @security_groups = security['security_groups']
+
+    launch_settings = @config['launch_settings']['base']
+    if @config['launch_settings'].has_key?(type)
+      launch_settings.merge!(@config['launch_settings'][type])
+    end
+    @size = launch_settings['size']
+    @count = launch_settings['count']
+
+    @userdata = @config['userdata']['base']
+    if @config['userdata'].has_key?(type)
+      @userdata.merge!(@config['userdata'][type])
+    end
+  end
 
 ################################################################################
 
   # Launch a new worker, pregrid, or reporthandler instance
-  def self.launch(argv=[])
+  def self.launch(config='',argv=[])
     args = Array(argv)
 
-    # Allow choice from these AMIs only
-    imgs = { 'worker'        => 'ami-a39a86ca',
-             'pregrid'       => 'ami-a39a86ca',
-             'reporthandler' => 'ami-1352417a' }
-
-    # These cannot be overridden on commandline
-    vpc_id = 'vpc-e894b787'
-    vpc_subnet = 'subnet-fc94b793'
-    security_groups = ['dev-base','dev-kibitz-worker']
+    self.load_config(config) if !config.empty?
 
     # Options that can be orverridden on commandline
-    count = 1                 # number of instances to start up simultaneously
-    processes = 1             # number of processes to start up on each machine
-    size = 't1.micro'         # machine size on which to run
-    name = ''                 # name with which to tag instance(s)
-    manage = false            # whether to start up a management instance
-                              # of a functioning _type_ instance
+    cl_count = -1
+    cl_processes = -1
+    cl_size = ''
+    cl_name = ''
+    cl_manage = false
     
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
         Usage: 6k [options] launch <type> [<args>]
-          where type is one of [worker, pregrid, reporthandler]
+          where type is one of #{@types}.
 
         The launch command outputs the AWS id of each launched instance onto a
         separate line on STDOUT. Capturing these ids in a file using shell
@@ -50,31 +83,31 @@ class SixK
       opts.on("-c","--count N",
                     "Number of instances to start up.",
                     "  Default: 1") do |c|
-        count = c
+        cl_count = c
       end
       opts.on("-n","--name NAME",
                     "Name with which to tag the instance(s)",
                     "  Default: \"6k_TYPE\"" ) do |n|
-        name = name
+        cl_name = name
       end
       opts.on("-p","--processors N",
                     "# processes to start on each instance.",
-                    "  Default: 1") do |p|
-        processes = p
+                    "  Overrides the setting in config file." ) do |p|
+        cl_processes = p
       end
       opts.on("-s","--size SIZE",
                     "AWS instance size.",
                     "  One of [t1.micro, m1.small, m1.medium,",
                     "  m1.large, m1.xlarge, c3.8xlarge].",
-                    "  Default: t1.micro") do |s|
-        size = s
+                    "  Overrides setting in config file.") do |s|
+        cl_size = s
       end
       opts.on("-m","--manage",
-                    "Starts an instance lacking the userdata",
+                    "Starts an instance without the userdata",
                     "  needed by bootstrap. This allows you",
                     "  to alter the base AMI and save as a new",
                     "  AMI.") do |p|
-        manage = true
+        cl_manage = true
       end
     end
 
@@ -95,39 +128,37 @@ class SixK
       warn "Error: An instance TYPE must be specified."
       puts ""
       puts op
-      exit 0
-    end
-
-    type = args.shift
-    allowable = ['worker','pregrid','reporthandler']
-    if !allowable.include?(type)
-      warn "Invalid type \"#{type}\"; must be one of #{allowable}"
       exit 1
     end
 
-    userdata = {}
-    userdata['deploy_bucket'] = '6k_test.praxik'
-    case type
-    when 'worker'
-      userdata['deploy_key'] = 'arks/default/worker.zip'
-    when 'pregrid'
-      userdata['deploy_key'] = 'arks/default/pregrid.zip'
-    when 'reporthandler'
-      userdata['deploy_key'] = 'arks/default/reporthandler.zip'
+    type = args.shift
+    if !@types.include?(type)
+      warn "Error: Invalid type \"#{type}\"; must be one of #{@types}"
+      exit 1
     end
-    userdata['number_of_processes'] = processes
+
+    self.setup_by_type(type)
+
+    # Overrride settings based on commandline args
+    @count = cl_count if cl_count > 0
+    @count = 1 if @count <= 0
+    @size = cl_size if !cl_size.empty?
+    @size = 't1.micro' if @size.empty?
+    name = cl_name
+    @userdata['number_of_processes'] = cl_processes if cl_processes > 0
+    @userdata['number_of_processes'] = 1 if @userdata['number_of_processes'] <=0
 
     # Clearing out the userdata ensures that bootstrap exits due to lack
     # of info about what to start up.
-    userdata = {} if manage
+    @userdata = {} if cl_manage
 
 
-    option_hash = { :image_id => imgs[type],
-                :subnet => vpc_subnet,
-                :security_groups => security_groups,
-                :instance_type => size,
-                :count => count,
-                :user_data => userdata.to_yaml }
+    option_hash = { :image_id => @imgs[type],
+                :subnet => @vpc_subnet,
+                :security_groups => @security_groups,
+                :instance_type => @size,
+                :count => @count,
+                :user_data => @userdata.to_yaml }
 
     instances = Array(AWS::EC2.new.instances.create(option_hash))
 
@@ -148,15 +179,18 @@ class SixK
 
 
 ################################################################################
-  def self.start(argv=[])
+  def self.start(config='',argv=[])
+    self.load_config(config) if !config.empty?
     self.stopinate('start',argv)
   end
 ################################################################################
-  def self.stop(argv=[])
+  def self.stop(config='',argv=[])
+    self.load_config(config) if !config.empty?
     self.stopinate('stop',argv)
   end
 ################################################################################
-  def self.terminate(argv=[])
+  def self.terminate(config='',argv=[])
+    self.load_config(config) if !config.empty?
     self.stopinate('terminate',argv)
   end
 ################################################################################
@@ -209,9 +243,9 @@ class SixK
       opts.on("-t","--type TYPE",
                     "#{action} all instances of type TYPE.",
                     "  TYPE must be one of",
-                    "  [all,worker,pregrid,reporthandler]",
-                    "  'all' matches any of the other three",
-                    "  types. If this option is specified in",
+                    "  #{@types + ['all']}",
+                    "  'all' matches any of the other types",
+                    "  If this option is specified in",
                     "  conjunction with any of the id* or ip*",
                     "  options, it will be used to further",
                     "  filter the list of instances to ",
@@ -250,13 +284,13 @@ class SixK
 
     instances = AWS::EC2::InstanceCollection.new
     if !type.empty?
-      allowable = ['all','worker','pregrid','reporthandler']
+      allowable = ['all'] + @types
       if !allowable.include?(type)
         warn "Invalid type \"#{type}\"; must be one of #{allowable}"
         exit 1
       end
       type = Array(type)
-      type = ['worker','pregrid','reporthandler'] if type == ['all']
+      type = @types if type == ['all']
       type.map! {|e| "6k_#{e}"}
       # Get instances limited to those with a Type tag matching one of our
       # allowed tags. This prevents us from being able to accidentally
@@ -355,15 +389,17 @@ class SixK
 
 
 
-  def self.list(argv=[])
+  def self.list(config='',argv=[])
+
+    self.load_config(config) if !config.empty?
     args = Array(argv)
 
     status_flags = []
-    
+
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
         Usage: 6k list TYPE [options]
-          where TYPE is one of [all, worker, pregrid, reporthandler]
+          where TYPE is one of #{@types + ['all']}
 
         The options p, r, s, and t can be combined into a single switch, eg.
           6k list all -pr
@@ -425,12 +461,12 @@ class SixK
       puts op
       exit 1
     end
-    allowable = ['all','worker','pregrid','reporthandler']
+    allowable = ['all'] + @types
     if (allowable & type).empty?
       warn "Invalid type \"#{type}\"; must be one of #{allowable}"
       exit 1
     end
-    type = ['worker','pregrid','reporthandler'] if type == ['all']
+    type = @types if type == ['all']
     # Prepend '6K_' onto the list of types.
     type.map! {|e| "6k_#{e}"}
 
