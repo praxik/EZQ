@@ -1,0 +1,12 @@
+# This file demonstrates how to specify parameters for a 6k Job.
+# The data here is used by start_job.rb to populate the Job Queue.
+# As we get more information about the requirements for jobs, new parts can
+# be added to this file.
+job_files:
+  - bucket:     6k_test.praxik
+    key:        share/leaf/weps/weps.wjr/inl_man.zip
+    decompress: true
+  # Add more as below. Notice the single dash before 'bucket'.
+  #- bucket: b
+  #  key: k
+  #  decompress: d
