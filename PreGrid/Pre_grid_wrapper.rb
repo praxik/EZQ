@@ -28,6 +28,9 @@ def start
   inputfile = ARGV[0]
   if File.exists?(inputfile)
     input = YAML.load(File.read(inputfile))
+    # This assummes a single manfile.zip. Need to re-think this if we want to
+    # support multiple zips or multiple uncompressed files. This will probably
+    # be required.
     @man_bucket = input['man_bucket']
     @man_key = input['man_key']
   end
