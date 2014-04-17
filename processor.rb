@@ -10,6 +10,7 @@ require 'uri'
 require 'logger'
 require 'digest/md5'
 require 'fileutils'
+require 'zip'
 
 require './x_queue'
 
@@ -452,11 +453,11 @@ class Processor
       FileUtils.mkdir_p(File.dirname(props['key']))
       begin
         File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
-        # TODO:
-        # Perhaps I'll reinstate decompression ability via another file-specific
-        # k-v pair:  decompress: true/false
-        # Really need to support something more than zlib for this to be useful
-        #decompress_file(infile) if @decompress_message
+        if props.has_key?('decompress') and props['decompress'] == true
+          Zip::File.open(props['key']) do |zip_file|
+            zip_file.each { |entry| entry.extract(entry.name) }
+          end
+        end
       rescue
         @logger.error "Unable to fetch #{props['key']} from S3."
         return false  
