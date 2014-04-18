@@ -146,7 +146,8 @@ class SixK
     @size = 't1.micro' if @size.empty?
     name = cl_name
     @userdata['number_of_processes'] = cl_processes if cl_processes > 0
-    @userdata['number_of_processes'] = 1 if @userdata['number_of_processes'] <=0
+    @userdata['number_of_processes'] = 1 if !@userdata.has_key?('number_of_processes')
+    @userdata['number_of_processes'] = 1 if @userdata['number_of_processes'] <= 0
 
     # Clearing out the userdata ensures that bootstrap exits due to lack
     # of info about what to start up.
@@ -164,7 +165,7 @@ class SixK
 
     # Slap a Name and Type tag on each of these instances
     name = "6k_#{type}" if name.empty?
-    name = "#{name}_manage" if manage
+    name = "#{name}_manage" if cl_manage
     ec2 = AWS::EC2.new
     instances.each do |inst|
       ec2.tags.create(inst, 'Name', :value => name)
@@ -395,6 +396,7 @@ class SixK
     args = Array(argv)
 
     status_flags = []
+    ssh_connect = false
 
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
@@ -426,20 +428,10 @@ class SixK
                     "List terminated/shutting-down instances.") do |f|
         status_flags << :terminated << :shutting_down
       end
-      #opts.on("-c","--ssh_connect",
-                    #"Prompt for ssh connection to an instance.") do |f|
-        #ssh_connect = true
-      #end
-      #opts.on("-L","--ssh_tunnel LOCAL_PORT:REMOTE_PORT",
-                    #"Prompt for ssh port tunnel to an instance.",
-                    #"LOCAL_PORT is the local port to bind,",
-                    #"REMOTE_PORT is the remote port to bind") do |f|
-        #ssh_connect = true
-      #end
-      #opts.on("-i","--",
-                    #"Prompt for ssh connection to an instance.") do |f|
-        #ssh_connect = true
-      #end
+      opts.on("-c","--ssh_connect",
+                    "Prompt for ssh connection to an instance.") do |f|
+        ssh_connect = true
+      end
     end
 
     # User issued 6k help list
@@ -499,13 +491,63 @@ class SixK
     end
 
     puts '---------------------------------------------------------------------'
-    puts "%-10s  %-30s  %-3s  %-12s  %-10s" %
+    space = ssh_connect ? ' # ' : '' #Add padding if ssh numbers will appear
+    puts "#{space}%-10s  %-30s  %-3s  %-12s  %-10s" %
       ['ID','Name','State','Priv. IP','Size']
     puts '---------------------------------------------------------------------'
-    all_inst.each do |k,v|
-      v.insert(0,k)
-      str = "%-10s  %-30s  %-3s  %-12s  %-10s" % v
+    all_inst.each_with_index do |(k,v),idx|
+      v.insert(0,k) # Insert the image ID at the head of the value array
+      if ssh_connect
+        v.insert(0,idx+1)
+        str = "%2d %-10s  %-30s  %-3s  %-12s  %-10s" % v
+      else
+        str = "%-10s  %-30s  %-3s  %-12s  %-10s" % v
+      end
       puts str
+    end
+
+    if ssh_connect
+      puts ''
+      puts 'Enter # of instance to which to connect and press Enter.'
+      puts 'Leave blank to exit without connecting to an instance.'
+      print '> '
+      n = gets
+
+      if n.strip.empty?
+        puts 'Exiting without making a connection.'
+        exit 0
+      else
+        conn_to = n.strip.to_i
+        if conn_to < 1 or conn_to > all_inst.size
+          warn "#{conn_to} is not a valid instance number."
+          exit 1
+        end
+        ssh_config = YAML.load(File.read('nimbus_ssh.yml'))
+
+        inst = ec2.instances[all_inst.keys[conn_to-1]]
+        i_type = inst.tags['Type'].gsub(/^6k_/,'')
+
+        flags = ssh_config['base']
+        flags.merge!(ssh_config[i_type]) if ssh_config.has_key?(i_type)
+
+        p_user = flags['proxy_user']
+        p_id = flags['proxy_identity']
+        p_ip = flags['proxy_ip']
+        h_user = flags['host_user']
+        h_id = flags['host_identity']
+        h_ip = inst.private_ip_address
+        l_p = flags['local_tunnel_port']
+        h_p = flags['host_tunnel_port']
+        
+        case flags['action']
+        when 'tunnel'
+          ssh_cmd = "ssh -i #{p_id} -L #{l_p}:#{h_ip}:#{h_p} #{p_user}@#{p_ip}"
+        when 'shell'
+          ssh_cmd = "ssh -i #{h_id} -o 'ProxyCommand=ssh -i #{p_id} #{p_user}@#{p_ip} nc -q0 #{h_ip} 22' #{h_user}@#{h_ip}"
+        end
+        #puts ssh_cmd
+        system(ssh_cmd)
+      end
     end
       
   end
