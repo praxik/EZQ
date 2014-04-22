@@ -11,8 +11,8 @@
 # Map type labels to specific AMIs. New types can be added by adding a
 # new label and AMI in this section
 ami_map:
-  worker:        'ami-a39a86ca'
-  pregrid:       'ami-a39a86ca'
+  worker:        'ami-45f4ef2c'
+  pregrid:       'ami-45f4ef2c'
   reporthandler: 'ami-1352417a'
   #errorhandler:  'ami-1352417a'
 
