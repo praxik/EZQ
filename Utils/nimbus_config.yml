@@ -13,8 +13,8 @@
 ami_map:
   worker:        'ami-45f4ef2c'
   pregrid:       'ami-45f4ef2c'
-  reporthandler: 'ami-1352417a'
-  #errorhandler:  'ami-1352417a'
+  reporthandler: 'ami-2b647e42'
+  #errorhandler:  'ami-2b647e42'
 
 
 # Security-related settings for instances. The settings in 'base' will be merged
