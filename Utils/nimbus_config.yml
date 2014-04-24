@@ -13,8 +13,8 @@
 ami_map:
   worker:        'ami-45f4ef2c'
   pregrid:       'ami-45f4ef2c'
-  reporthandler: 'ami-2b647e42'
-  #errorhandler:  'ami-2b647e42'
+  reporthandler: 'ami-f0f71298'
+  errorhandler:  'ami-f0f71298'
 
 
 # Security-related settings for instances. The settings in 'base' will be merged
@@ -28,6 +28,8 @@ security:
     # the array will not be merged. You must override the entire array.
     security_groups: ['dev-base','dev-kibitz-worker']
 
+  errorhandler:
+    security_groups: ['dev-base','dev-kibitz-worker','dev-dashboard']
 
 # The base settings get merged with any per-type settings. All available options
 # appear in the base section.
@@ -63,5 +65,5 @@ userdata:
   reporthandler:
     deploy_key: arks/default/reporthandler.zip
 
-  #errorhandler:
-  #  deploy_key: arks/default/errorhandler.zip
+  errorhandler:
+    deploy_key: arks/default/errorhandler.zip
