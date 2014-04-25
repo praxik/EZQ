@@ -280,7 +280,8 @@ class Processor
       @logger.error "Unable to connect to error queue #{@error_queue_name}."
       return
     end
-    err_q.send_message( msg )
+    err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
+    err_q.send_message( err_msg.to_yaml )
   end
   
   
