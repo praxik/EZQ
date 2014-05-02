@@ -42,85 +42,87 @@ end
 
 
 def self.make_gis_images
-  scriptDir = "/home/penn/vmshare/dev/leaf-apps/src/utils/gis/qgis/scripts"
-  baseDir = "/home/penn/vmshare/dev/leaf-apps/src/sandbox/qgiscpp_test"
+
+  scriptDir = "."#"/home/penn/vmshare/dev/leaf-apps/src/utils/gis/qgis/scripts"
+  baseDir = "."#"/home/penn/vmshare/dev/leaf-apps/src/sandbox/qgiscpp_test"
 
   #path to python executable for generating png from json data file
   exePath = scriptDir + "/PythonImageRenderer.py"
 
   #path to sci input data file
-  inputSci = baseDir + "/test_data/test_attribute.geojson"
+  #inputSci = baseDir + "/test_data/test_attribute.geojson"
 
   #path to eros input data file
-  inputEros = baseDir + "/test_data/test_attribute.geojson"
+  #inputEros = baseDir + "/test_data/test_attribute.geojson"
 
   #path to musym input data file
-  inputMusym = baseDir + "/test_data/field_1_soils.shp"
+  inputMusym = baseDir + "/test_data/fieldsWithData_INL_Name__Field 1.shp"
 
   #path for creating sci image
-  sciPngPath = baseDir + "/sci.png"
+  #sciPngPath = baseDir + "/sci.png"
 
   #path for creating eros image
-  erosPngPath = baseDir + "/eros.png"
+  #erosPngPath = baseDir + "/eros.png"
 
   #path for creating musym image
   musymPngPath = baseDir + "/musym.png"
 
-  #path for creating pdf
-  pdfPath = baseDir + "/testPDF.pdf"
 
   #test call to python executable to create png from json input data
-  sciArgs = []
-  erosArgs = []
+  #sciArgs = []
+  #erosArgs = []
   musymArgs = []
 
-  sciArgs << "--featureName=Profit"
-  sciArgs << "--mapType=graduated"
-  sciArgs << "--gradCatNum=12"
-  sciArgs << "--width=400"
-  sciArgs << "--height=400"
-  sciArgs << "--labelSize=30"
-  sciArgs << "--showLabel=False"
+  #sciArgs << "--featureName=Profit"
+  #sciArgs << "--mapType=graduated"
+  #sciArgs << "--gradCatNum=12"
+  #sciArgs << "--width=400"
+  #sciArgs << "--height=400"
+  #sciArgs << "--labelSize=30"
+  #sciArgs << "--showLabel=False"
 
-  erosArgs << "--featureName=Profit"
-  erosArgs << "--mapType=graduated"
-  erosArgs << "--gradCatNum=12"
-  erosArgs << "--width=400"
-  erosArgs << "--height=400"
-  erosArgs << "--labelSize=30"
-  erosArgs << "--showLabel=False"
+  #erosArgs << "--featureName=Profit"
+  #erosArgs << "--mapType=graduated"
+  #erosArgs << "--gradCatNum=12"
+  #erosArgs << "--width=400"
+  #erosArgs << "--height=400"
+  #erosArgs << "--labelSize=30"
+  #erosArgs << "--showLabel=False"
 
-  musymArgs << "--featureName=musym"
-  musymArgs << "--mapType=categorized"
-  musymArgs << "--test=False"
-  musymArgs << "--width=400"
-  musymArgs << "--height=400"
-  musymArgs << "--labelSize=30"
-  musymArgs << "--showLabel=False"
+  musymArgs << "--featureName=CG2P_SCI"
+  musymArgs << "--mapType=QML"
+  musymArgs << "--width=2000"
+  musymArgs << "--height=2000"
+  musymArgs << "--labelSize=150"
+  musymArgs << "--label=Horizontal"
+  musumArgs << "--QMLFile=#{baseDir}/test_data/Antares-SCI.qml"
+  musymArgs << "--scale=1.08"
+  musymArgs << "--VLayerTransparency=0"
+  
 
-  sciArgs << "--input=#{inputSci}"
-  sciArgs << "--output=#{sciPngPath}"
+  #sciArgs << "--input=#{inputSci}"
+  #sciArgs << "--output=#{sciPngPath}"
 
-  erosArgs << "--input=#{inputSci}"
-  erosArgs << "--output=#{erosPngPath}"
+  #erosArgs << "--input=#{inputSci}"
+  #erosArgs << "--output=#{erosPngPath}"
 
   musymArgs << "--input=#{inputMusym}"
   musymArgs << "--output=#{musymPngPath}"
 
-  sciArgs.insert(0,exePath)
-  sciArgs.insert(0,"python")
+  #sciArgs.insert(0,exePath)
+  #sciArgs.insert(0,"python")
 
-  erosArgs.insert(0,exePath)
-  erosArgs.insert(0,"python")
+  #erosArgs.insert(0,exePath)
+  #erosArgs.insert(0,"python")
 
   musymArgs.insert(0,exePath)
   musymArgs.insert(0,"python")
 
-  puts sciArgs.join(" ")
+  #puts musymArgs.join(" ")
   #exit 0
 
-  IO.popen(sciArgs)
-  IO.popen(erosArgs)
+  #IO.popen(sciArgs)
+  #IO.popen(erosArgs)
   IO.popen(musymArgs)
 
 end
