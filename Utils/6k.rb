@@ -6,16 +6,21 @@
 # ./6k --help
 # to get a description of the options.
 
+argv = ARGV
+# uncomment and fill out to debug in an instaREPL
+argv = ['list','all']
+pwd = "#{File.expand_path(File.dirname(__FILE__))}"
+
 require 'bundler/setup'
 require 'yaml'
 require 'aws-sdk'
 require 'optparse'
 #require './SixK.rb'
-require "#{File.expand_path(File.dirname(__FILE__))}/SixK.rb"
+require "#{pwd}/SixK.rb"
 
 
-@creds_file = 'credentials.yml' # credentials file
-config = 'nimbus_config.yml'
+@creds_file = "#{pwd}/credentials.yml" # credentials file
+config = "#{pwd}/nimbus_config.yml"
 
 def setup_AWS
   if !File.exists?(@creds_file)
@@ -65,7 +70,7 @@ op = OptionParser.new do |opts|
   end
 end
 
-begin op.order! ARGV
+begin op.order! argv
 rescue OptionParser::InvalidOption => e
   # Normally, we would do what's below, but since we have stacked option parsers
   # this won't work. We just have to ignore invalid options and let the next
@@ -75,10 +80,10 @@ rescue OptionParser::InvalidOption => e
   exit 1
 end
 
-command = ARGV.size > 0 ? ARGV.shift : 'help'
+command = argv.size > 0 ? argv.shift : 'help'
 case command
 when 'help'
-  help_target = ARGV.shift
+  help_target = argv.shift
   if !help_target
     puts op
     exit 0
@@ -94,19 +99,19 @@ when 'help'
   end
 when 'launch'
   setup_AWS
-  SixK.launch(config,ARGV)
+  SixK.launch(config,argv)
 when 'start'
   setup_AWS
-  SixK.start(config,ARGV)
+  SixK.start(config,argv)
 when 'stop'
   setup_AWS
-  SixK.stop(config,ARGV)
+  SixK.stop(config,argv)
 when 'terminate'
   setup_AWS
-  SixK.terminate(config,ARGV)
+  SixK.terminate(config,argv)
 when 'list'
   setup_AWS
-  SixK.list(config,ARGV)
+  SixK.list(config,argv)
 else
   warn "No command named '#{command}'."
   puts ""
