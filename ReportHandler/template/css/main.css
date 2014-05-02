@@ -1,0 +1,70 @@
+/*****-----------------------------------------------*/
+/*	Variables
+/*****-----------------------------------------------*/
+/*****-----------------------------------------------*/
+/*	Architecture
+/*****-----------------------------------------------*/
+body {
+  background-color: #ffffff;
+  font-size: 14px;
+}
+/* Header
+/* --------------------------------------------------*/
+/* Footer
+/* --------------------------------------------------*/
+/* Global Tags
+/* --------------------------------------------------*/
+/* Global Components
+/* --------------------------------------------------*/
+.table tbody tr th,
+.table tbody tr td,
+.table thead tr th,
+.table thead tr td {
+  border-color: #008000;
+}
+
+.table-small-text tbody tr td {
+  font-size: 11px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.table-striped tbody tr:nth-child(odd) th,
+.table-striped tbody tr:nth-child(odd) td,
+.table-striped thead tr:nth-child(odd) th,
+.table-striped thead tr:nth-child(odd) td {
+  background-color: #d0d0d0;
+}
+.table-borderless tbody tr th,
+.table-borderless tbody tr td {
+  border-top: none;
+  border-bottom: none;
+}
+
+.vertical-padding div{
+  height: 25px;
+}
+
+.dont-break { page-break-inside: avoid; }
+/*****-----------------------------------------------*/
+/*	Pages
+/*****-----------------------------------------------*/
+.logo {
+  max-height: 100px;
+}
+th div {
+  font-weight: normal;
+  margin-top: 1em;
+}
+
+.eros-map {
+  max-height: 265px;
+}
+
+.soil-map {
+  max-height: 350px;
+}
+/***** Homepage
+/*-----------------------------------*/
+/***** Fields
+/*------------------------------------*/
