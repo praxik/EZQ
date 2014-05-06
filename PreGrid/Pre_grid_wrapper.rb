@@ -17,6 +17,7 @@ require 'logger'
 @access_key = ''
 @secret_key = ''
 @man_files = []
+@aggregator_files = []
     
 
 def start
@@ -29,12 +30,15 @@ def start
   if File.exists?(inputfile)
     input = YAML.load(File.read(inputfile))
     @job_files = Array(input['job_files'])
+    @gen_dom_crit_report =
+                     input.fetch('generate_dominant_critical_soil_report',false)
   end
   
   # If a $input_file was passed down as a cmdline arg, it might already
   # contain a job_id. Need to decide if job_id will be assigned here or at the
   # web front-end.
   @job_id = SecureRandom.uuid
+  @command.gsub!(/\$jobid/,@job_id)
   task_ids = []
   create_result_queue
   listening = false
@@ -50,6 +54,12 @@ def start
           bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
           @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
           puts msg
+        elsif msg =~ /^aggregator_file/ # Starts with 'aggregator_file'
+          @log.info 'Aggregrator file message'
+          bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
+          @aggregator_files.push(Hash['bucket'=>bucket,'key'=>key])
+          # Map into job_breaker's push_file directive
+          puts "push_file: #{bucket},#{key}"
         else # This is a task to pass to job_breaker
           @log.info 'Task message'
           task_ids.push( YAML.load(msg)['task_id'] )
@@ -73,19 +83,33 @@ def start
   
   # Form and send off Report Gen Queue message
   #  {
-  #    "Job ID" : "My Job ID",
-  #    "Task IDs" : ["TaskID_0","TaskID_1","TaskID_...","TaskID_5999"]
+  #    "job_id" : "My Job ID",
+  #    "task_ids" : ["TaskID_0","TaskID_1","TaskID_...","TaskID_5999"],
+  #    "aggregator_files" : [{"bucket"=>b, "key"=>k},{etc}],
+  #    "generate_dominant_critical_soil
   #  }
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
   if !task_ids.empty?
+    preamble = {}
+    ezq = {}
+    preamble['EZQ'] = ezq
+    ezq['get_s3_files'] = @aggregator_files
+    preamble = preamble.to_yaml
+    preamble += "...\n"
     report_gen = { "job_id" => @job_id }
     report_gen['task_ids'] = task_ids
-    sqs.queues.named('6k_report_gen_test_44').send_message(report_gen.to_json)
+    report_gen['aggregator_files'] = @aggregator_files
+    report_gen['generate_dominant_critical_soil_report'] = @gen_dom_crit_report
+    sqs.queues.named('6k_report_gen_test_44').send_message(report_gen.to_json.insert(0,preamble))
   else
-    # No tasks were generate for some reason, so delete the task queue
+    # No tasks were generated for some reason, so delete the task queue
     sqs.queues.named(@job_id).delete
   end
+
+  # Not strictly necessary since we exit shortly, but putting this here so
+  # I remember it's required if the workflow changes later.
+  @aggregator_files.clear
   
   @log.info "Pre_grid_wrapper stopping with exit status #{@exit_status}"
   exit @exit_status
