@@ -20,6 +20,7 @@ class RusleReport < EZQ::Processor
 
     @rr_job_id = job_details['job_id']
     @rr_task_ids = job_details['task_ids']
+    @gen_dom_crit_report = job_details['generate_dominant_critical_soil_report']
 
     # Each time a task is completed, we remove it from rr_remaining_tasks.
     # When rr_remaining_tasks is empty, we know we've processed all tasks
@@ -75,7 +76,33 @@ class RusleReport < EZQ::Processor
         Their IDs are: #{@rr_remaining_tasks}
         END
       send_error(errm)
+    else
+      deal_with_report if @gen_dom_crit_report
     end
+  end
+
+
+
+
+  def deal_with_report
+    IO.popen('./6k_aggregator',"#{@rr_job_id}","#{@soil_geojson}") do |io|
+      while !io.eof?
+        dom_crit_id = io.gets
+      end
+    end
+    # Search through input_data.json to get the input structure for cell_id
+    # dom_crit_id.
+    inputs = File.read(input_data.json)
+    inputs.split!('####')
+    i_data = {}
+    inputs.each do |input|
+      i_data = JSON.parse(input)
+      break if i_data['cell_id'] == dom_crit_id
+    end
+    # Add kv pair report : true to the top level of this structure,
+    i_data['report'] = true
+    # Form up an EZQ header for get_s3_files using the values in s3_files key
+    # Place task back into worker task queue. Then... start polling again.
   end
 
 end
