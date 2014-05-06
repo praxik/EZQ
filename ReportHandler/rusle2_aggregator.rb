@@ -80,7 +80,7 @@ class Rusle2Aggregator < SingletonApp
   # @param [hash] data Hash of data to store in the db
   def store_data(data)
     non_spec_data = remove_elements_not_in_spec!(data)
-    to_disk(non_spec_data,data['cell_id']) # !!!This line breaks genericness.
+    to_disk(non_spec_data)
     bindings, cols, val_holders = [],[],[]
     data.each do |k,v|
       cols.push(k)
@@ -115,9 +115,8 @@ class Rusle2Aggregator < SingletonApp
   # must be present in the data stream and it makes all kinds of assumptions
   # about what needs to be in the written data. Rethink both this method and
   # how it is called.
-  def to_disk(data,task_id)
-    data['cell_id'] = task_id
-    File.open('input_data.json', 'a') {|f| f.write("#{data.to_json}\n####")}
+  def to_disk(data)
+    File.open('input_data.json', 'a') {|f| f.write("#{data['inputs'].to_json}\n####")}
   end
 
 
