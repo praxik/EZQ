@@ -37,8 +37,9 @@ class Rusle2Aggregator < SingletonApp
 
     data_spec = DataSpecParser::get_data_spec('main.cxx')
     @tablename = data_spec[:tablename]
+    @fields = data_spec[:fields]
     
-    sql = "create table if not exists #{@tablename}( #{data_spec[:fields]} )"
+    sql = "create table if not exists #{@tablename}( #{@fields} )"
     @db.exec( sql )
   end
 
@@ -78,12 +79,14 @@ class Rusle2Aggregator < SingletonApp
   # Stores data in the db. Returns true if successful, and false otherwise
   # @param [hash] data Hash of data to store in the db
   def store_data(data)
+    non_spec_data = remove_elements_not_in_spec!(data)
+    to_disk(non_spec_data,data['cell_id']) # !!!This line breaks genericness.
     bindings, cols, val_holders = [],[],[]
-    data.each_with_index do |(k,v),i|
+    data.each do |k,v|
       cols.push(k)
-      val_holders.push("$#{i+1}")
       bindings.push(v)
     end
+    val_holders = (1..cols.size).to_a.map{|i| "$#{i}"}
     result = @db.exec_params( %[ INSERT INTO #{@tablename} (#{cols.join(',')})
                                  VALUES(#{val_holders.join(',')}) ],
                                  bindings)
@@ -96,6 +99,26 @@ class Rusle2Aggregator < SingletonApp
   end
 
 
+
+  # Removes kv pairs from data for which the key does not exist in the
+  # data_spec. Returns an array of kv pairs.
+  def remove_elements_not_in_spec!(data)
+    non_spec_data = data.select{|k,v| !@fields.include?(k)}
+    data.delete_if{|k,v| !@fields.include?(k)}
+    return non_spec_data
+  end
+
+
+
+  # Writes the given data to a file intended to store all the non-spec data
+  # This method breaks genericness of this class because the task_id key
+  # must be present in the data stream and it makes all kinds of assumptions
+  # about what needs to be in the written data. Rethink both this method and
+  # how it is called.
+  def to_disk(data,task_id)
+    data['cell_id'] = task_id
+    File.open('input_data.json', 'a') {|f| f.write("#{data.to_json}\n####")}
+  end
 
 
   # Sends the first cmdline arg to the singleton unless -f specified, in
