@@ -8,7 +8,7 @@
 
 argv = ARGV
 # uncomment and fill out to debug in an instaREPL
-argv = ['list','all']
+#argv = ['list','all']
 pwd = "#{File.expand_path(File.dirname(__FILE__))}"
 
 require 'bundler/setup'
