@@ -18,6 +18,7 @@ require 'logger'
 @secret_key = ''
 @man_files = []
 @aggregator_files = []
+@job_files = []
     
 
 def start
