@@ -394,10 +394,15 @@ class Processor
       body = File.read(fname)
       # Pull out any preamble set directly in the body.
       if !body.empty?
-        by = YAML.load(body)
-        if by.kind_of?(Hash) && by.has_key?('EZQ')
-          preamble.merge!(by)
-          body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
+        begin
+          by = YAML.load(body)
+          if by.kind_of?(Hash) && by.has_key?('EZQ')
+            preamble.merge!(by)
+            body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
+          end
+        rescue
+          # This is triggered on a failed YAML load. Carry on; the body might
+          # not be valid YAML, and that's okay.
         end
       end
     else
