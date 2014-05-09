@@ -455,6 +455,8 @@ class Processor
       begin
         File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
         if props.has_key?('decompress') and props['decompress'] == true
+          Zip.on_exists_proc = true # Don't bail out if extracted files already
+                                    # exist
           Zip::File.open(props['key']) do |zip_file|
             zip_file.each { |entry| entry.extract(entry.name) }
           end
