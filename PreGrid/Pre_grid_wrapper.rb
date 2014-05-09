@@ -19,6 +19,7 @@ require 'logger'
 @man_files = []
 @aggregator_files = []
 @job_files = []
+@gen_dom_crit_report = false
     
 
 def start
@@ -30,9 +31,11 @@ def start
   inputfile = ARGV[0]
   if File.exists?(inputfile)
     input = YAML.load(File.read(inputfile))
-    @job_files = Array(input['job_files'])
-    @gen_dom_crit_report =
+    if input and input.type_of?(Hash)
+      @job_files = Array(input['job_files'])
+      @gen_dom_crit_report =
                      input.fetch('generate_dominant_critical_soil_report',false)
+    end
   end
   
   # If a $input_file was passed down as a cmdline arg, it might already
