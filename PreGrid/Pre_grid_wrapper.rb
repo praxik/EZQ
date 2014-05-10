@@ -29,7 +29,7 @@ def start
   # $input_file passed on cmdline contains some info about job-specific files
   # that will be used to populate part of the task header.
   inputfile = ARGV[0]
-  if File.exists?(inputfile)
+  if inputfile and File.exists?(inputfile)
     input = YAML.load(File.read(inputfile))
     if input and input.type_of?(Hash)
       @job_files = Array(input['job_files'])
@@ -84,6 +84,42 @@ def start
     io.close
     @exit_status = $?.to_i # Propagate success or failure up the chain
   end
+
+  
+  #system(@command)
+  #@exit_status = $?.to_i # Propagate success or failure up the chain
+#
+  #io = File.new('pregrid.txt')
+  #listening = true
+  #while !io.eof?
+    #msg = io.gets
+    #if listening
+      #if msg =~ /^push_file/  # *Starts* with 'push_file'...
+        #@log.info 'Push file message'
+        #bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
+        #@pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
+        #puts msg
+      #elsif msg =~ /^aggregator_file/ # Starts with 'aggregator_file'
+        #@log.info 'Aggregrator file message'
+        #bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
+        #@aggregator_files.push(Hash['bucket'=>bucket,'key'=>key])
+        ## Map into job_breaker's push_file directive
+        #puts "push_file: #{bucket},#{key}"
+      #else # This is a task to pass to job_breaker
+        #@log.info 'Task message'
+        #task_ids.push( YAML.load(msg)['task_id'] )
+        #msg.insert(0,make_preamble)
+        #puts msg.dump
+        ## Don't accumulate files across tasks
+        #@pushed_files.clear
+      #end
+    #else
+      #@log.info "Extraneous message: #{msg}"
+    #end
+  #end
+  #io.close
+    
+
   
   # Form and send off Report Gen Queue message
   #  {
