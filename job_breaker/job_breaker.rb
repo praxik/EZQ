@@ -91,7 +91,7 @@ class Job_Breaker
     @repeat_message_type = config['repeat_message_type']
     @dry_run = config['dry_run']
     @enqueued_tasks = []
-    
+    @already_pushed = []
    
     get_queue unless @dry_run
     if job_string.empty? && !@job_creator_command.empty?
@@ -209,10 +209,13 @@ class Job_Breaker
       puts "Would be pushing '#{fname}' into bucket '#{bname}'"
       return
     end
+    # Don't push the same file multiple times during a job.
+    return if @already_pushed.include?(bucket_comma_filename)
     if File.exists?(fname)
       s3 = AWS::S3.new
       bucket = s3.buckets[bname]
       obj = bucket.objects.create(fname,Pathname.new(fname))
+      @already_pushed.push(bucket_comma_filename)
     end
   end
 
@@ -336,7 +339,7 @@ if __FILE__ == $0
       exit 1
     end
     
-    EZQ::Job_Breaker.new(config,credentials,job)
+    EZQ::Job_Breaker.new(config,credentials,job,log)
   # Handle Ctrl-C gracefully
   rescue Interrupt
     warn "\nEZQ.Job_Breaker aborted!"
