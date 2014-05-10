@@ -45,7 +45,7 @@ class SixK
       launch_settings.merge!(@config['launch_settings'][type])
     end
     @size = launch_settings['size']
-    @count = launch_settings['count']
+    @count = launch_settings['count'].to_i
 
     @userdata = @config['userdata']['base']
     if @config['userdata'].has_key?(type)
@@ -83,7 +83,7 @@ class SixK
       opts.on("-c","--count N",
                     "Number of instances to start up.",
                     "  Default: 1") do |c|
-        cl_count = c
+        cl_count = c.to_i
       end
       opts.on("-n","--name NAME",
                     "Name with which to tag the instance(s)",
@@ -93,7 +93,7 @@ class SixK
       opts.on("-p","--processors N",
                     "# processes to start on each instance.",
                     "  Overrides the setting in config file." ) do |p|
-        cl_processes = p
+        cl_processes = p.to_i
       end
       opts.on("-s","--size SIZE",
                     "AWS instance size.",
