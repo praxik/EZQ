@@ -9,6 +9,7 @@ require 'socket'
 require 'tmpdir'
 require './singleton_app'
 require './data_spec_parser.rb'
+require 'logger'
 
 class Rusle2Aggregator < SingletonApp
 
@@ -68,8 +69,8 @@ class Rusle2Aggregator < SingletonApp
                                           # semantics.
     return true
   rescue => e
-    warn e
-    warn "Error parsing json."
+    @log "Error parsing json."
+    @log e
     return false
   end
 
@@ -138,4 +139,5 @@ class Rusle2Aggregator < SingletonApp
 end
 
 
-Rusle2Aggregator.new('127.0.0.1',:port=>5024,:listen=>true)
+#Rusle2Aggregator.new('127.0.0.1',:port=>5024,:listen=>true)
+Rusle2Aggregator.new('/tmp/rusle2',:listen=>true)
