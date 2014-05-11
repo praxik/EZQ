@@ -89,7 +89,7 @@ class RusleReport < EZQ::Processor
   def deal_with_report
     # 6k_aggregator c++ app will look at the soil geojson and tell us which
     # is the dominant critical soil
-    IO.popen('./6k_aggregator',"#{@rr_job_id}","#{@soil_geojson}") do |io|
+    IO.popen('./6k_aggregator','-j',"#{@rr_job_id}",'-f',"#{@soil_geojson}") do |io|
       while !io.eof?
         dom_crit_id = io.gets
       end
