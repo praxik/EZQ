@@ -69,8 +69,8 @@ class Rusle2Aggregator < SingletonApp
                                           # semantics.
     return true
   rescue => e
-    @log "Error parsing json."
-    @log e
+    @log.error "Error parsing json."
+    @log.error e
     return false
   end
 
