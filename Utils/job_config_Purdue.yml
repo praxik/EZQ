@@ -1,0 +1,22 @@
+#---
+#EZQ:
+# If pregrid needs the files for its operation, put directives here
+#  get_s3_files:
+#    - bucket: 6k_test.praxik
+#      key: Archive.zip
+#      decompress: true
+#...
+# If worker needs the files, put them here. Notice that you can send stuff to
+# pregrid that won't be sent to worker, or vice versa. To make the file go to
+# both, you have to put directives in both places.
+#job_files:
+#  - bucket:     6k_test.praxik
+#    key:        share/leaf/weps/weps.wjr/ISA_weps.zip
+#    decompress: true
+#  - bucket:     6k_test.praxik
+#    key:        Archive.zip
+#    decompress: true
+  # Add more as below. Notice the single dash before 'bucket'.
+  #- bucket: b
+  #  key: k
+  #  decompress: d
