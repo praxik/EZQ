@@ -31,7 +31,7 @@ def start
   inputfile = ARGV[0]
   if inputfile and File.exists?(inputfile)
     input = YAML.load(File.read(inputfile))
-    if input and input.type_of?(Hash)
+    if input and input.is_a?(Hash)
       @job_files = Array(input['job_files'])
       @gen_dom_crit_report =
                      input.fetch('generate_dominant_critical_soil_report',false)
