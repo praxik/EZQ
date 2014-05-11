@@ -51,7 +51,7 @@ class Rusle2Aggregator < SingletonApp
   def handle_data_from_client(connection)
     data = {}
     return false if !get_json(connection,data)
-    @log "Rec'd: #{data}"
+    @log.info "Rec'd: #{data}"
     #puts "Rec'd: #{data}"
     return store_data(data)
   end
