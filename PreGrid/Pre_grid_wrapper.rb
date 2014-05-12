@@ -54,18 +54,18 @@ def start
           listening = false
           @log.info 'Stopped listening for messages'
         elsif msg =~ /^push_file/  # *Starts* with 'push_file'...
-          @log.info 'Push file message'
+          @log.info "Push file message: #{msg}"
           bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
           @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
           puts msg
         elsif msg =~ /^aggregator_file/ # Starts with 'aggregator_file'
-          @log.info 'Aggregrator file message'
+          @log.info "Aggregrator file message: #{msg}"
           bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
           @aggregator_files.push(Hash['bucket'=>bucket,'key'=>key])
           # Map into job_breaker's push_file directive
           puts "push_file: #{bucket},#{key}"
         else # This is a task to pass to job_breaker
-          @log.info 'Task message'
+          @log.info "Task message: #{msg}"
           task_ids.push( YAML.load(msg)['task_id'] )
           msg.insert(0,make_preamble)
           puts msg.dump
@@ -128,6 +128,8 @@ def start
   #    "aggregator_files" : [{"bucket"=>b, "key"=>k},{etc}],
   #    "generate_dominant_critical_soil
   #  }
+  @log.info "6k_pregrid exited with exit status #{@exit_status}"
+  @log.info "Forming up message for report_gen_queue."
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
   if !task_ids.empty?
