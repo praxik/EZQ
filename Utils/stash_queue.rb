@@ -20,7 +20,12 @@ begin
 
   queue = AWS::SQS.new.queues.named(q)
 
-  Dir.mkdir(q) if !Dir.exists?(q)
+  if !Dir.exists?(q)
+    Dir.mkdir(q)
+    File.write("#{q}/.gitignore",'*') # Tell git to ignore everything in this
+                                      # dir. That's what we usually want with
+                                      # message stashes.
+  end
 
   # Get each message from the queue using block form that autodeletes.
   puts "\nStashing queue messages#{q}"
