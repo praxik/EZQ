@@ -122,6 +122,7 @@ class Job_Breaker
   # Starts up the job_creator_command and listens to its STDOUT for tasks
   def wrap_job_creator
     @logger.info "Running: #{@job_creator_command}"
+    push_thread = []
     IO.popen(@job_creator_command)  do |io| 
       while !io.eof?
         msg = io.gets
@@ -129,7 +130,12 @@ class Job_Breaker
         msg.sub!(/^"/,'') # Remove initial wrapping quote
         msg.sub!(/"$/,'') # Remove final wrapping quote
         if msg =~ /^push_file/
-          push_file( msg.sub!(/^push_file\s*:\s*/,'') )
+          # Don't push the same file multiple times during a job.
+          bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
+          if !@already_pushed.include?(bucket_comma_filename)
+            push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run ) }
+            @already_pushed << bucket_comma_filename
+          end
         else
           msg = add_preamble(msg)
           enqueue_task(msg)
@@ -139,6 +145,8 @@ class Job_Breaker
       io.close
       @exit_status =  $?.to_i
     end
+    # Wait for the file pushes to finish
+    push_threads.each { |t| t.join }
     if @repeat_message_type == 'collection'
       @repeat_message_n_times.times do
         @enqueued_tasks.each{|task| enqueue_task(task)}
@@ -203,20 +211,17 @@ class Job_Breaker
   
   protected
   # Pushes a file into S3. Argument should be string in form "bucket,filename"
-  def push_file(bucket_comma_filename)
+  def push_file(bucket_comma_filename,dry_run)
     bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
-    if @dry_run
+    if dry_run
       puts "Would be pushing '#{fname}' into bucket '#{bname}'"
       return
     end
-    # Don't push the same file multiple times during a job.
-    return if @already_pushed.include?(bucket_comma_filename)
     if File.exists?(fname)
-      s3 = AWS::S3.new
+      s3 = AWS::S3.new(credentials)
       bucket = s3.buckets[bname]
       obj = bucket.objects.create(fname,Pathname.new(fname))
       AWS.config.http_handler.pool.empty!
-      @already_pushed.push(bucket_comma_filename)
     end
   end
 
