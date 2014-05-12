@@ -89,7 +89,15 @@ class RusleReport < EZQ::Processor
   def deal_with_report
     # 6k_aggregator c++ app will look at the soil geojson and tell us which
     # is the dominant critical soil
-    IO.popen('./6k_aggregator','-j',"#{@rr_job_id}",'-f',"#{@soil_geojson}") do |io|
+    #LD_LIBRARY_PATH=. ./6k_aggregator -j c386223a-1838-4bc8-b39d-307b37e759af -f c386223a-1838-4bc8-b39d-307b37e759af_job.json -t isa2_results -d "Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;" --ssurgoconnstr "Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;" --connector ODBC
+    IO.popen('LD_LIBRARY_PATH=.',
+             './6k_aggregator',
+             '-j',"#{@rr_job_id}",
+             '-f',"#{@rr_job_id}_job.json",
+             '-t','isa3_results',
+             '-d',"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;",
+             '--ssurgoconnstr',"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;",
+             '--connector','ODBC') do |io|
       while !io.eof?
         dom_crit_id = io.gets
       end
