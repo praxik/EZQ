@@ -11,7 +11,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "6k_worker.exe --gdbname tyner.gdb --inputfilename $input_file --workerid $pid -o output_$id.txt"
+process_command: "6k_worker.exe --gdbname iowammp.gdb --inputfilename $input_file --workerid $pid -o output_$id.txt"
 
 # (true/false)
 retry_on_failure: false
