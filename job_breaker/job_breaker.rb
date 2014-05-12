@@ -82,6 +82,7 @@ class Job_Breaker
     #~credentials = {}
     #~credentials['access_key_id'] = config['access_key_id']
     #~credentials['secret_access_key'] = config['secret_access_key']
+    @credentials = credentials
     AWS.config(credentials)
     
     @job_creator_command = config['job_creator_command']
@@ -133,7 +134,7 @@ class Job_Breaker
           # Don't push the same file multiple times during a job.
           bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
           if !@already_pushed.include?(bucket_comma_filename)
-            push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run ) }
+            push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run, @credentials ) }
             @already_pushed << bucket_comma_filename
           end
         else
@@ -211,7 +212,7 @@ class Job_Breaker
   
   protected
   # Pushes a file into S3. Argument should be string in form "bucket,filename"
-  def push_file(bucket_comma_filename,dry_run)
+  def push_file(bucket_comma_filename,dry_run,credentials)
     bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
     if dry_run
       puts "Would be pushing '#{fname}' into bucket '#{bname}'"
