@@ -1,11 +1,11 @@
 # Fill in your AWS Access Key ID and Secret Access Key
 # http://aws.amazon.com/security-credentials
-access_key_id: YOUR_ACCESS_KEY_ID
-secret_access_key: YOUR_SECRET_ACCESS_KEY
+access_key_id: AKIAINRWKV3F6JGVY7WQ
+secret_access_key: E/j/+jnwOsniXrZ4tFgOiuvttYZD79yb64k4Yxz5
 
 # Name of queue to which to send test messages. If the queue doesn't exist,
 # the test programs will create one with this name.
-queue_name: Test_queue
+queue_name: 6k_task_test_44
 
 # Name of the Amazon S3 bucket to use for S3 tests. You need to provide
 # a unique name since S3 uses a global namespace. If in doubt, create the bucket

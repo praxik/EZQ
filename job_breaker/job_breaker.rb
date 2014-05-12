@@ -134,6 +134,7 @@ class Job_Breaker
           # Don't push the same file multiple times during a job.
           bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
           if !@already_pushed.include?(bucket_comma_filename)
+            @logger.info "Pushing #{bucket_comma_filename} on new thread"
             push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run, @credentials ) }
             @already_pushed << bucket_comma_filename
           end

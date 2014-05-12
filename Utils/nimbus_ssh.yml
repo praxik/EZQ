@@ -2,12 +2,12 @@
 base:
   # Settings to get into the jumpbox
   proxy_ip: 54.208.52.59
-  proxy_identity: your_id
-  proxy_user: your_username
+  proxy_identity: ~/.ssh/pp
+  proxy_user: pennt
 
   # Settings to get into the destination machine; only matters when
   # action = shell
-  host_identity: path/to/praxik.pem
+  host_identity: ~/.ssh/praxik.pem
   host_user: ubuntu
 
   # Port settings for tunneling. RDP uses 3389, VNC usually uses 5900,
@@ -30,11 +30,11 @@ base:
 reporthandler:
   action: shell
   # Just in case the base version gets changed, this is what we need here.
-  #host_identity: path/to/praxik.pem
-  #host_user: ubuntu
+  host_identity: ~/.ssh/praxik.pem
+  host_user: ubuntu
 
-#errorhandler:
-#  action: shell
-#  # Just in case the base version gets changed, this is what we need here.
-#  #host_identity: path/to/praxik.pem
-#  #host_user: ubuntu
+errorhandler:
+  action: shell
+  # Just in case the base version gets changed, this is what we need here.
+  host_identity: ~/.ssh/praxik.pem
+  host_user: ubuntu
