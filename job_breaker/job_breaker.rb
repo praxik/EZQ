@@ -215,6 +215,7 @@ class Job_Breaker
       s3 = AWS::S3.new
       bucket = s3.buckets[bname]
       obj = bucket.objects.create(fname,Pathname.new(fname))
+      AWS.config.http_handler.pool.empty!
       @already_pushed.push(bucket_comma_filename)
     end
   end
