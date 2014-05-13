@@ -35,7 +35,7 @@ begin
   queue.poll(:idle_timeout => 2,:batch_size => 10) do |msg|
     Array(msg).each do |item|
       puts "Stashing message #{item.id}"
-      File.write("#{q}/#{item.id}",msg.body)
+      File.write("#{q}/#{item.id}",item.body)
     end
   end
 rescue Interrupt
