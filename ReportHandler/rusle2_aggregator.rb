@@ -117,7 +117,7 @@ class Rusle2Aggregator < SingletonApp
   # about what needs to be in the written data. Rethink both this method and
   # how it is called.
   def to_disk(data)
-    File.open('input_data.json', 'a') {|f| f.write("#{data['inputs'].to_json}\n####")}
+    File.open('input_data.json', 'a') {|f| f.write("#{data['inputs'].to_json}\n####\n")}
   end
 
 
