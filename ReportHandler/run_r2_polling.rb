@@ -104,7 +104,7 @@ class RusleReport < EZQ::Processor
     end
     # Search through input_data.json to get the input structure for cell_id
     # dom_crit_id.
-    inputs = File.read(input_data.json)
+    inputs = File.read('input_data.json')
     inputs.split!('####')
     i_data = {}
     inputs.each do |input|
