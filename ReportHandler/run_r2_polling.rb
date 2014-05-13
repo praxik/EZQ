@@ -5,6 +5,7 @@ require 'bundler/setup'
 require './processor.rb'
 require 'json'
 require 'aws-sdk'
+require './data_spec_parser.rb'
 
 # This class overrides a few chosen methods of EZQ processor to insert task
 # tracking into the flow.
@@ -45,7 +46,7 @@ class RusleReport < EZQ::Processor
 
     # If parent processing was successful, mark the task as completed
     if success
-      task_id = JSON.parse(@msg_contents)['cell_id']
+      task_id = JSON.parse(@msg_contents)['task_id']
       @rr_remaining_tasks.delete(task_id)
       return true
     else
@@ -87,30 +88,30 @@ class RusleReport < EZQ::Processor
   # TODO: clean this mess up. Break out functionality into smaller, digestible
   # pieces.
   def deal_with_report
+    @logger.info 'deal_with_report'
+    data_spec = DataSpecParser::get_data_spec('main.cxx')
+    tablename = data_spec[:tablename]
     # 6k_aggregator c++ app will look at the soil geojson and tell us which
     # is the dominant critical soil
+    dom_crit_id = 0
     #LD_LIBRARY_PATH=. ./6k_aggregator -j c386223a-1838-4bc8-b39d-307b37e759af -f c386223a-1838-4bc8-b39d-307b37e759af_job.json -t isa2_results -d "Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;" --ssurgoconnstr "Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;" --connector ODBC
-    IO.popen('LD_LIBRARY_PATH=.',
-             './6k_aggregator',
-             '-j',"#{@rr_job_id}",
-             '-f',"#{@rr_job_id}_job.json",
-             '-t','isa3_results',
-             '-d',"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;",
-             '--ssurgoconnstr',"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;",
-             '--connector','ODBC') do |io|
+    command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@rr_job_id} -f json/#{@rr_job_id}_f2a53bff-c600-4eb9-913d-0a728df6ab02_job.json -t #{tablename} -d \"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
+    @logger.info "\n\n#{command}\n\n"
+    IO.popen(command) do |io|
       while !io.eof?
-        dom_crit_id = io.gets
+        dom_crit_id = io.gets.to_i
       end
     end
-    # Search through input_data.json to get the input structure for cell_id
+    @logger.info "dom_crit_id is #{dom_crit_id}"
+    # Search through input_data.json to get the input structure for task_id
     # dom_crit_id.
-    inputs = File.read('input_data.json')
-    inputs.split!('####')
+    inputs = File.read('input_data.json').split('####')
     i_data = {}
     inputs.each do |input|
       i_data = JSON.parse(input)
       break if i_data['task_id'] == dom_crit_id
     end
+    @logger.info "Found task_id in input_data.json." unless i_data.empty?
     # Add kv pair report : true to the top level of this structure,
     i_data['report'] = true
     # Form up an EZQ header for get_s3_files.
@@ -133,7 +134,9 @@ class RusleReport < EZQ::Processor
     preamble = preamble.to_yaml
     preamble += "...\n"
 
-    msg = "#{preamble}#{i_data.to_json}"    
+    msg = "#{preamble}#{i_data.to_json}"
+
+    @logger.info "Sending this message back for pass 2: #{msg}"
     
     # Place task back into worker task queue.
     # FIXME: hardcoding the queue name like this will break spot instance
@@ -200,6 +203,7 @@ if __FILE__ == $0
     puts "rusle2_report started.\n\n" unless quiet
     if log_file != STDOUT
       lf = File.new(log_file, 'a')
+      lf.sync = true
       log = Logger.new(lf)
       $stderr = lf
     else

@@ -140,8 +140,13 @@ end # module PdfReport
 # being imported as a module.
 if __FILE__ == $0
 
-PdfReport::make_gis_images
-exit 0
+#PdfReport::make_gis_images
+#exit 0
+require 'json'
+
+input_file = ARGV.shift
+ids = JSON.parse(File.read(input_file))
+
 
 ################################################################################
 #  This section contains all the symbols that are accessed by                  #

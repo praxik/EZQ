@@ -20,3 +20,4 @@ job_files:
   #- bucket: b
   #  key: k
   #  decompress: d
+generate_dominant_critical_soil_report: true
