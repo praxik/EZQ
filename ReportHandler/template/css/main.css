@@ -6,7 +6,7 @@
 /*****-----------------------------------------------*/
 body {
   background-color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
 }
 /* Header
 /* --------------------------------------------------*/
@@ -39,6 +39,10 @@ body {
 .table-borderless tbody tr td {
   border-top: none;
   border-bottom: none;
+}
+
+.rb {
+  background-color: #e67777;
 }
 
 .vertical-padding div{
