@@ -145,6 +145,7 @@ if __FILE__ == $0
 require 'json'
 
 input_file = ARGV.shift
+job_id = ARGV.shift
 worker_data = JSON.parse(File.read(input_file))
 
 
@@ -183,14 +184,38 @@ worker_data['manop_table'].each do |man|
 end
 
 data[:soil_details] = []             # Array of hash, see next
-soil_deets = {'map_unit_symbol' => 'Josh',
+soil_deets = {'map_unit_symbol' => '',
               'tolerable_soil_loss' => 0.0,
               'erosion' => 0.0,
               'conditioning_index' => 0.0,
               'organic_matter_sf' => 0.0,
               'field_operation_sf' => 0.0,
               'erosion_sf' => 0.0}
-data[:soil_details] << soil_deets
+data[:soil_map] = []
+soil_map_entry =  {'id' => '',
+                   'ac' => 0.0,
+                   'pct' => 0.0,
+                   'description' => ''}
+#data[:soil_map] << {'id'=>'TO DO','ac'=>0.0,'pct'=>0.0,'description'=>'Need to sift through xxxx_yyyy_job.json for this data'}
+
+record_id = worker_data['record_id']
+soils = JSON.parse(File.read("report_data/#{job_id}_#{record_id}.json"))['soil_table']
+soils.each do |soil|
+  data[:soil_details] << {'map_unit_symbol' => soil['musym'],
+                         'domcrit' => soil['domcrit'],
+                         'tolerable_soil_loss' => soil['tfact'],
+                         'erosion' => soil['toteros'],
+                         'conditioning_index' => soil['sci'],
+                         'organic_matter_sf' => soil['sciom'],
+                         'field_operation_sf' => soil['scifo'],
+                         'erosion_sf' => soil['scier']}
+  data[:soil_map] << {'id' => soil['musym'],
+                      'domcrit' => soil['domcrit'],
+                      'ac' => soil['acres'],
+                      'pct' => soil['pct'],
+                      'description' => soil['muname']}
+end
+#data[:soil_details] << soil_deets
 
 
 # The number of entries in the following three arrays should match
@@ -204,13 +229,6 @@ worker_data['inputs']['yield'].each do |yld|
   data[:grain_yield] << yld['value']
 end
 
-
-data[:soil_map] = []
-soil_map_entry =  {'id' => '',
-                   'ac' => 0.0,
-                   'pct' => 0.0,
-                   'description' => ''}
-data[:soil_map] << {'id'=>'TO DO','ac'=>0.0,'pct'=>0.0,'description'=>'Need to sift through xxxx_yyyy_job.json for this data'}
 
 data[:diesel_use] = 0.0
 dsl = worker_data['diesel']
