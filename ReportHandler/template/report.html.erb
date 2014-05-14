@@ -60,7 +60,7 @@
 			<tr>
 				<th>Grain Yield</th>
         <% data[:grain_yield].each do |gy| %>
-				<td><%= gy %></td>
+				<td><%= "%.2f" % gy %></td>
 				<% end %>
 			</tr>
 			</tbody>
@@ -90,7 +90,7 @@
 					<td><%=op['date'] %></td>
 					<td><%=op['operation'] %></td>
 					<td><%=op['crop'] %></td>
-					<td><%=op['residue_cover'] %></td>
+					<td><%= "%.2f" %  op['residue_cover'] %></td>
 				</tr>
         <% end %>
 
@@ -125,13 +125,13 @@
         <tbody>
 
           <% data[:soil_details].each do |sd| %>
-          <tr>
+          <tr <%= String.new("class=\"rb\"") if sd['domcrit'] %> >
             <td><%=sd['map_unit_symbol']%></td>
-            <td><%=sd['erosion']%></td>
-            <td><%=sd['conditioning_index']%></td>
-            <td><%=sd['organic_matter_sf']%></td>
-            <td><%=sd['field_operation_sf']%></td>
-            <td><%=sd['erosion_sf']%></td>
+            <td><%= "%.2f" % sd['erosion']%></td>
+            <td><%= "%.2f" % sd['conditioning_index']%></td>
+            <td><%= "%.2f" % sd['organic_matter_sf']%></td>
+            <td><%= "%.2f" % sd['field_operation_sf']%></td>
+            <td><%= "%.2f" % sd['erosion_sf']%></td>
           </tr>
           <% end %>
 
@@ -159,10 +159,10 @@
                 </thead>
                 <tbody>
                   <% data[:soil_map].each do |sm| %>
-                  <tr>
+                  <tr <%= String.new("class=\"rb\"") if sm['domcrit'] %> >
                     <td><%= sm['id'] %></td>
-                    <td><%= sm['ac'] %></td>
-                    <td><%= sm['pct'] %></td>
+                    <td><%= "%.2f" % sm['ac'] %></td>
+                    <td><%= "%.2f" % sm['pct'] %></td>
                     <td><%= sm['description'] %></td>
                   </tr>
                   <% end %>
@@ -194,34 +194,34 @@
 			</tr>
 			<tr>
 				<th>Diesel Use</th>
-				<td><%= data[:diesel_use] %> (gal/acre/year) *Calculated using NRCS assumptions</td>
+				<td><%= "%.2f" % data[:diesel_use] %> (gal/acre/year) *Calculated using NRCS assumptions</td>
 			</tr>
 			<tr>
 				<th>Water Erosion</th>
-				<td><%= data[:water_erosion] %> (tons/acre/year)</td>
+				<td><%= "%.2f" % data[:water_erosion] %> (tons/acre/year)</td>
 			</tr>
 			<tr>
 				<th>Wind Erosion</th>
-				<td><%= data[:wind_erosion] %> (tons/acre/year)</td>
+				<td><%= "%.2f" % data[:wind_erosion] %> (tons/acre/year)</td>
 			</tr>
 			<tr>
 				<th>Soil Conditioning Index</th>
-				<td><%= data[:soil_conditioning_index] %></td>
+				<td><%= "%.2f" % data[:soil_conditioning_index] %></td>
 			</tr>
 			<tr>
 				<th colspan="2">Soil Conditioning Index SubFactors</th>
 			</tr>
 			<tr>
 				<th> - Organic Matter</th>
-				<td><%= data[:organic_matter_sf] %></td>
+				<td><%= "%.2f" % data[:organic_matter_sf] %></td>
 			</tr>
 			<tr>
 				<th> - Field Operation</th>
-				<td><%= data[:field_operation_sf] %></td>
+				<td><%= "%.2f" % data[:field_operation_sf] %></td>
 			</tr>
 			<tr>
 				<th> - Erosion</th>
-				<td><%= data[:erosion_sf] %></td>
+				<td><%= "%.2f" % data[:erosion_sf] %></td>
 			</tr>
 			</tbody>
 		</table>
