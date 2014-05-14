@@ -94,18 +94,22 @@ class RusleReport < EZQ::Processor
     # 6k_aggregator c++ app will look at the soil geojson and tell us which
     # is the dominant critical soil
     dom_crit_id = 0
+    cpp_output = ''
     #LD_LIBRARY_PATH=. ./6k_aggregator -j c386223a-1838-4bc8-b39d-307b37e759af -f c386223a-1838-4bc8-b39d-307b37e759af_job.json -t isa2_results -d "Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;" --ssurgoconnstr "Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;" --connector ODBC
-    command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@rr_job_id} -f json/#{@rr_job_id}_f2a53bff-c600-4eb9-913d-0a728df6ab02_job.json -t #{tablename} -d \"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
+    command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@rr_job_id} -f json/#{@rr_job_id}_#{@record_id}_job.json -t #{tablename} -d \"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
     @logger.info "\n\n#{command}\n\n"
     IO.popen(command) do |io|
       while !io.eof?
-        dom_crit_id = io.gets.to_i
+        cpp_output = io.gets
       end
     end
+    Dir.mkdir('report_data') unless Dir.exists?('report_data')
+    File.write("report_data/#{@rr_job_id}_#{@record_id}.json",cpp_output)
+    dom_crit_id = JSON.parse(cpp_output)['task_id']
     @logger.info "dom_crit_id is #{dom_crit_id}"
     # Search through input_data.json to get the input structure for task_id
     # dom_crit_id.
-    inputs = File.read('input_data.json').split('####')
+    inputs = File.read("report_data/#{@rr_job_id}_input_data.json").split('####')
     i_data = {}
     inputs.each do |input|
       i_data = JSON.parse(input)
@@ -152,8 +156,8 @@ class RusleReport < EZQ::Processor
 
     # Start polling again.
     @dont_hit_disk = false # We want the results to be written this time!
-    @process_command = "ruby pdf_report.rb $input_file"
-    @gen_dom_crit_report = false # This will cause a graceful exit after
+    @process_command = "ruby pdf_report.rb $input_file #{@rr_job_id}"
+    @gen_dom_crit_report = false # This will trigger a graceful exit after
                                  # pdf_report finishes.
     start
   end
