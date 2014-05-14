@@ -145,7 +145,7 @@ if __FILE__ == $0
 require 'json'
 
 input_file = ARGV.shift
-ids = JSON.parse(File.read(input_file))
+worker_data = JSON.parse(File.read(input_file))
 
 
 ################################################################################
@@ -158,133 +158,169 @@ ids = JSON.parse(File.read(input_file))
 data = {}    # Master hash containing all the data
 
 data[:field_id] = ''                 # String
+data[:field_id] = 'To be queried from DB'
+
 data[:crop_rotation] = ''            # String
+data[:crop_rotation] = worker_data['inputs']['rotation']
+
 data[:dominant_critical_soil] = ''   # String
+data[:dominant_critical_soil] = worker_data['musym']
 
 data[:management_operations] = []    # Array of hash, see next
 management_op = {'date' => '',             # String
                  'operation' => '',        # String
                  'crop' => '',             # String
                  'residue_cover' => 0.0}   # Float
+worker_data['manop_table'].each do |man|
+  r_c = man['surfcov']
+  r_c = r_c.to_f if r_c.is_a?(String)
+  data[:management_operations] <<
+    { 'date' => man['date'],
+      'operation' => man['operation'],
+      'crop' => man['crop'],
+      'residue_cover' => r_c
+    }
+end
 
 data[:soil_details] = []             # Array of hash, see next
-soil_deets = {'map_unit_symbol' => '',
+soil_deets = {'map_unit_symbol' => 'Josh',
               'tolerable_soil_loss' => 0.0,
               'erosion' => 0.0,
               'conditioning_index' => 0.0,
               'organic_matter_sf' => 0.0,
               'field_operation_sf' => 0.0,
               'erosion_sf' => 0.0}
+data[:soil_details] << soil_deets
+
 
 # The number of entries in the following three arrays should match
 data[:crop_year] = []     # Array of strings
 data[:crop] = []          # Array of strings
 data[:grain_yield] = []   # Array of strings
 
+worker_data['inputs']['yield'].each do |yld|
+  data[:crop_year] << yld['year'].to_s
+  data[:crop] << yld['crop']
+  data[:grain_yield] << yld['value']
+end
+
+
 data[:soil_map] = []
 soil_map_entry =  {'id' => '',
                    'ac' => 0.0,
                    'pct' => 0.0,
                    'description' => ''}
+data[:soil_map] << {'id'=>'TO DO','ac'=>0.0,'pct'=>0.0,'description'=>'Need to sift through xxxx_yyyy_job.json for this data'}
 
 data[:diesel_use] = 0.0
+dsl = worker_data['diesel']
+dsl = dsl.to_f if dsl.is_a?(String)
+data[:diesel_use] = dsl
 data[:water_erosion] = 0.0
+data[:water_erosion] = worker_data['watereros']
 data[:wind_erosion] = 0.0
+data[:wind_erosion] = worker_data['winderos']
 data[:soil_conditioning_index] = 0.0
+data[:soil_conditioning_index] = worker_data['sci']
 data[:organic_matter_sf] = 0.0
+data[:organic_matter_sf] = worker_data['sciom']
 data[:field_operation_sf] = 0.0
+data[:field_operation_sf] = worker_data['scifo']
 data[:erosion_sf] = 0.0
+data[:erosion_sf] = worker_data['scier']
 
 
 ################################################################################
 # This section contains a test set of data for report.html.erb                 #
 ################################################################################
 
-man_data = <<MAN_DATA_END
-10/07/2013;Harvest, killing crop 50pct standing stubble;;83.7
-10/11/2013;Shredder, flail or rotary_35% flattening;;66.0
-10/11/2013;Bale corn stover_60% Flat Res Removed;;66.0
-10/21/2013;Subsoil disk ripper;;33.8
-04/23/2014;Cultivator, field 6-12 in sweeps;;26.8
-04/25/2014;Planter, double disk opnr w/fluted coulter;;26.9
-05/15/2014;Fert applic. surface broadcast;;24.2
-10/07/2014;Harvest, killing crop 50pct standing stubble;;83.1
-10/11/2014;Shredder, flail or rotary_35% flattening;;65.5
-10/11/2014;Bale corn stover_60% Flat Res Removed;;65.5
-10/21/2014;Subsoil disk ripper;;33.5
-04/23/2015;Cultivator, field 6-12 in sweeps;;26.3
-04/25/2015;Planter, double disk opnr w/fluted coulter;;26.4
-05/15/2015;Fert applic. surface broadcast;;23.7
-10/07/2015;Harvest, killing crop 50pct standing stubble;;83.0
-10/11/2015;Shredder, flail or rotary_35% flattening;;65.5
-10/11/2015;Bale corn stover_60% Flat Res Removed;;65.5
-10/21/2015;Subsoil disk ripper;;33.4
-04/23/2016;Cultivator, field 6-12 in sweeps;;33.4
-04/25/2016;Planter, double disk opnr w/fluted coulter;;26.3
-05/15/2016;Fert applic. surface broadcast;;23.7
-10/07/2016;Harvest, killing crop 50pct standing stubble;;83.0
-10/21/2016;Subsoil disk ripper;;49.7
-MAN_DATA_END
-
-soil_details_input = <<SDI_END
-308B 3 2.51 0.23 0.43 0.14 0.01
-203 3 0.71 0.37 0.43 0.14 0.72
-259 3 0.70 0.51 0.78 0.14 0.72
-308 3 0.72 0.37 0.43 0.14 0.72
-823B 3 1.26 0.33 0.43 0.14 0.50
-135 5 0.70 0.51 0.78 0.14 0.72
-SDI_END
-
-data[:field_id] = "Doug's Bottomland Corn Field #78"
-data[:crop_rotation] = 'Corn-Corn-Beans'
-data[:dominant_critical_soil] = 'Wadena loan, 32-40 inches to sand and gravel, 2-5 percent slopes (308B)'
-
-man_data.split("\n").each do |line|
-  items= line.split(';')
-  data[:management_operations].push({'date'=>items[0],
-                              'operation'=>items[1],
-                              'crop'=>items[2],
-                              'residue_cover'=>items[3]})
-end
-
-data[:management_operations] += data[:management_operations]
 
 
-soil_details_input.split("\n").each do |line|
-  items = line.split(' ')
-  data[:soil_details].push({'map_unit_symbol'=>items[0],
-                     'tolerable_soil_loss'=>items[1].to_f,
-                     'erosion'=>items[2].to_f,
-                     'conditioning_index'=>items[3].to_f,
-                     'organic_matter_sf'=>items[4].to_f,
-                     'field_operation_sf'=>items[5].to_f,
-                     'erosion_sf'=>items[6].to_f})
-end
+#man_data = <<MAN_DATA_END
+#10/07/2013;Harvest, killing crop 50pct standing stubble;;83.7
+#10/11/2013;Shredder, flail or rotary_35% flattening;;66.0
+#10/11/2013;Bale corn stover_60% Flat Res Removed;;66.0
+#10/21/2013;Subsoil disk ripper;;33.8
+#04/23/2014;Cultivator, field 6-12 in sweeps;;26.8
+#04/25/2014;Planter, double disk opnr w/fluted coulter;;26.9
+#05/15/2014;Fert applic. surface broadcast;;24.2
+#10/07/2014;Harvest, killing crop 50pct standing stubble;;83.1
+#10/11/2014;Shredder, flail or rotary_35% flattening;;65.5
+#10/11/2014;Bale corn stover_60% Flat Res Removed;;65.5
+#10/21/2014;Subsoil disk ripper;;33.5
+#04/23/2015;Cultivator, field 6-12 in sweeps;;26.3
+#04/25/2015;Planter, double disk opnr w/fluted coulter;;26.4
+#05/15/2015;Fert applic. surface broadcast;;23.7
+#10/07/2015;Harvest, killing crop 50pct standing stubble;;83.0
+#10/11/2015;Shredder, flail or rotary_35% flattening;;65.5
+#10/11/2015;Bale corn stover_60% Flat Res Removed;;65.5
+#10/21/2015;Subsoil disk ripper;;33.4
+#04/23/2016;Cultivator, field 6-12 in sweeps;;33.4
+#04/25/2016;Planter, double disk opnr w/fluted coulter;;26.3
+#05/15/2016;Fert applic. surface broadcast;;23.7
+#10/07/2016;Harvest, killing crop 50pct standing stubble;;83.0
+#10/21/2016;Subsoil disk ripper;;49.7
+#MAN_DATA_END
+
+#soil_details_input = <<SDI_END
+#308B 3 2.51 0.23 0.43 0.14 0.01
+#203 3 0.71 0.37 0.43 0.14 0.72
+#259 3 0.70 0.51 0.78 0.14 0.72
+#308 3 0.72 0.37 0.43 0.14 0.72
+#823B 3 1.26 0.33 0.43 0.14 0.50
+#135 5 0.70 0.51 0.78 0.14 0.72
+#SDI_END
+
+#data[:field_id] = "Doug's Bottomland Corn Field #78"
+#data[:crop_rotation] = 'Corn-Corn-Beans'
+#data[:dominant_critical_soil] = 'Wadena loan, 32-40 inches to sand and gravel, 2-5 percent slopes (308B)'
+#
+#man_data.split("\n").each do |line|
+  #items= line.split(';')
+  #data[:management_operations].push({'date'=>items[0],
+                              #'operation'=>items[1],
+                              #'crop'=>items[2],
+                              #'residue_cover'=>items[3]})
+#end
+#
+#data[:management_operations] += data[:management_operations]
+#
+#
+#soil_details_input.split("\n").each do |line|
+  #items = line.split(' ')
+  #data[:soil_details].push({'map_unit_symbol'=>items[0],
+                     #'tolerable_soil_loss'=>items[1].to_f,
+                     #'erosion'=>items[2].to_f,
+                     #'conditioning_index'=>items[3].to_f,
+                     #'organic_matter_sf'=>items[4].to_f,
+                     #'field_operation_sf'=>items[5].to_f,
+                     #'erosion_sf'=>items[6].to_f})
+#end
 
 
-data[:crop_year] << '2013' << '2014' << '2015' << '2016'
-
-data[:crop] << 'Corn' << 'Corn' << 'Corn' << 'Corn'
-
-data[:grain_yield] << 77 << 77 << 77 << 77
-
-data[:diesel_use] = 5.47
-
-data[:water_erosion] = 2.41
-
-data[:wind_erosion] = 1.34
-
-soil = {'id'=>'203B','ac'=>26.7,'pct'=>99.9,'description'=> <<END
-A: 107 (Spillville, channeled-Coland,
-channeled-Aquolls, ponded, complex, 0 to
-2 percent slopes, frequently flooded)
-Counties below: 83 (Biscay clay loam,
-ponded, 32 to 40 inches to sand and
-gravel, 0 to 1 percent slopes
-END
-}
-
-4.times {data[:soil_map] << soil}
+#data[:crop_year] << '2013' << '2014' << '2015' << '2016'
+#
+#data[:crop] << 'Corn' << 'Corn' << 'Corn' << 'Corn'
+#
+#data[:grain_yield] << 77 << 77 << 77 << 77
+#
+#data[:diesel_use] = 5.47
+#
+#data[:water_erosion] = 2.41
+#
+#data[:wind_erosion] = 1.34
+#
+#soil = {'id'=>'203B','ac'=>26.7,'pct'=>99.9,'description'=> <<END
+#A: 107 (Spillville, channeled-Coland,
+#channeled-Aquolls, ponded, complex, 0 to
+#2 percent slopes, frequently flooded)
+#Counties below: 83 (Biscay clay loam,
+#ponded, 32 to 40 inches to sand and
+#gravel, 0 to 1 percent slopes
+#END
+#}
+#
+#4.times {data[:soil_map] << soil}
 
 
 PdfReport::make_pdf('template/report.html.erb','header.html',data)
