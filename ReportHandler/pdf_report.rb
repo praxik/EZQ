@@ -36,94 +36,70 @@ def self.make_pdf(template,header,data)
                     :header_html => 'header.html'
                     )
 
-  pdfkit.to_file('report.pdf')
+  pdfkit.to_file("report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf")
 end
 
 
 
-def self.make_gis_images
+def self.make_gis_images(data)
 
-  scriptDir = "."#"/home/penn/vmshare/dev/leaf-apps/src/utils/gis/qgis/scripts"
-  baseDir = "."#"/home/penn/vmshare/dev/leaf-apps/src/sandbox/qgiscpp_test"
+  soil_mapper = "Soil.py"
+  budget_mapper = "Budget.py"
 
-  #path to python executable for generating png from json data file
-  exePath = scriptDir + "/PythonImageRenderer.py"
+  in_dir = "report_data"
+  out_dir = "report_data"
 
-  #path to sci input data file
-  #inputSci = baseDir + "/test_data/test_attribute.geojson"
+  job_id = data[:job_id]
+  rec_id = data[:record_id]
 
-  #path to eros input data file
-  #inputEros = baseDir + "/test_data/test_attribute.geojson"
+  soil_file = "#{in_dir}/#{job_id}_#{record_id}.geojson"
 
-  #path to musym input data file
-  inputMusym = baseDir + "/test_data/fieldsWithData_INL_Name__Field 1.shp"
+  common = " --width=2000" +
+           " --height=2000" +
+           " --scale=1.08" +
+           " --label=Horizontal" +
+           " --labelSize=150"
 
-  #path for creating sci image
-  #sciPngPath = baseDir + "/sci.png"
+  # Generate musym map
+  system("DISPLAY=:0 python #{soil_mapper}" +
+           " --output=\"#{out_dir}/musym.png\"" +
+           " --featureName=musym" +
+           " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+           " --mapType=categorized" +
+           " --textLabel=True" +
+           "#{common}")
+           
+  # Generate erosion maps
+  ['toeros','wateros','winderos'].each do |feature|
+    system("DISPLAY=:0 python #{soil_mapper}" +
+           " --output=\"#{out_dir}/#{feature}.png\"" +
+           " --featureName=#{feature}" +
+           " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+           " --mapType=QML" +
+           " --QMLFile=\"template/QMLFiles/AntaresErosion.qml\"" +
+           "#{common}")
+  end
 
-  #path for creating eros image
-  #erosPngPath = baseDir + "/eros.png"
+  # Generate sci maps
+  ['sci','sciom'].each do |feature|
+    system("DISPLAY=:0 python #{soil_mapper}" +
+           " --output=\"#{out_dir}/#{feature}.png\"" +
+           " --featureName=#{feature}" +
+           " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+           " --mapType=QML" +
+           " --QMLFile=\"template/QMLFiles/Antares-SCI.qml\"" +
+           "#{common}")
+  end
 
-  #path for creating musym image
-  musymPngPath = baseDir + "/musym.png"
-
-
-  #test call to python executable to create png from json input data
-  #sciArgs = []
-  #erosArgs = []
-  musymArgs = []
-
-  #sciArgs << "--featureName=Profit"
-  #sciArgs << "--mapType=graduated"
-  #sciArgs << "--gradCatNum=12"
-  #sciArgs << "--width=400"
-  #sciArgs << "--height=400"
-  #sciArgs << "--labelSize=30"
-  #sciArgs << "--showLabel=False"
-
-  #erosArgs << "--featureName=Profit"
-  #erosArgs << "--mapType=graduated"
-  #erosArgs << "--gradCatNum=12"
-  #erosArgs << "--width=400"
-  #erosArgs << "--height=400"
-  #erosArgs << "--labelSize=30"
-  #erosArgs << "--showLabel=False"
-
-  musymArgs << "--featureName=CG2P_SCI"
-  musymArgs << "--mapType=QML"
-  musymArgs << "--width=2000"
-  musymArgs << "--height=2000"
-  musymArgs << "--labelSize=150"
-  musymArgs << "--label=Horizontal"
-  musumArgs << "--QMLFile=#{baseDir}/test_data/Antares-SCI.qml"
-  musymArgs << "--scale=1.08"
-  musymArgs << "--VLayerTransparency=0"
-  
-
-  #sciArgs << "--input=#{inputSci}"
-  #sciArgs << "--output=#{sciPngPath}"
-
-  #erosArgs << "--input=#{inputSci}"
-  #erosArgs << "--output=#{erosPngPath}"
-
-  musymArgs << "--input=#{inputMusym}"
-  musymArgs << "--output=#{musymPngPath}"
-
-  #sciArgs.insert(0,exePath)
-  #sciArgs.insert(0,"python")
-
-  #erosArgs.insert(0,exePath)
-  #erosArgs.insert(0,"python")
-
-  musymArgs.insert(0,exePath)
-  musymArgs.insert(0,"python")
-
-  #puts musymArgs.join(" ")
-  #exit 0
-
-  #IO.popen(sciArgs)
-  #IO.popen(erosArgs)
-  IO.popen(musymArgs)
+  # Generate crop budget maps, one for each year in the reaults
+  data[:crop_year].each_with_index do |yr,n|
+    system("DISPLAY=:0 python #{budget_mapper}" +
+    " --output=\"#{out_dir}/budget_#{n}.png\"" +
+    " --input=\"#{in_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
+    " --mapType=test" +
+    " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+    "#{common}")
+  end
 
 end
 
@@ -157,6 +133,11 @@ worker_data = JSON.parse(File.read(input_file))
 ################################################################################
 
 data = {}    # Master hash containing all the data
+
+data[:job_id] = ''
+data[:job_id] = job_id
+data[:record_id] = ''
+data[:record_id] = worker_data['record_id']
 
 data[:field_id] = ''                 # String
 data[:field_id] = 'To be queried from DB'
@@ -248,99 +229,7 @@ data[:erosion_sf] = 0.0
 data[:erosion_sf] = worker_data['scier']
 
 
-################################################################################
-# This section contains a test set of data for report.html.erb                 #
-################################################################################
-
-
-
-#man_data = <<MAN_DATA_END
-#10/07/2013;Harvest, killing crop 50pct standing stubble;;83.7
-#10/11/2013;Shredder, flail or rotary_35% flattening;;66.0
-#10/11/2013;Bale corn stover_60% Flat Res Removed;;66.0
-#10/21/2013;Subsoil disk ripper;;33.8
-#04/23/2014;Cultivator, field 6-12 in sweeps;;26.8
-#04/25/2014;Planter, double disk opnr w/fluted coulter;;26.9
-#05/15/2014;Fert applic. surface broadcast;;24.2
-#10/07/2014;Harvest, killing crop 50pct standing stubble;;83.1
-#10/11/2014;Shredder, flail or rotary_35% flattening;;65.5
-#10/11/2014;Bale corn stover_60% Flat Res Removed;;65.5
-#10/21/2014;Subsoil disk ripper;;33.5
-#04/23/2015;Cultivator, field 6-12 in sweeps;;26.3
-#04/25/2015;Planter, double disk opnr w/fluted coulter;;26.4
-#05/15/2015;Fert applic. surface broadcast;;23.7
-#10/07/2015;Harvest, killing crop 50pct standing stubble;;83.0
-#10/11/2015;Shredder, flail or rotary_35% flattening;;65.5
-#10/11/2015;Bale corn stover_60% Flat Res Removed;;65.5
-#10/21/2015;Subsoil disk ripper;;33.4
-#04/23/2016;Cultivator, field 6-12 in sweeps;;33.4
-#04/25/2016;Planter, double disk opnr w/fluted coulter;;26.3
-#05/15/2016;Fert applic. surface broadcast;;23.7
-#10/07/2016;Harvest, killing crop 50pct standing stubble;;83.0
-#10/21/2016;Subsoil disk ripper;;49.7
-#MAN_DATA_END
-
-#soil_details_input = <<SDI_END
-#308B 3 2.51 0.23 0.43 0.14 0.01
-#203 3 0.71 0.37 0.43 0.14 0.72
-#259 3 0.70 0.51 0.78 0.14 0.72
-#308 3 0.72 0.37 0.43 0.14 0.72
-#823B 3 1.26 0.33 0.43 0.14 0.50
-#135 5 0.70 0.51 0.78 0.14 0.72
-#SDI_END
-
-#data[:field_id] = "Doug's Bottomland Corn Field #78"
-#data[:crop_rotation] = 'Corn-Corn-Beans'
-#data[:dominant_critical_soil] = 'Wadena loan, 32-40 inches to sand and gravel, 2-5 percent slopes (308B)'
-#
-#man_data.split("\n").each do |line|
-  #items= line.split(';')
-  #data[:management_operations].push({'date'=>items[0],
-                              #'operation'=>items[1],
-                              #'crop'=>items[2],
-                              #'residue_cover'=>items[3]})
-#end
-#
-#data[:management_operations] += data[:management_operations]
-#
-#
-#soil_details_input.split("\n").each do |line|
-  #items = line.split(' ')
-  #data[:soil_details].push({'map_unit_symbol'=>items[0],
-                     #'tolerable_soil_loss'=>items[1].to_f,
-                     #'erosion'=>items[2].to_f,
-                     #'conditioning_index'=>items[3].to_f,
-                     #'organic_matter_sf'=>items[4].to_f,
-                     #'field_operation_sf'=>items[5].to_f,
-                     #'erosion_sf'=>items[6].to_f})
-#end
-
-
-#data[:crop_year] << '2013' << '2014' << '2015' << '2016'
-#
-#data[:crop] << 'Corn' << 'Corn' << 'Corn' << 'Corn'
-#
-#data[:grain_yield] << 77 << 77 << 77 << 77
-#
-#data[:diesel_use] = 5.47
-#
-#data[:water_erosion] = 2.41
-#
-#data[:wind_erosion] = 1.34
-#
-#soil = {'id'=>'203B','ac'=>26.7,'pct'=>99.9,'description'=> <<END
-#A: 107 (Spillville, channeled-Coland,
-#channeled-Aquolls, ponded, complex, 0 to
-#2 percent slopes, frequently flooded)
-#Counties below: 83 (Biscay clay loam,
-#ponded, 32 to 40 inches to sand and
-#gravel, 0 to 1 percent slopes
-#END
-#}
-#
-#4.times {data[:soil_map] << soil}
-
-
+PdfReport::make_gis_images(data)
 PdfReport::make_pdf('template/report.html.erb','header.html',data)
 
 end
