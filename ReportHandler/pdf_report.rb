@@ -1,5 +1,6 @@
 require 'erb'
 require 'pdfkit'
+require 'pg'
 
 # Module containing function(s) for making pdf reports
 module PdfReport
@@ -36,7 +37,7 @@ def self.make_pdf(template,header,data)
                     :header_html => 'header.html'
                     )
 
-  pdfkit.to_file("report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf")
+  pdfkit.to_file("../report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf")
 end
 
 
@@ -48,9 +49,10 @@ def self.make_gis_images(data)
 
   in_dir = "report_data"
   out_dir = "report_data"
+  json_dir = "json"
 
   job_id = data[:job_id]
-  rec_id = data[:record_id]
+  record_id = data[:record_id]
 
   soil_file = "#{in_dir}/#{job_id}_#{record_id}.geojson"
 
@@ -70,7 +72,7 @@ def self.make_gis_images(data)
            "#{common}")
            
   # Generate erosion maps
-  ['toeros','wateros','winderos'].each do |feature|
+  ['toteros','watereros','winderos'].each do |feature|
     system("DISPLAY=:0 python #{soil_mapper}" +
            " --output=\"#{out_dir}/#{feature}.png\"" +
            " --featureName=#{feature}" +
@@ -95,7 +97,7 @@ def self.make_gis_images(data)
   data[:crop_year].each_with_index do |yr,n|
     system("DISPLAY=:0 python #{budget_mapper}" +
     " --output=\"#{out_dir}/budget_#{n}.png\"" +
-    " --input=\"#{in_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
+    " --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
     " --mapType=test" +
     " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
     "#{common}")
@@ -136,11 +138,23 @@ data = {}    # Master hash containing all the data
 
 data[:job_id] = ''
 data[:job_id] = job_id
+
 data[:record_id] = ''
 data[:record_id] = worker_data['record_id']
 
+
 data[:field_id] = ''                 # String
 data[:field_id] = 'To be queried from DB'
+
+db = PG.connect(
+        host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
+        dbname: 'praxik',
+        user: 'app',
+        password: 'app')
+sql = "SELECT owner,field FROM isa_run1_scn WHERE uuid='#{data[:record_id]}'"
+result = db.exec( sql )
+data[:field_id] = result[0]['owner'] + ' ' + result[0]['field']
+
 
 data[:crop_rotation] = ''            # String
 data[:crop_rotation] = worker_data['inputs']['rotation']
