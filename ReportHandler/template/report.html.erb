@@ -28,15 +28,15 @@
 		<table class="table table-borderless">
 			<tbody>
 			<tr>
-				<th>Field ID</th>
+				<th style="width:185px">Field ID</th>
         <td><%= data[:field_id] %></td>
 			</tr>
 			<tr>
-				<th>Crop Rotation</th>
+				<th style="width:185px">Crop Rotation</th>
 				<td><%= data[:crop_rotation] %></td>
 			</tr>
 			<tr>
-				<th>Dominant Critical Soil</th>
+				<th style="width:185px">Dominant Critical Soil</th>
 				<td ><%= data[:dominant_critical_soil] %></td>
 			</tr>
 			<tbody>
@@ -60,7 +60,7 @@
 			<tr>
 				<th>Grain Yield</th>
         <% data[:grain_yield].each do |gy| %>
-				<td><%= "%.2f" % gy %></td>
+				<td><%= gy.round %></td>
 				<% end %>
 			</tr>
 			</tbody>
@@ -90,7 +90,7 @@
 					<td><%=op['date'] %></td>
 					<td><%=op['operation'] %></td>
 					<td><%=op['crop'] %></td>
-					<td><%= "%.2f" %  op['residue_cover'] %></td>
+					<td><%=op['residue_cover'].round %></td>
 				</tr>
         <% end %>
 
@@ -108,8 +108,8 @@
 </div>
 
 
-<div class="dont-break">
-  <div class="row">
+<!-- <div class="dont-break"> -->
+  <div class="row dont-break">
     <div class="col-xs-12">
       <table class="table table-small-text table-striped table-bordered">
         <thead>
@@ -137,18 +137,19 @@
 
         </tbody>
       </table>
+      *The highlighted row(s) is the NRCS dominant critical soil(s)
     </div>
   </div>
 
-  <div class="row">
+  <div class="row dont-break">
     <div class="col-xs-12">
       <table class="table">
         <tbody>
           <tr>
             <th>Soils Map</th>
-            <td><img src="./images/SoilMap.png" class="soil-map"></td>
+            <td><img src="../report_data/musym.png" class="soil-map"></td>
             <td>
-              <table class="table table-small-text table-striped">
+              <table class="table table-xsmall-text table-striped">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -161,9 +162,9 @@
                   <% data[:soil_map].each do |sm| %>
                   <tr <%= String.new("class=\"rb\"") if sm['domcrit'] %> >
                     <td><%= sm['id'] %></td>
-                    <td><%= "%.2f" % sm['ac'] %></td>
-                    <td><%= "%.2f" % sm['pct'] %></td>
-                    <td><%= sm['description'] %></td>
+                    <td><%= "%.1f" % sm['ac'] %></td>
+                    <td><%= "%.1f" % sm['pct'] %></td>
+                    <td style="font-size:9px"><%= sm['description'] %></td>
                   </tr>
                   <% end %>
 
@@ -176,7 +177,7 @@
       </table>
     </div>
   </div>
-</div>
+<!-- </div> -->
 
 
 <div class="row dont-break">
@@ -194,7 +195,10 @@
 			</tr>
 			<tr>
 				<th>Diesel Use</th>
-				<td><%= "%.2f" % data[:diesel_use] %> (gal/acre/year) *Calculated using NRCS assumptions</td>
+				<td>
+				  <div style="float:left;width:50%;"><%= "%.2f" % data[:diesel_use] %> (gal/acre/year)</div>
+          <div style="float:right;width:50%;text-align:right;">*Calculated using NRCS assumptions</div>
+				</td>
 			</tr>
 			<tr>
 				<th>Water Erosion</th>
@@ -237,7 +241,7 @@
 					<th>Total Erosion
 					<div></div>
 					</th>
-					<td><img src="./images/AntaresTotalErosPic.png" class="eros-map"></td>
+					<td><img src="../report_data/toteros.png" class="eros-map"></td>
 					<td><img src="./images/AntaresTotalErosLegend.png" class="eros-map"></td>
 				</tr>
 
@@ -245,7 +249,7 @@
 					<th>Wind Erosion
 					<div></div>
 					</th>
-					<td><img src="./images/AntaresWindErosPic.png" class="eros-map"></td>
+					<td><img src="../report_data/winderos.png" class="eros-map"></td>
 					<td><img src="./images/AntaresWindErosLegend.png" class="eros-map"></td>
 				</tr>
 
@@ -253,7 +257,7 @@
 					<th>Water Erosion
 					<div></div>
 					</th>
-					<td><img src="./images/AntaresWaterErosPic.png" class="eros-map"></td>
+					<td><img src="../report_data/watereros.png" class="eros-map"></td>
 					<td><img src="./images/AntaresWaterErosLegend.png" class="eros-map"></td>
 				</tr>
 
@@ -261,7 +265,7 @@
 					<th>SCI
 					<div></div>
 					</th>
-					<td><img src="./images/AntaresSCIPic.png" class="eros-map"></td>
+					<td><img src="../report_data/sci.png" class="eros-map"></td>
 					<td><img src="./images/AntaresSCILegend.png" class="eros-map"></td>
 				</tr>
 
@@ -269,9 +273,19 @@
 					<th>SCIOM
 					<div></div>
 					</th>
-					<td><img src="./images/AntaresSCIOMPic.png" class="eros-map"></td>
+					<td><img src="../report_data/sciom.png" class="eros-map"></td>
 					<td><img src="./images/AntaresSCIOMLegend.png" class="eros-map"></td>
 				</tr>
+				
+				<% data[:crop_year].each_with_index do |yr,n| %>
+				  <tr>
+				    <th>Profit <%= yr %> <%= data[:crop][n] %>
+				    <div></div>
+				    </th>
+				    <td><img src= <%= "../report_data/budget_#{n}.png" %> class="eros-map"></td>
+  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="eros-map"></td>
+				  </tr>
+				<% end %>
         
 			</tbody>
 		</table>
