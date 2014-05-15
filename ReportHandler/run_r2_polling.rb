@@ -96,7 +96,7 @@ class RusleReport < EZQ::Processor
     dom_crit_id = 0
     cpp_output = ''
     #LD_LIBRARY_PATH=. ./6k_aggregator -j c386223a-1838-4bc8-b39d-307b37e759af -f c386223a-1838-4bc8-b39d-307b37e759af_job.json -t isa2_results -d "Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;" --ssurgoconnstr "Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;" --connector ODBC
-    command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@rr_job_id} -f json/#{@rr_job_id}_#{@record_id}_job.json -t #{tablename} -d \"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
+    command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@rr_job_id} -r #{@record_id} -f json/#{@rr_job_id}_#{@record_id}_job.json -t #{tablename} -d \"Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
     @logger.info "\n\n#{command}\n\n"
     IO.popen(command) do |io|
       while !io.eof?
@@ -104,6 +104,7 @@ class RusleReport < EZQ::Processor
       end
     end
     Dir.mkdir('report_data') unless Dir.exists?('report_data')
+    File.write("report_data/#{@rr_job_id}_#{@record_id}.geojson",JSON.parse(cpp_output)['soil_geojson'].to_json)
     File.write("report_data/#{@rr_job_id}_#{@record_id}.json",cpp_output)
     dom_crit_id = JSON.parse(cpp_output)['task_id']
     @logger.info "dom_crit_id is #{dom_crit_id}"
