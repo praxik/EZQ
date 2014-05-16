@@ -153,7 +153,7 @@ db = PG.connect(
         password: 'app')
 sql = "SELECT owner,field FROM isa_run1_scn WHERE uuid='#{data[:record_id]}'"
 result = db.exec( sql )
-data[:field_id] = result[0]['owner'] + ' ' + result[0]['field']
+data[:field_id] = result[0]['owner'] + ', ' + result[0]['field']
 
 
 data[:crop_rotation] = ''            # String
