@@ -126,12 +126,12 @@
 
           <% data[:soil_details].each do |sd| %>
           <tr <%= String.new("class=\"rb\"") if sd['domcrit'] %> >
-            <td><%=sd['map_unit_symbol']%></td>
-            <td><%= "%.2f" % sd['erosion']%></td>
-            <td><%= "%.2f" % sd['conditioning_index']%></td>
-            <td><%= "%.2f" % sd['organic_matter_sf']%></td>
-            <td><%= "%.2f" % sd['field_operation_sf']%></td>
-            <td><%= "%.2f" % sd['erosion_sf']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%=sd['map_unit_symbol']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['erosion']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['conditioning_index']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['organic_matter_sf']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['field_operation_sf']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['erosion_sf']%></td>
           </tr>
           <% end %>
 
@@ -161,10 +161,10 @@
                 <tbody>
                   <% data[:soil_map].each do |sm| %>
                   <tr <%= String.new("class=\"rb\"") if sm['domcrit'] %> >
-                    <td><%= sm['id'] %></td>
-                    <td><%= "%.1f" % sm['ac'] %></td>
-                    <td><%= "%.1f" % sm['pct'] %></td>
-                    <td style="font-size:9px"><%= sm['description'] %></td>
+                    <td <%= String.new("style=\"background-color: #e67777\"") if sm['domcrit'] %> ><%= sm['id'] %></td>
+                    <td <%= String.new("style=\"background-color: #e67777\"") if sm['domcrit'] %> ><%= "%.1f" % sm['ac'] %></td>
+                    <td <%= String.new("style=\"background-color: #e67777\"") if sm['domcrit'] %> ><%= "%.1f" % sm['pct'] %></td>
+                    <td  <%= String.new("style=\"background-color: #e67777\"") if sm['domcrit'] %> style="font-size:9px"><%= sm['description'] %></td>
                   </tr>
                   <% end %>
 
