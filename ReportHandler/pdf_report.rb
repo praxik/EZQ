@@ -1,6 +1,7 @@
 require 'erb'
 require 'pdfkit'
-#require 'pg'
+require 'aws-sdk'
+require 'yaml'
 
 # Module containing function(s) for making pdf reports
 module PdfReport
@@ -38,6 +39,8 @@ def self.make_pdf(template,header,data)
                     )
 
   pdfkit.to_file("../report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf")
+  # Undo the chdir from above
+  Dir.chdir('..')
 end
 
 
@@ -146,7 +149,7 @@ data[:record_id] = worker_data['record_id']
 data[:field_id] = ''                 # String
 data[:field_id] = 'To be queried from DB'
 
-field_data = JSON.parse(File.read("json/#{job_id}_#{record_id}__jobdetail.json"))
+field_data = JSON.parse(File.read("json/#{job_id}_#{data[:record_id]}__jobdetail.json"))
 
 #db = PG.connect(
         #host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
@@ -250,6 +253,20 @@ data[:erosion_sf] = worker_data['scier']
 
 PdfReport::make_gis_images(data)
 PdfReport::make_pdf('template/report.html.erb','header.html',data)
+
+# Push file to S3
+# TODO: This block needs some work:
+# - error handling
+# - get credentials on commandline
+fname = "../report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf"
+if File.exists?(fname)
+  credentials = YAML.load(File.read('credentials.yml'))
+  s3 = AWS::S3.new(credentials)
+  bucket = s3.buckets['6k_test.praxik']
+  obj = bucket.objects.create("reports/#{fname}",Pathname.new(fname))
+end
+
+exit 0    
 
 end
 
