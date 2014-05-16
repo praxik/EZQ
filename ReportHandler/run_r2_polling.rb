@@ -27,6 +27,8 @@ class RusleReport < EZQ::Processor
     # When rr_remaining_tasks is empty, we know we've processed all tasks
     # related to this job.
     @rr_remaining_tasks = @rr_task_ids.clone
+    @rr_completed_tasks = []
+    @waiting_for_report = false
 
     overrides={"receive_queue_name"=>@rr_job_id}
     # Set up the parent Processor
@@ -40,17 +42,34 @@ class RusleReport < EZQ::Processor
     # Open up the results and insert the current job id
     parsed_msg = JSON.parse(@msg_contents)
     parsed_msg['job_id'] = @rr_job_id
-    if @gen_dom_crit_report
-      @record_id = File(parsed_msg['aggregator_files'][0]['key']).basename.split('_')[1]
-    end
+    @record_id = parsed_msg['record_id'] if @gen_dom_crit_report
     @msg_contents = parsed_msg.to_json
-    
-    success = super
+
+    success = true
+    task_id = JSON.parse(@msg_contents)['task_id']
+    # Only process the task for real if we haven't already seen it; otherwise
+    # just return true so the task will be deleted.
+    if @waiting_for_report
+      # Check to see if it's the report. If so, process it; if not, sink it.
+      if @msg_contents =~ /manop_table/
+        success = super
+      else
+        @logger.info "Sinking extra result message while waiting for report"
+        success = true
+      end
+    else
+      if !@rr_completed_tasks.include?(task_id)
+        success = super
+      else
+        @logger.info "Sinking duplicate result message"
+        success = true
+      end
+    end
 
     # If parent processing was successful, mark the task as completed
     if success
-      task_id = JSON.parse(@msg_contents)['task_id']
       @rr_remaining_tasks.delete(task_id)
+      @rr_completed_tasks << task_id
       return true
     else
       return false
@@ -63,8 +82,9 @@ class RusleReport < EZQ::Processor
   def poll_queue
     @in_queue.poll_no_delete(@polling_options) do |msg|
       Array(msg).each do |item|
-        process_message(item)
-        if @rr_remaining_tasks.empty?
+        success = false
+        success = process_message(item)
+        if success and @rr_remaining_tasks.empty?
           deal_with_report if @gen_dom_crit_report # Breaks out of recursion in
                 # addition to simply seeing whether this step must be performed.
                                                    
@@ -119,7 +139,7 @@ class RusleReport < EZQ::Processor
       i_data = JSON.parse(input)
       break if i_data['task_id'] == dom_crit_id
     end
-    @logger.info "Found task_id in input_data.json." unless i_data.empty?
+    @logger.info "Found task_id in report_data/#{@rr_job_id}_input_data.json." unless i_data.empty?
     # Add kv pair report : true to the top level of this structure,
     i_data['report'] = true
     # Form up an EZQ header for get_s3_files.
@@ -159,6 +179,7 @@ class RusleReport < EZQ::Processor
     queue.send_message(msg)
 
     # Start polling again.
+    @waiting_for_report = true
     @dont_hit_disk = false # We want the results to be written this time!
     @process_command = "ruby pdf_report.rb $input_file #{@rr_job_id}"
     @gen_dom_crit_report = false # This will trigger a graceful exit after
