@@ -1,6 +1,6 @@
 require 'erb'
 require 'pdfkit'
-require 'pg'
+#require 'pg'
 
 # Module containing function(s) for making pdf reports
 module PdfReport
@@ -146,14 +146,18 @@ data[:record_id] = worker_data['record_id']
 data[:field_id] = ''                 # String
 data[:field_id] = 'To be queried from DB'
 
-db = PG.connect(
-        host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
-        dbname: 'praxik',
-        user: 'app',
-        password: 'app')
-sql = "SELECT owner,field FROM isa_run1_scn WHERE uuid='#{data[:record_id]}'"
-result = db.exec( sql )
-data[:field_id] = result[0]['owner'] + ', ' + result[0]['field']
+field_data = JSON.parse(File.read("json/#{job_id}_#{record_id}__jobdetail.json"))
+
+#db = PG.connect(
+        #host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
+        #dbname: 'praxik',
+        #user: 'app',
+        #password: 'app')
+#sql = "SELECT owner,field FROM isa_run1_scn WHERE uuid='#{data[:record_id]}'"
+#result = db.exec( sql )
+#data[:field_id] = result[0]['owner'] + ', ' + result[0]['field']
+
+data[:field_id] = field_data['owner'] + ', ' + field_data['field']
 
 
 data[:crop_rotation] = ''            # String
@@ -218,10 +222,11 @@ data[:crop_year] = []     # Array of strings
 data[:crop] = []          # Array of strings
 data[:grain_yield] = []   # Array of strings
 
-worker_data['inputs']['yield'].each do |yld|
+#worker_data['inputs']['yield'].each do |yld|
+field_data['yield_average'].each do |yld|
   data[:crop_year] << yld['year'].to_s
   data[:crop] << yld['crop']
-  data[:grain_yield] << yld['value']
+  data[:grain_yield] << yld['yield']
 end
 
 
