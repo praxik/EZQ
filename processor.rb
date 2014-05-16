@@ -534,8 +534,9 @@ class Processor
     end
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
-    
-    if run_process_command(msg,@input_filename,@id)
+
+    success = run_process_command(msg,@input_filename,@id)
+    if success
       # Do result_step before deleting the message in case result_step fails.
       if do_result_step()
         @logger.info "Processing successful. Deleting message #{@id}"
@@ -545,6 +546,7 @@ class Processor
     
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
+    return success
   end
 
 
