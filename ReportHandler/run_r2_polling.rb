@@ -40,6 +40,9 @@ class RusleReport < EZQ::Processor
     # Open up the results and insert the current job id
     parsed_msg = JSON.parse(@msg_contents)
     parsed_msg['job_id'] = @rr_job_id
+    if @gen_dom_crit_report
+      @record_id = File(parsed_msg['aggregator_files'][0]['key']).basename.split('_')[1]
+    end
     @msg_contents = parsed_msg.to_json
     
     success = super
