@@ -115,6 +115,7 @@
         <thead>
           <tr>
             <th>Soil Map Unit Symbol</th>
+            <th>Tolerable Soil Loss</th>
             <th>Soil Erosion</th>
             <th>Soil Condition Index</th>
             <th>Organic Matter Sub-Factor</th>
@@ -127,6 +128,7 @@
           <% data[:soil_details].each do |sd| %>
           <tr <%= String.new("class=\"rb\"") if sd['domcrit'] %> >
             <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%=sd['map_unit_symbol']%></td>
+            <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%i" % sd['tolerable_soil_loss']%></td>
             <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['erosion']%></td>
             <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['conditioning_index']%></td>
             <td <%= String.new("style=\"background-color: #e67777\"") if sd['domcrit'] %> ><%= "%.2f" % sd['organic_matter_sf']%></td>
@@ -242,7 +244,7 @@
 					<div></div>
 					</th>
 					<td><img src="../report_data/toteros.png" class="eros-map"></td>
-					<td><img src="./images/AntaresTotalErosLegend.png" class="eros-map"></td>
+					<td><img src="./images/AntaresTotalErosLegend.png" class="eros-legend"></td>
 				</tr>
 
         <tr>
@@ -250,7 +252,7 @@
 					<div></div>
 					</th>
 					<td><img src="../report_data/winderos.png" class="eros-map"></td>
-					<td><img src="./images/AntaresWindErosLegend.png" class="eros-map"></td>
+					<td><img src="./images/AntaresWindErosLegend.png" class="eros-legend"></td>
 				</tr>
 
         <tr>
@@ -258,7 +260,7 @@
 					<div></div>
 					</th>
 					<td><img src="../report_data/watereros.png" class="eros-map"></td>
-					<td><img src="./images/AntaresWaterErosLegend.png" class="eros-map"></td>
+					<td><img src="./images/AntaresWaterErosLegend.png" class="eros-legend"></td>
 				</tr>
 
         <tr>
@@ -266,7 +268,7 @@
 					<div></div>
 					</th>
 					<td><img src="../report_data/sci.png" class="eros-map"></td>
-					<td><img src="./images/AntaresSCILegend.png" class="eros-map"></td>
+					<td><img src="./images/AntaresSCILegend.png" class="eros-legend"></td>
 				</tr>
 
         <tr>
@@ -274,7 +276,7 @@
 					<div></div>
 					</th>
 					<td><img src="../report_data/sciom.png" class="eros-map"></td>
-					<td><img src="./images/AntaresSCIOMLegend.png" class="eros-map"></td>
+					<td><img src="./images/AntaresSCIOMLegend.png" class="eros-legend"></td>
 				</tr>
 				
 				<% data[:crop_year].each_with_index do |yr,n| %>
@@ -283,7 +285,7 @@
 				    <div></div>
 				    </th>
 				    <td><img src= <%= "../report_data/budget_#{n}.png" %> class="eros-map"></td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="eros-map"></td>
+  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="eros-legend"></td>
 				  </tr>
 				<% end %>
         
