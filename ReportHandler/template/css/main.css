@@ -74,6 +74,10 @@ th div {
 .soil-map {
   max-height: 350px;
 }
+
+.eros-legend {
+  max-height: 150px;
+}
 /***** Homepage
 /*-----------------------------------*/
 /***** Fields
