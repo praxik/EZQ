@@ -67,14 +67,14 @@ userdata:
     
   worker_ISA:
     deploy_key: arks/default/worker.zip
-    number_of_processes: 4 
+    number_of_processes: 8 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
     
   worker_Purdue:
-    deploy_key: arks/default/worker.zip
+    deploy_key: arks/purdue/worker.zip
     number_of_processes: 44 
     gdb_key: tyner.gdb.zip
     gdb_install_name: tyner.gdb
@@ -92,7 +92,7 @@ userdata:
     r2_man_key: ISA_skels.zip
 
   pregrid_Purdue:
-    deploy_key: arks/default/pregrid.zip
+    deploy_key: arks/purdue/pregrid.zip
     gdb_key: tyner.gdb.zip
     gdb_install_name: tyner.gdb
     man_key: WEPS_Purdue.zip
