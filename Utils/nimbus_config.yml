@@ -46,6 +46,17 @@ launch_settings:
     
   #worker:
   #  size: 'c3.8xlarge'
+  pregrid:
+    size: 'm3.medium'
+  
+  pregrid_ISA:
+    size: 'm3.medium'
+  
+  pregrid_Purdue:
+    size: 'm3.medium'
+    
+  worker_Purdue: 
+    size: 'c3.8xlarge'
 
 
 # The information in this section is used to populate the userdata on
