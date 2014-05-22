@@ -17,7 +17,11 @@ module PdfReport
 #                    up to the caller to ensure the format of the data structure
 #                    matches that of the erb template. The erb should expect to
 #                    get the "data" from a variable named "data".
-def self.make_pdf(template,header,data)
+# @param last_name [String] the last piece of the filename just before .pdf
+#                           PDFs will be saved with the name
+#                           [job_id]_[record_id]_[last_name].pdf
+# @return returns the name of the generated file
+def self.make_pdf(template,header,data,last_name)
   Dir.chdir(File.dirname(template))
   html_in = File.basename(template)
   input = File.read(html_in)
@@ -26,22 +30,24 @@ def self.make_pdf(template,header,data)
 
   erbed = ERB.new(input)
 
-  File.write('report.html',erbed.result)
+  File.write("#{last_name}.html",erbed.result)
 
-  pdfkit = PDFKit.new(File.new('report.html'),
+  pdfkit = PDFKit.new(File.new("#{last_name}.html"),
                     #:print_media_type => true,
                     :page_size => 'Letter',
                     :margin_left => '2mm',
                     :margin_right => '2mm',
                     :margin_top => '35mm',
                     :margin_bottom => '10mm',
-                    :footer_center => 'Page [page] of [topage]',
+                    #:footer_center => 'Page [page] of [topage]',
                     :header_html => 'header.html'
                     )
 
-  pdfkit.to_file("../report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf")
+  pdfkit.to_file("../report_data/#{data[:job_id]}_#{data[:record_id]}_#{last_name}.pdf")
   # Undo the chdir from above
   Dir.chdir('..')
+  # return filename of generated pdf
+  return "report_data/#{data[:job_id]}_#{data[:record_id]}_#{last_name}.pdf"
 end
 
 
@@ -331,18 +337,30 @@ data[:erosion_sf] = worker_data['scier']
 
 PdfReport::make_gis_images(data,field_data)
 PdfReport::make_histograms(data)
-PdfReport::make_pdf('template/report.html.erb','header.html',data)
+
+pdfs = []
+names = ['managements','soils','results','soil_maps','profit']
+names.each do |name|
+  pdfs << PdfReport::make_pdf("template/#{name}.html.erb",'header.html',data,name)
+end
+report_name = "report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf"
+
+# Stitch the report pieces into one pdf
+# pdftk is faster, but creates a pdf that is larger
+#system("pdftk #{pdfs.join(' ')} cat output #{report_name}")
+
+# Ghostscript takes a bit longer, but can reduce the pdf size by factor of two!
+system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
 
 # Push file to S3
 # TODO: This block needs some work:
 # - error handling
 # - get credentials on commandline
-fname = "report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf"
-if File.exists?(fname)
+if File.exists?(report_name)
   credentials = YAML.load(File.read('credentials.yml'))
   s3 = AWS::S3.new(credentials)
   bucket = s3.buckets['6k_test.praxik']
-  obj = bucket.objects.create("reports/#{fname}",Pathname.new(fname))
+  obj = bucket.objects.create("reports/#{report_name}",Pathname.new(report_name))
 end
 
 exit 0    
