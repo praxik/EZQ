@@ -22,6 +22,8 @@ from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+import time
+
 import pdb		#This is used for testing. Use pdb.set_trace() to start stepping through code when executed.
 import argparse #Deals with inputs from the command line.
 from XMLMetadataParse import *
@@ -100,7 +102,11 @@ class GeoLayers:
 	#renders an image
 	def renderImage(self, target, source):
 		imagePainter = QPainter(self.image)
+		
+		t0 = time.time()
 		self.composition.render(imagePainter, target, source)
+		print time.time() - t0, "secs - composition.render"
+		
 		imagePainter.end()
 	
 		return self
@@ -471,10 +477,24 @@ class GeoLayers:
 		self.close()
 		
 	def testMap(self):
+	
+		t0 = time.time()
 		#replaceString = 'renderer-v2 attr="' + self.featureName + '"'
 		self.loadRasterLayer()
+		print time.time() - t0, "secs - load rasterLayer"
 		
+	
+		print "original width ", self.width, " height", self.height
+		if ( self.width == 0 ):
+			self.width = self.layer.width();
+		
+		if ( self.height == 0 ):
+			self.height = self.layer.height();
+		print "layer width ", self.width, " height", self.height
+		
+		t0 = time.time()
 		self.layer.loadNamedStyle(self.QMLFile)
+		print time.time() - t0, "secs - load named style"
 		#self.layer.loadNamedStyle("C:/dev/leaf-apps/src/util/sgis/qgis/examples/simple/style.qml")
 		#self.layer.setLayerTransparency(self.VLayerTransparency)
 		
@@ -492,7 +512,9 @@ class GeoLayers:
 		#self.findExtent()
 		
 		#self.mapRenderer.setLabelingEngine(QgsPalLabeling())
+		t0 = time.time()
 		img = QImage(QSize(self.width, self.height), QImage.Format_ARGB32_Premultiplied)
+		print time.time() - t0, "secs - qimage creation"
 		
 		#img = QImage("C:/dev/leaf-apps/src/utils/gis/qgis/scripts/NorthLatitude42.9762446555WestLongitude-93.096323014SouthLatitude42.953916321EastLongitude-93.0836200721.tiff", "TIFF")
 		#img = QImage("wmsTestDownload.tiff", "TIFF")
@@ -500,17 +522,25 @@ class GeoLayers:
 		#color = QColor(100,0,255)
 		#img.fill(color.rgb())
 		
+		t0 = time.time()
 		self.mapRenderer.setOutputSize(img.size(), img.logicalDpiX())
 		#self.layer.setLayerTransparency(self.VLayerTransparency)
 		self.createComposition()
 		self.createComposerMap()
 		self.setUpImage()
+		print time.time() - t0, "secs - image setup"
+		
+		t0 = time.time()
 		self.renderImage(self.targetArea, self.sourceArea)
+		print time.time() - t0, "secs - image render"
+		
 		
 		#print "The image was rendered."
 		
 		try:
+			t0 = time.time()
 			self.image.save(self.output, "png")
+			print time.time() - t0, "secs - image save"
 		
 		#Saves the image
 		except:
@@ -684,6 +714,9 @@ class GeoLayers:
 		self.close()
 	
 	def __init__(self, CommandLineArgs):
+		
+		t0 = time.time()
+		
 		#initialize QGIS
 		if (sys.platform == "win32"):
 			QgsApplication.setPrefixPath( r"C:\OSGeo4W64\apps\qgis", True )
@@ -692,9 +725,14 @@ class GeoLayers:
 		QgsApplication.initQgis()
 		self.app = QgsApplication([], True)	
 		
+		print time.time() - t0, "secs - init qgs"
+		
+		t0 = time.time()
 		#This is the map renderer.
 		self.mapRenderer = QgsMapRenderer()
+		print time.time() - t0, "secs - map renderer creation"
 		
+		t0 = time.time()
 		#This sets some variables to false that I don't think I will always need.
 		#This holds the composition.
 		self.composition = False
@@ -761,6 +799,10 @@ class GeoLayers:
 			if (self.mapType == None): self.mapType = "graduated"
 			if (self.gradCatNum == None): self.gradCatNum = 3
 			if (self.QMLFile == None): self.QMLFile = "E:/QGisTestImages/yieldSoybeanProfitTest.qml"
+			
+			
+		print time.time() - t0, "secs - command setup"
+		
 		#pdb.set_trace()
 		#Creates the map
 		if (self.mapType == "categorized"): 
@@ -773,7 +815,9 @@ class GeoLayers:
 			self.QMLMap()
 			print "A map was created using a QML style sheet."
 		if (self.mapType == "test"): 
+			t0 = time.time()
 			self.testMap()
+			print time.time() - t0, "secs - test map"
 			print "A test map was created."
 		
 
@@ -855,10 +899,10 @@ argInput.add_argument("test", help = "Input 'True' to use test defaults.", defau
 argInput.add_argument("--test", help = "Input 'True' to use test defaults.", dest = "test", default =None)
 
 argInput.add_argument("width", help = "Width of the image in pixels.", default=argparse.SUPPRESS, nargs='?')
-argInput.add_argument("--width", help = "Width of the image in pixels.", dest = "width", default =390)
+argInput.add_argument("--width", help = "Width of the image in pixels.", dest = "width", default =0)
 
 argInput.add_argument("height", help = "Height of the image in pixels.", default=argparse.SUPPRESS, nargs='?')
-argInput.add_argument("--height", help = "Height of the image in pixels.", dest = "height", default =390)
+argInput.add_argument("--height", help = "Height of the image in pixels.", dest = "height", default =0)
 
 argInput.add_argument("labelSize", help = "Size of the labels.", default=argparse.SUPPRESS, nargs='?')
 argInput.add_argument("--labelSize", help = "Size of the labels.", dest = "labelSize", default =30)
