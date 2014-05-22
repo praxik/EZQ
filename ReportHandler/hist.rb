@@ -3,6 +3,7 @@ require 'nokogiri'
 input_file = ARGV.shift
 
 job_id, rec_id, year_id, cb = input_file.split('_')
+year_id = "cbaverage" if year_id =~ /cbaverage/
 #doc = Nokogiri::XML(open('test.tif.aux.xml'))
 doc = Nokogiri::XML(open("json/#{input_file}"))
 hist = doc.search('Histograms').first.at_xpath('HistItem')
