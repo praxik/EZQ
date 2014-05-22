@@ -55,6 +55,10 @@ body {
   height: 25px;
 }
 
+.budget-font{
+  font-size: 13px
+}
+
 .dont-break { page-break-inside: avoid; }
 /*****-----------------------------------------------*/
 /*	Pages
@@ -67,20 +71,24 @@ th div {
   margin-top: 1em;
 }
 
-.eros-map {
-  max-height: 265px;
-}
-
 .soil-map {
   max-height: 350px;
 }
 
+.eros-map {
+  max-height: 265px;
+}
+
 .eros-legend {
+  max-height: 220px;
+}
+
+.budget-legend {
   max-height: 150px;
 }
 
 .histogram {
-  max-width: 220px;
+  max-width: 260px;
 }
 /***** Homepage
 /*-----------------------------------*/
