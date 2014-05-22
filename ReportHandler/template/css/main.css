@@ -78,6 +78,10 @@ th div {
 .eros-legend {
   max-height: 150px;
 }
+
+.histogram {
+  max-width: 220px;
+}
 /***** Homepage
 /*-----------------------------------*/
 /***** Fields
