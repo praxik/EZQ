@@ -2,6 +2,7 @@ require 'erb'
 require 'pdfkit'
 require 'aws-sdk'
 require 'yaml'
+require 'nokogiri'
 
 # Module containing function(s) for making pdf reports
 module PdfReport
@@ -45,7 +46,7 @@ end
 
 
 
-def self.make_gis_images(data)
+def self.make_gis_images(data,field_data)
 
   soil_mapper = "Soil.py"
   budget_mapper = "Budget.py"
@@ -96,19 +97,77 @@ def self.make_gis_images(data)
            "#{common}")
   end
 
-  # Generate crop budget maps, one for each year in the reaults
+  # Generate crop budget maps, one for each year in the results
   data[:crop_year].each_with_index do |yr,n|
     system("DISPLAY=:0 python #{budget_mapper}" +
-    " --output=\"#{out_dir}/budget_#{n}.png\"" +
-    " --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
-    " --mapType=test" +
-    " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-    "#{common}")
+           " --output=\"#{out_dir}/budget_#{n}.png\"" +
+           " --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
+           " --mapType=test" +
+           " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+           " --scale=1.08")
   end
 
+  # Generate crop budget average map
+  system("DISPLAY=:0 python #{budget_mapper}" +
+         " --output=\"#{out_dir}/budget_average.png\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_cbaverage.tif\"" +
+         " --mapType=test" +
+         " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+         " --scale=1.08")
+
+  # Generate dem map
+  dem_v = field_data['dem']
+  customize_qml(dem_v['min'],dem_v['max'],dem_v['stop'])
+  system("DISPLAY=:0 python #{budget_mapper}" +
+         " --output=\"#{out_dir}/dem.png\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         " --mapType=test" +
+         " --QMLFile=\"template/QMLFiles/dem.qml\"" +
+         " --scale=1.08")
 end
 
+
+
+def customize_qml(min, max, stop)
+  fn = 'template/QMLFiles/dem.qml'
+  qdoc = Nokogiri::XML(open(fn)) do |config|
+    config.options = Nokogiri::XML::ParseOptions::NOBLANKS
+  end
+  rasterrenderer = qdoc.search('rasterrenderer').first
+  rasterrenderer['classificationMax'] = max
+  rasterrenderer['classificationMin'] = min
+  colorrampshader = rasterrenderer.at_xpath('rastershader/colorrampshader')
+
+  colorrampshader.children[0]['value'] = min
+  colorrampshader.children[0]['label'] = min.to_s
+  colorrampshader.children[1]['value'] = stop
+  colorrampshader.children[1]['label'] = stop.to_s
+  colorrampshader.children[2]['value'] = max
+  colorrampshader.children[2]['label'] = max.to_s
+
+  File.open(fn, 'w') { |f| f.print(qdoc.to_xml) }
+end
+
+
+
+def self.make_histograms(data)
+  job_id = data[:job_id]
+  record_id = data[:record_id]
+
+  data[:crop_year].each_with_index do |yr,n|
+    command = "ruby hist.rb #{job_id}_#{record_id}_#{n}_cb.tif.aux.xml"
+    system(command)
+  end
+end
+
+
 end # module PdfReport
+
+
+
+
+
+
 
 
 
@@ -149,7 +208,7 @@ data[:record_id] = worker_data['record_id']
 data[:field_id] = ''                 # String
 data[:field_id] = 'To be queried from DB'
 
-field_data = JSON.parse(File.read("json/#{job_id}_#{data[:record_id]}__jobdetail.json"))
+field_data = JSON.parse(File.read("json/#{job_id}_#{data[:record_id]}_jobdetail.json"))
 
 #db = PG.connect(
         #host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
@@ -232,6 +291,19 @@ field_data['yield_average'].each do |yld|
   data[:grain_yield] << yld['yield']
 end
 
+data[:cb_average] = []
+data[:cb_min] = []
+data[:cb_max] = []
+data[:cb_crop] = []
+data[:cb_year] = []
+field_data['crop_budget'].each_with_index do |budg|
+  data[:cb_average] << budg['average']
+  data[:cb_min] = << budg['min']
+  data[:cb_max] = << budg['max']
+  data[:cb_crop] = << budg['crop']
+  data[:cb_year] = << budg['year']
+end
+
 
 data[:diesel_use] = 0.0
 dsl = worker_data['diesel']
@@ -251,7 +323,8 @@ data[:erosion_sf] = 0.0
 data[:erosion_sf] = worker_data['scier']
 
 
-PdfReport::make_gis_images(data)
+PdfReport::make_gis_images(data,field_data)
+PdfReport::make_histograms(data)
 PdfReport::make_pdf('template/report.html.erb','header.html',data)
 
 # Push file to S3
