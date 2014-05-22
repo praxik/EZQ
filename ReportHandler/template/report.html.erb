@@ -231,6 +231,18 @@
 			</tr>
 			</tbody>
 		</table>
+		
+		<table class="table">
+			<tbody>
+			  <tr>
+					<th>Digital Elevation Model
+					<div></div>
+					</th>
+					<td><img src="../report_data/dem.png" class="eros-map"></td>
+					<td></td>
+				</tr>
+			</tbody>
+		</table>
 	</div>
 </div>
 
@@ -239,13 +251,6 @@
     
 		<table class="table">
 			<tbody>
-			  <tr>
-					<th>Digital Elevation Model
-					<div></div>
-					</th>
-					<td><img src="../report_data/dem.png" class="eros-map"></td>
-					<!--<td><img src="./images/AntaresTotalErosLegend.png" class="eros-legend"></td>-->
-				</tr>
         <tr>
 					<th>Total Erosion
 					<div></div>
@@ -285,29 +290,32 @@
 					<td><img src="../report_data/sciom.png" class="eros-map"></td>
 					<td><img src="./images/AntaresSCIOMLegend.png" class="eros-legend"></td>
 				</tr>
+			</tbody>
+		</table>
+				
+		<table class="table">
+			<tbody>
 				
 				<% data[:cb_year].each_with_index do |yr,n| %>
 				  <tr>
 				    <th>Profit <%= yr %> <%= data[:cb_crop][n] %> 
-				      <br> Min: <%= "$ %.2f" % data[:cb_min][n] %>
-				      <br> Max: <%= "$ %.2f" % data[:cb_max][n] %>
-				      <br> Avg: <%= "$ %.2f" % data[:cb_average][n] %> 
-				    <div></div>
+				      <!--<br> Min: <%= "$ %.2f" % data[:cb_min][n] %>
+				      <br> Max: <%= "$ %.2f" % data[:cb_max][n] %>--> 
+				    <div class="budget-font">Avg: <%= "$ %.2f" % data[:cb_average][n] %></div>
 				    </th>
-				    <td><img src= <%= "../report_data/budget_hist_#{n}.svg" %> class="histogram" ></td>
-				    <td><img src= <%= "../report_data/budget_#{n}.png" %> class="eros-map"></td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="eros-legend"></td>
+				    <td><img src= <%= "\"../report_data/budget_hist_#{n}.svg\"" %> class="histogram" ></td>
+				    <td><img src= <%= "\"../report_data/budget_#{n}.png\"" %> class="eros-map"></td>
+  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>
 				  </tr>
 				<% end %>
 				
 				<tr>
 				    <th>Multi-Year Average Profit 
-				      <br> Avg: <%= "$ %.2f" % data[:cb_multi_year_average] %> 
-				    <div></div>
+				    <div class="budget-font">Avg: <%= "$ %.2f" % data[:cb_multi_year_average] %> </div>
 				    </th>
-				    <td><img src= <%= "../report_data/budget_hist_cbaverage.svg" %> class="histogram" ></td>
-				    <td><img src= <%= "../report_data/budget_average.png" %> class="eros-map"></td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="eros-legend"></td>
+				    <td><img src= <%= "\"../report_data/budget_hist_cbaverage.svg\"" %> class="histogram" ></td>
+				    <td><img src= <%= "\"../report_data/budget_average.png\"" %> class="eros-map"></td>
+  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>
 				  </tr>
         
 			</tbody>
