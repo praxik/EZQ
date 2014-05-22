@@ -128,7 +128,7 @@ end
 
 
 
-def customize_qml(min, max, stop)
+def self.customize_qml(min, max, stop)
   fn = 'template/QMLFiles/dem.qml'
   qdoc = Nokogiri::XML(open(fn)) do |config|
     config.options = Nokogiri::XML::ParseOptions::NOBLANKS
@@ -158,6 +158,9 @@ def self.make_histograms(data)
     command = "ruby hist.rb #{job_id}_#{record_id}_#{n}_cb.tif.aux.xml"
     system(command)
   end
+
+  command = "ruby hist.rb #{job_id}_#{record_id}_cbaverage.tif.aux.xml"
+  system(command)
 end
 
 
@@ -298,11 +301,14 @@ data[:cb_crop] = []
 data[:cb_year] = []
 field_data['crop_budget'].each_with_index do |budg|
   data[:cb_average] << budg['average']
-  data[:cb_min] = << budg['min']
-  data[:cb_max] = << budg['max']
-  data[:cb_crop] = << budg['crop']
-  data[:cb_year] = << budg['year']
+  data[:cb_min] << budg['min']
+  data[:cb_max] << budg['max']
+  data[:cb_crop] << budg['crop']
+  data[:cb_year] << budg['year']
 end
+
+data[:cb_multi_year_average] =
+                      data[:cb_average].reduce(:+).to_f / data[:cb_average].size
 
 
 data[:diesel_use] = 0.0
@@ -331,7 +337,7 @@ PdfReport::make_pdf('template/report.html.erb','header.html',data)
 # TODO: This block needs some work:
 # - error handling
 # - get credentials on commandline
-fname = "../report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf"
+fname = "report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf"
 if File.exists?(fname)
   credentials = YAML.load(File.read('credentials.yml'))
   s3 = AWS::S3.new(credentials)
