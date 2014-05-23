@@ -53,7 +53,7 @@ class Processor
       logger.level = Logger::INFO
     end
     @logger = logger
-    @logger.fatal "\n\n=============================================================="
+    @logger.unknown "\n\n=============================================================="
 
     config = {}
     case configuration
@@ -124,12 +124,12 @@ class Processor
       # two previous calls can raise an exception, and I want to do exactly the
       # same thing in any of these cases.
       @launch_time = @instance.launch_time
-      @logger.fatal "Running on EC2 instance #{@instance_id}"
+      @logger.unknown "Running on EC2 instance #{@instance_id}"
     rescue
       @instance_id = ""
       @instance = nil
       @launch_time = nil
-      @logger.fatal "Not running on an EC2 instance"
+      @logger.unknown "Not running on an EC2 instance"
     end
   end
   
@@ -511,8 +511,8 @@ class Processor
   protected
   # Do the actual processing of a single message
   def process_message(msg)
-    @logger.fatal '------------------------------------------'
-    @logger.fatal "Received message #{msg.id}"
+    @logger.unknown '------------------------------------------'
+    @logger.info "Received message #{msg.id}"
     @input_filename = msg.id + '.in'
     @id = msg.id
     
@@ -626,7 +626,7 @@ if __FILE__ == $0
     opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE. Defaults to credentials.yml if not specified.") do |file|
       creds_file = file
     end
-    opts.on("-q", "--queue [QUEUE_NAME]","Poll QUEUE_NAME for tasks rather than the receive_queue specified in the config file") do |q|
+    opts.on("-Q", "--queue [QUEUE_NAME]","Poll QUEUE_NAME for tasks rather than the receive_queue specified in the config file") do |q|
       queue = q
     end
   end
