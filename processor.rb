@@ -93,6 +93,9 @@ class Processor
     @cleanup_command = ''
     @dont_hit_disk = false
     @msg_contents = ''
+    @result_overflow_bucket = ''
+    @file_as_body = nil # This gets set only when we see a get_s3_file_as_body
+                        # directive
 
     # This will automatically create an instance variable based on each option
     # in the config. It will also populate each of our manually-
@@ -103,8 +106,9 @@ class Processor
     # Check for existence of receive queue
     @in_queue = AWS::SQS::X_queue.new(AWS::SQS.new.queues.named(@receive_queue_name).url)
     if !@in_queue.exists?
-      @logger.fatal "No queue named #{@receive_queue_name} exists."
-      raise "No queue named #{@receive_queue_name} exists."
+      m = "Exception: No queue named #{@receive_queue_name} exists."
+      @logger.fatal m
+      send_error(m,true)
     end
     
     # Get the result queue, if one was specified
@@ -144,8 +148,9 @@ class Processor
       @result_queue = AWS::SQS.new.queues.named(@result_queue_name)
     end
     if !@result_queue.exists?
-      @logger.fatal "No queue named #{@result_queue_name} exists."
-      raise "No queue named #{@result_queue_name} exists."
+      m = "Exception: No queue named #{@result_queue_name} exists."
+      @logger.fatal m
+      send_error(m, true)
     end
   end
   
@@ -157,16 +162,18 @@ class Processor
     @logger.info "Parsing configuration file #{filename}"
     config_file = File.join(File.dirname(__FILE__),filename)
     if !File.exist?(config_file)
-      @logger.fatal "File #{filename} does not exist."
-      raise "File #{filename} does not exist."
+      m = "Exception: Configuration file #{filename} does not exist."
+      @logger.fatal m
+      send_error(m, true)
     end
 
     config = YAML.load(File.read(config_file))
 
     # Should probably do more thorough checking here....maybe using Kwalify?
     unless config.kind_of?(Hash)
-      @logger.fatal "File #{filename} is formatted incorrectly."
-      raise "File #{filename} is formatted incorrectly."
+      m = "Exception: Config file #{filename} is formatted incorrectly."
+      @logger.fatal m
+      send_error(m, true)
     end
     return config
   end
@@ -273,8 +280,15 @@ class Processor
   protected
   # Sends an error message to the named error queue
   # @param [String] msg The message to put in the error queue
-  def send_error( msg )
-    return if @error_queue_name.empty?
+  # @param [Bool] failout Whether to raise an exception
+  def send_error( msg, failout=false )
+    if @error_queue_name.empty?
+      if failout
+        raise msg
+      else
+       return
+      end
+    end
     err_q = AWS::SQS.new.queues.named(@error_queue_name)
     if !err_q.exists?
       @logger.error "Unable to connect to error queue #{@error_queue_name}."
@@ -282,6 +296,7 @@ class Processor
     end
     err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
     err_q.send_message( err_msg.to_yaml )
+    raise msg if failout
   end
   
   
@@ -328,6 +343,7 @@ class Processor
   # @param [String] id ID of this job
   def cleanup(input_filename,id)
     @logger.info "Performing default cleanup for id #{id}"
+    @file_as_body = nil
     File.delete("output_#{id}.txt.gz") if File.exists?("output_#{id}.txt.gz")
     File.delete("output_#{id}.tar.gz") if File.exists?("output_#{id}.tar.gz")
     if !@keep_trail
@@ -357,7 +373,9 @@ class Processor
     when 'post_to_result_queue'
       return post_to_result_queue
     else
-      raise "Invalid result_step: #{@result_step}. Must be one of [none,post_to_result_queue]"
+      m = "Invalid result_step: #{@result_step}. Must be one of [none,post_to_result_queue]"
+      @logger.error m
+      send_error(m)
       return false
     end
   end
@@ -370,7 +388,15 @@ class Processor
     preamble = {'EZQ'=>{}}
     body = make_raw_result(preamble)
     preamble['EZQ']['processed_message_id'] = @id
-    preamble['EZQ']['get_s3_files'] = @s3_outs if !@s3_outs.empty?
+    # Non-destuctively add our s3 files to any that were previously set
+    preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
+                                      @s3_outs if !@s3_outs.empty?
+    # If message is too big for SQS, divert the body into S3
+    if (msg.bytesize + preamble.bytesize) > 256000   #256k limit minus assumed
+                                                     #metadata size of 6k
+                                                     #(256-6)*1024 = 256000
+      msg,preamble = divert_body_to_s3(msg,preamble)
+    end
     msg = "#{preamble.to_yaml}...\n#{body}"
     digest = Digest::MD5.hexdigest(msg)
     get_result_queue
@@ -383,6 +409,34 @@ class Processor
       return false
     end
   end
+
+
+
+  protected
+  # Place message body in S3 and update the preamble accordingly
+  def divert_body_to_s3(body,preamble)
+    @logger.info "Oversized body is being diverted to S3"
+    # Don't assume the existing preamble can be clobbered
+    new_preamble = preamble.clone
+    s3 = AWS::S3.new
+    # How are we going to set the bucket name for this stuff?
+    bucket_name = @result_overflow_bucket
+    bucket = s3.buckets[bucket_name]
+    if !bucket
+      errm =  "The result message is too large for SQS and would be diverted " +
+              "to S3, but the specified result overflow bucket, "+
+              "#{bucket_name}, does not exist!"
+      @logger.fatal errm
+      send_error errm
+    end
+    key = "overflow_body_#{@id}.txt"
+    obj = bucket.objects.create(key,body)
+    AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
+    s3_info = {'bucket'=>bucket_name,'key'=>key}
+    new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
+    body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
+    return [body,new_preamble]
+  end
   
   
   protected
@@ -392,7 +446,8 @@ class Processor
     body = ""
     if File.exists?(fname)
       body = File.read(fname)
-      # Pull out any preamble set directly in the body.
+      # Pull out any preamble set directly in the body, merge it into the
+      # standard preamble, then remove the preamble from the body.
       if !body.empty?
         begin
           by = YAML.load(body)
@@ -427,6 +482,7 @@ class Processor
         s3 = AWS::S3.new
         bucket = s3.buckets[ep['bucket']]
         obj = bucket.objects.create(ep['key'],Pathname.new(fname))
+        AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
         info = {'bucket'=>ep['bucket'],'key'=>ep['key']}
         @s3_outs.push(info)
       end
@@ -442,6 +498,7 @@ class Processor
 
 
   protected
+  # Fetches *all* the files mentioned in get_s3_files directive in EZQ preamble
   def fetch_s3(msg)
     @s3_files.clear
     body = YAML.load(msg.body)
@@ -451,25 +508,41 @@ class Processor
     return true if !preamble.has_key?('get_s3_files')
     files = preamble['get_s3_files']
     files.each do |props|
-      @logger.info "Getting object #{props['key']} from bucket #{props['bucket']}"
-      @s3_files.push(props['key'])
-      s3 = AWS::S3.new
-      bucket = s3.buckets[ props['bucket'] ]
-      obj = bucket.objects[ props['key'] ]
-      FileUtils.mkdir_p(File.dirname(props['key']))
-      begin
-        File.open(props['key'],'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
-        if props.has_key?('decompress') and props['decompress'] == true
-          Zip.on_exists_proc = true # Don't bail out if extracted files already
-                                    # exist
-          Zip::File.open(props['key']) do |zip_file|
-            zip_file.each { |entry| entry.extract(entry.name) }
-          end
+      return false if !get_s3_file(props['bucket'],props['key'])
+      if props.has_key?('decompress') and props['decompress'] == true
+        Zip.on_exists_proc = true # Don't bail out if extracted files already
+                                  # exist
+        Zip::File.open(props['key']) do |zip_file|
+          zip_file.each { |entry| entry.extract(entry.name) }
         end
-      rescue
-        @logger.error "Unable to fetch #{props['key']} from S3."
-        return false  
       end
+    end
+    if preamble.has_key?('get_s3_file_as_body')
+      info = preamble['get_s3_file_as_body']
+      bucket = info['bucket']
+      key = info['key']
+      @logger.info "Getting file as message body"
+      return false if !get_s3_file(bucket,key)
+      @file_as_body = "#{bucket},#{key}"
+    end
+    return true
+  end
+
+
+  protected
+  # Pulls a single file down from S3
+  def get_s3_file(bucket,key)
+    @logger.info "Getting object #{key} from bucket #{bucket}"
+    @s3_files << key
+    s3 = AWS::S3.new
+    b = s3.buckets[ bucket ]
+    obj = b.objects[ key ]
+    FileUtils.mkdir_p(File.dirname(key))
+    begin
+      File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
+    rescue
+      @logger.error "Unable to fetch #{key} from S3."
+      return false  
     end
     return true
   end
@@ -507,6 +580,18 @@ class Processor
     @s3_endpoints = preamble['put_s3_files'] if preamble.has_key?('put_s3_files')
     return nil
   end
+
+
+  protected
+  def delete_file_as_body
+    return nil if !@file_as_body # Why did this even get called?
+    bucket,key = @file_as_body.split(',')
+    s3 = AWS::S3.new
+    b = s3.buckets[ bucket ]
+    obj = b.objects[ key ] if b
+    obj.delete if obj
+    return nil
+  end
   
   protected
   # Do the actual processing of a single message
@@ -524,8 +609,12 @@ class Processor
     fetch_uri(msg)
     store_s3_endpoints(msg)
     strip_directives(msg)
-    
-    body = msg.body
+
+    # Message "body" will be either the actual body from the queue message,
+    # sans preamble (the usual case) or the contents of the special
+    # file_as_body that was pulled from S3 in the event that the message body
+    # was too big to fit in SQS. @file_as_body is formatted as "bucket,key".
+    body = if @file_as_body ? File.read(@file_as_body.split(',')[1]) : msg.body
     if !body.empty? && @decompress_message
       @logger.info 'Decompressing message'
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
@@ -535,12 +624,17 @@ class Processor
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
 
+    # Mutate the apparent body if we had to pull oversized body from S3
+    msg['body'] = body if @file_as_body
+    
     success = run_process_command(msg,@input_filename,@id)
     if success
       # Do result_step before deleting the message in case result_step fails.
       if do_result_step()
         @logger.info "Processing successful. Deleting message #{@id}"
         msg.delete
+        delete_file_as_body if @file_as_body # This must stay linked to deleting
+                                             # message from queue
       end
     end
     
@@ -659,14 +753,11 @@ if __FILE__ == $0
         log = Logger.new(log_file)
       end
     end
-    if quiet && log_file == STDOUT
-      log.level = Logger::FATAL
-    else
-      s_map = {'unknown'=>Logger::UNKNOWN,'fatal'=>Logger::FATAL,
-               'error'=>Logger::ERROR,'warn'=>Logger::WARN,
-               'info'=>Logger::INFO,'debug'=>Logger::DEBUG}
-      log.level = s_map[severity]
-    end
+    s_map = {'unknown'=>Logger::UNKNOWN,'fatal'=>Logger::FATAL,
+             'error'=>Logger::ERROR,'warn'=>Logger::WARN,
+             'info'=>Logger::INFO,'debug'=>Logger::DEBUG}
+    log.level = s_map[severity]
+    
 
     if !File.exists?(creds_file)
       warn "Credentials file '#{creds_file}' does not exist! Aborting."
