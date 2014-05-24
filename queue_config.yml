@@ -1,6 +1,6 @@
-access_key_id: YOUR_ACCESS_KEY_ID
-secret_access_key: YOUR_SECRET_ACCESS_KEY
 receive_queue_name: "Test_queue"
+
+error_queue_name: "Error_queue"
 
 # (true/false)
 store_message: false
@@ -27,6 +27,8 @@ polling_options:
 result_step: post_to_result_queue
 
 result_queue_name: "Test_Results"
+
+result_overflow_bucket: "Overflow_bucket"
 
 # (true/false)
 compress_result_message: false
