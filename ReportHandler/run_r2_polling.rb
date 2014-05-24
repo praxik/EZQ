@@ -197,6 +197,7 @@ if __FILE__ == $0
   quiet = false
   config_file = 'queue_config.yml'
   creds_file = 'credentials.yml'
+  severity = 'info'
   queue = nil
   log_file = STDOUT
   op = OptionParser.new do |opts|
@@ -210,6 +211,9 @@ if __FILE__ == $0
     end
     opts.on("-l", "--log [LOG_FILE]","Log to file LOG_FILE") do |file|
       log_file = file
+    end
+    opts.on("-s", "--log_severity [SEVERITY]","Set log severity to one of: unknown, fatal, error, warn, info, debug. Default = info") do |s|
+      severity = s
     end
     opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE. Defaults to credentials.yml if not specified.") do |file|
       creds_file = file
@@ -236,13 +240,18 @@ if __FILE__ == $0
       log = Logger.new(lf)
       $stderr = lf
     else
-      log = Logger.new(log_file)
+      if !quiet
+        log = Logger.new(STDOUT)
+      else
+        log_file = RUBY_PLATFORM =~ /mswin|mingw/ ? 'NUL:' : '/dev/null'
+        log = Logger.new(log_file)
+      end
     end
-    if quiet && log_file == STDOUT
-      log.level = Logger::UNKNOWN
-    else
-      log.level = Logger::INFO
-    end
+    s_map = {'unknown'=>Logger::UNKNOWN,'fatal'=>Logger::FATAL,
+             'error'=>Logger::ERROR,'warn'=>Logger::WARN,
+             'info'=>Logger::INFO,'debug'=>Logger::DEBUG}
+    log.level = s_map[severity]
+    
 
     if !File.exists?(creds_file)
       warn "Credentials file '#{creds_file}' does not exist! Aborting."
