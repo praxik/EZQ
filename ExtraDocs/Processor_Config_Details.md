@@ -170,10 +170,23 @@ Configuration Options
   
 +result_queue_name+ (String,_Overridble_)
 -----------------------------------------
-  Name of the queue to which to post results. This and all subsequent fields
-  only have meaning if +result_step+ is set to _post_to_results_queue_. The
-  queue must already exist; EZQ makes no attempt to create the +result_queue+
-  if it does not exist.
+  Name an **existing** queue to which to post results. This field applies only
+  if +result_step+ is set to _post_to_result_queue_. 
+  **The queue must already exist.**
+  
++result_overflow_bucket+ (String)
+--------------------------------
+  Name of an **existing** S3 bucket to which oversized result messages can be
+  diverted. This field only applies when +result_step+ is set to
+  _post_to_result_queue_. When a result is generated which is too big to fit
+  within SQS's message size limit (currently 256k), the message is instead
+  diverted into this S3 bucket. When EZQ Processors are chained together in
+  a topology, the next Processor in the sequence will silently download this
+  oversized message and hand it to its process_command as though it were any
+  normal message straight from a queue. _Upon successful completion of the 
+  process_command, the downstream EZQ Processor will delete this file from S3._ 
+  EZQ considers these files to be extensions of the result queue, not 
+  persistent result files.
   
 +compress_result_message+ (String,_Overridable_)
 ----------------------------------------
