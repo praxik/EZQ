@@ -37,6 +37,9 @@ keep_trail: false
 # Available vars: see process_command
 cleanup_command: ""
 
+# Available vars: see process_command
+collect_errors_command: ""
+
 # (true/false)
 halt_instance_on_timeout: false
 

@@ -96,6 +96,7 @@ class Processor
     @result_overflow_bucket = ''
     @file_as_body = nil # This gets set only when we see a get_s3_file_as_body
                         # directive
+    @collect_errors_command = ''
 
     # This will automatically create an instance variable based on each option
     # in the config. It will also populate each of our manually-
@@ -255,27 +256,50 @@ class Processor
     save_message(msg,id) if @store_message
     commandline = expand_vars(@process_command,input_filename,id)
     @logger.info "Running command '#{commandline}'"
-    success = system(commandline)
+    success = false
+    output = []
+    success, output = exec_cmd(commandline)
     @logger.fatal "Command does not exist!" if success == nil
     @logger.warn "Command '#{commandline}' failed" if !success
     if @retry_on_failure && !success
       num = @retries.to_i
       num.times do
         @logger.warn "Command '#{commandline}' failed; retrying"
-        success = system(commandline)
+        success, output = exec_cmd(commandline)
         break if success
       end
     end
     if !success
-      err_msg = "Command '#{commandline}' failed under pid #{@pid.to_s} "
-      err_msg += "on instance #{@instance_id} " if !@instance_id .empty?
-      err_msg += "with message contents:\n\n"
-      err_msg += @msg_contents
-      send_error(err_msg) unless success
+      err_hash = {}
+      err_hash['stdout_stderr'] = output
+      err_hash['error_collection'] = collect_errors(input_filename,id)
+      err_hash['command'] = commandline
+      err_hash['input'] = @msg_contents
+      err_hash['pid'] = @pid
+      err_hash['instance'] = @instance_id if !@instance_id.empty?
+      send_error(err_hash.to_yaml)
     end
     return success
   end
 
+
+  protected
+  def exec_cmd(cmd)
+    success = false
+    output = []
+    begin
+      IO.popen(commandline,:err=>[:child, :out]) do |io|
+        while !io.eof?
+          output << io.gets
+        end
+        io.close
+        success =  $?.zero?
+      end
+    rescue
+      success = nil # mimic behavior of Kernel#system
+    end
+    return [success,output]
+  end
 
   protected
   # Sends an error message to the named error queue
@@ -361,6 +385,21 @@ class Processor
     reset_configuration
   end
 
+
+  protected
+  # Runs collect_errors_command using input_filename and id.
+  def collect_errors(input_filename,id)
+    errors = []
+    if @collect_errors_command
+      command = expand_vars(@collect_errors_command,input_filename,id)
+      IO.popen(command) do |io|
+        while !io.eof?
+          errors << io.gets
+        end
+      end
+    end
+    return errors.join('\n')
+  end
 
   protected
   # Perform result_step
