@@ -46,6 +46,7 @@ def start
   task_ids = []
   create_result_queue
   listening = false
+  @possible_errors = []
   IO.popen(@command)  do |io| 
     while !io.eof?
       msg = io.gets
@@ -78,6 +79,8 @@ def start
           listening = true 
           @log.info 'Listening for messages'
           # @command will only output valid messages now. It promises.
+        else
+          @possible_errors << msg
         end
       end
     end
@@ -161,6 +164,10 @@ def start
   @aggregator_files.clear
   
   @log.info "Pre_grid_wrapper stopping with exit status #{@exit_status}"
+  if !@exit_status.zero?
+    # Send possible error messages up the chain
+    puts "error_messages: #{@possible_errors.join('\n').dump}"
+  end
   exit @exit_status
 end
 

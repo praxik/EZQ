@@ -138,6 +138,9 @@ class Job_Breaker
             push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run, @credentials ) }
             @already_pushed << bucket_comma_filename
           end
+        elsif msg =~ /^error_messages: /
+            puts msg # Propagate error messages up to parent processor
+          end
         else
           msg = add_preamble(msg)
           enqueue_task(msg)
