@@ -288,15 +288,16 @@ class Processor
     success = false
     output = []
     begin
-      IO.popen(commandline,:err=>[:child, :out]) do |io|
+      IO.popen(cmd,:err=>[:child, :out]) do |io|
         while !io.eof?
           output << io.gets
         end
         io.close
-        success =  $?.zero?
+        success =  $?.to_i.zero?
       end
-    rescue
+    rescue => e
       success = nil # mimic behavior of Kernel#system
+      output << e
     end
     return [success,output]
   end
@@ -392,10 +393,15 @@ class Processor
     errors = []
     if @collect_errors_command
       command = expand_vars(@collect_errors_command,input_filename,id)
-      IO.popen(command) do |io|
-        while !io.eof?
-          errors << io.gets
+      return '' if command.empty?
+      begin
+        IO.popen(command) do |io|
+          while !io.eof?
+            errors << io.gets
+          end
         end
+      rescue
+        errors << "collect_errors_command '#{command}' does not exist."
       end
     end
     return errors.join('\n')
@@ -532,7 +538,7 @@ class Processor
   protected
   # Strips out the message preamble containing explicit EZQ directives
   def strip_directives(msg)
-	msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
+    msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
   end
 
 
@@ -643,7 +649,7 @@ class Processor
     override_configuration(msg.body)
     if !fetch_s3(msg)
       cleanup(@input_filename,@id)
-      return
+      return false
     end
     fetch_uri(msg)
     store_s3_endpoints(msg)
@@ -653,7 +659,7 @@ class Processor
     # sans preamble (the usual case) or the contents of the special
     # file_as_body that was pulled from S3 in the event that the message body
     # was too big to fit in SQS. @file_as_body is formatted as "bucket,key".
-    body = if @file_as_body ? File.read(@file_as_body.split(',')[1]) : msg.body
+    body = @file_as_body != nil ? File.read(@file_as_body.split(',')[1]) : msg.body
     if !body.empty? && @decompress_message
       @logger.info 'Decompressing message'
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
