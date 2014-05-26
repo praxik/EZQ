@@ -213,6 +213,13 @@ Configuration Options
   +keep_trail+ was set to true. Set this option to "" if you don't require 
   special cleanup.
   
++collect_errors_command+ (String,_Overrridable_)
+------------------------------------------------
+ The command to run if process_command fails. This command should collect any
+  relevant error messages or error logs and emit them on STDOUT. Multiple lines
+  are allowed, so feel free to emit logs line-by-line. This command should 
+  exit once the error colllection is done.
+  
 +halt_instance_on_timeout+ (String,*Overridable: sticky*)
 ---------------------------------------------------------
   (true/false) If true, EZQ will stop or terminate -- whichever is set in 
