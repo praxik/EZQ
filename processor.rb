@@ -583,6 +583,12 @@ class Processor
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ]
     FileUtils.mkdir_p(File.dirname(key))
+  
+    if File.exists?(key)
+      # We already have a copy of this file. Is it the current version?
+      return true if (obj.last_modified <= File.mtime(key)) and (obj.content_length == File.size(key))
+    end
+    
     begin
       File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
     rescue
