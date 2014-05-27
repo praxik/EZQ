@@ -52,6 +52,32 @@
 	</div>
 </div>
 
+<div class="row dont-break">
+	<div class="col-xs-12">
+    <table class="table table-small-text table-striped table-bordered">
+      <thead>		
+		    <tr>
+		      <th>Map Unit Symbol</th>
+		      <% data[:yield_mapunit][0]['yield'].each do |yit| %>
+		        <th><%= yit['year'] %> <%= yit['crop'] %> yield</th>
+		      <% end %>
+		    </tr>
+		  </thead>
+		  
+		  <tbody>
+			  <% data[:yield_mapunit].each do |it| %>
+			  <tr>
+		      <td><%= it['musym'] %></td>
+		      <% it['yield'].each do |y| %>
+		        <td><%= y['value'].round %></td>
+		      <% end %>
+		    </tr>
+		    <% end %>
+			</tbody>
+		</table>
+  </div>
+</div>
+
 </div>
 <script src="./js/libs/jquery-2.1.0.min.js"></script>
 <script src="./js/libs/bootstrap.min.js"></script>

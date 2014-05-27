@@ -317,6 +317,23 @@ data[:cb_multi_year_average] =
                       data[:cb_average].reduce(:+).to_f / data[:cb_average].size
 
 
+data[:yield_mapunit] = field_data['yield_mapunit']
+data[:yield_mapunit].each do |ymi|
+  mukey = ymi['mukey']
+  puts mukey
+  musym = ''
+  soils.each do |soil|
+    puts "#{soil['mukey']} : #{soil['musym']}"
+    if soil['mukey'] == mukey
+      musym = soil['musym']
+      break
+    end
+  end
+  puts musym
+  ymi['musym'] = musym
+end
+
+
 data[:diesel_use] = 0.0
 dsl = worker_data['diesel']
 dsl = dsl.to_f if dsl.is_a?(String)
