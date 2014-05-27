@@ -140,19 +140,19 @@ def start
     ezq = {}
     preamble['EZQ'] = ezq
     ezq['get_s3_files'] = @aggregator_files
-    preamble = preamble.to_yaml
-    preamble += "...\n"
     report_gen = { "job_id" => @job_id }
     report_gen['task_ids'] = task_ids
     report_gen['aggregator_files'] = @aggregator_files
     report_gen['generate_dominant_critical_soil_report'] = @gen_dom_crit_report
     msg = report_gen.to_json
     # If message is too big for SQS, divert the body into S3
-    if (msg.bytesize + preamble.bytesize) > 256000   #256k limit minus assumed
+    if (msg.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
                                                      #metadata size of 6k
                                                      #(256-6)*1024 = 256000
       msg,preamble = divert_body_to_s3(msg,preamble)
     end
+    preamble = preamble.to_yaml
+    preamble += "...\n"
     sqs.queues.named('6k_report_gen_test_44').send_message(msg.insert(0,preamble))
   else
     # No tasks were generated for some reason, so delete the task queue
@@ -171,31 +171,31 @@ def start
   exit @exit_status
 end
 
-
-protected
-  # This method is copied from EZQ::Processor
-  # Place message body in S3 and update the preamble accordingly
-  def divert_body_to_s3(body,preamble)
-    @log.info 'Report Gen message is too big for SQS and is beig diverted to S3'
-    # Don't assume the existing preamble can be clobbered
-    new_preamble = preamble.clone
-    s3 = AWS::S3.new
-    bucket_name = 'EZQOverflow.praxik'
-    bucket = s3.buckets[bucket_name]
-    if !bucket
-      errm =  "The result message is too large for SQS and would be diverted " +
-              "to S3, but the specified result overflow bucket, "+
-              "#{bucket_name}, does not exist!"
-      @log.fatal errm
-      raise "Result overflow bucket #{bucket_name} does not exist!"
-    end
-    key = "overflow_body_#{@job_id}.txt"
-    obj = bucket.objects.create(key,body)
-    s3_info = {'bucket'=>bucket_name,'key'=>key}
-    new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
-    body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
-    return [body,new_preamble]
+# This method is copied from EZQ::Processor
+# Place message body in S3 and update the preamble accordingly
+def divert_body_to_s3(body,preamble)
+  @log.info 'Report Gen message is too big for SQS and is beig diverted to S3'
+  # Don't assume the existing preamble can be clobbered
+  new_preamble = preamble.clone
+  s3 = AWS::S3.new(:access_key_id => @access_key,
+                   :secret_access_key => @secret_key)
+  bucket_name = 'EZQOverflow.praxik'
+  bucket = s3.buckets[bucket_name]
+  if !bucket
+    errm =  "The result message is too large for SQS and would be diverted " +
+            "to S3, but the specified result overflow bucket, "+
+            "#{bucket_name}, does not exist!"
+    @log.fatal errm
+    raise "Result overflow bucket #{bucket_name} does not exist!"
   end
+  key = "overflow_body_#{@job_id}.txt"
+  obj = bucket.objects.create(key,body)
+  AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
+  s3_info = {'bucket'=>bucket_name,'key'=>key}
+  new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
+  body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
+  return [body,new_preamble]
+end
 
 
 def create_result_queue
