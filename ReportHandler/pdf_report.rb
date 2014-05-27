@@ -3,6 +3,7 @@ require 'pdfkit'
 require 'aws-sdk'
 require 'yaml'
 require 'nokogiri'
+require './remove_blank_pages'
 
 # Module containing function(s) for making pdf reports
 module PdfReport
@@ -43,11 +44,12 @@ def self.make_pdf(template,header,data,last_name)
                     :header_html => 'header.html'
                     )
 
-  pdfkit.to_file("../report_data/#{data[:job_id]}_#{data[:record_id]}_#{last_name}.pdf")
+  pdf_file = "report_data/#{data[:job_id]}_#{data[:record_id]}_#{last_name}.pdf"
+  pdfkit.to_file("../#{pdf_file}")
   # Undo the chdir from above
   Dir.chdir('..')
   # return filename of generated pdf
-  return "report_data/#{data[:job_id]}_#{data[:record_id]}_#{last_name}.pdf"
+  return pdf_file
 end
 
 
@@ -368,6 +370,10 @@ report_name = "report_data/#{data[:job_id]}_#{data[:record_id]}_report.pdf"
 
 # Ghostscript takes a bit longer, but can reduce the pdf size by factor of two!
 system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
+
+# Reject blank pages in the pdf. Set option :y to the same number as
+# .logo{max-height} from main.css for now.
+RemoveBlankPages.remove(report_name,{:y=>100})
 
 # Push file to S3
 # TODO: This block needs some work:
