@@ -237,7 +237,7 @@ class Processor
   # @param [String] id The id of this message to use for forming filename
   def save_message(msg,id)
     tmp = {}
-    tmp['body'] = msg.body
+    tmp['body'] = @file_as_body != nil ? @msg_contents : msg.body
     tmp['sender_id'] = msg.sender_id
     tmp['sent_at'] = msg.sent_at
     tmp['receive_count'] = msg.receive_count
@@ -367,7 +367,7 @@ class Processor
   # @param [String] input_filename Name of input file for this job
   # @param [String] id ID of this job
   def cleanup(input_filename,id)
-    @logger.info "Performing default cleanup for id #{id}"
+    @logger.info "Performing default cleanup for id #{id}"      
     @file_as_body = nil
     File.delete("output_#{id}.txt.gz") if File.exists?("output_#{id}.txt.gz")
     File.delete("output_#{id}.tar.gz") if File.exists?("output_#{id}.tar.gz")
@@ -437,7 +437,7 @@ class Processor
     preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
                                       @s3_outs if !@s3_outs.empty?
     # If message is too big for SQS, divert the body into S3
-    if (msg.bytesize + preamble.bytesize) > 256000   #256k limit minus assumed
+    if (msg.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
                                                      #metadata size of 6k
                                                      #(256-6)*1024 = 256000
       msg,preamble = divert_body_to_s3(msg,preamble)
@@ -635,6 +635,7 @@ class Processor
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ] if b
     obj.delete if obj
+    File.delete(key) if File.exists?(key)
     return nil
   end
   
@@ -668,9 +669,6 @@ class Processor
     end
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
-
-    # Mutate the apparent body if we had to pull oversized body from S3
-    msg['body'] = body if @file_as_body
     
     success = run_process_command(msg,@input_filename,@id)
     if success
