@@ -75,63 +75,101 @@ def self.make_gis_images(data,field_data)
            " --labelSize=150"
 
   # Generate musym map
-  system("DISPLAY=:0 python #{soil_mapper}" +
-           " --output=\"#{out_dir}/musym.png\"" +
-           " --featureName=musym" +
-           " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
-           " --mapType=categorized" +
-           " --textLabel=True" +
-           "#{common}")
+  system("DISPLAY=:0 python agmap.py" +
+         " --maptype=musym" +
+         " --output=\"#{out_dir}/musym.png\"" +
+         " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"")
+  #system("DISPLAY=:0 python #{soil_mapper}" +
+           #" --output=\"#{out_dir}/musym.png\"" +
+           #" --featureName=musym" +
+           #" --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+           #" --mapType=categorized" +
+           #" --textLabel=True" +
+           #"#{common}")
            
   # Generate erosion maps
   ['toteros','watereros','winderos'].each do |feature|
-    system("DISPLAY=:0 python #{soil_mapper}" +
+    system("DISPLAY=:0 python agmap.py" +
+           " --maptype=model" +
            " --output=\"#{out_dir}/#{feature}.png\"" +
-           " --featureName=#{feature}" +
            " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
-           " --mapType=QML" +
-           " --QMLFile=\"template/QMLFiles/AntaresErosion.qml\"" +
-           "#{common}")
+           " --qmlfile=\"template/QMLFiles/AntaresErosion.qml\"" +
+           " --featurename=#{feature}")
+    #system("DISPLAY=:0 python #{soil_mapper}" +
+           #" --output=\"#{out_dir}/#{feature}.png\"" +
+           #" --featureName=#{feature}" +
+           #" --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+           #" --mapType=QML" +
+           #" --QMLFile=\"template/QMLFiles/AntaresErosion.qml\"" +
+           #"#{common}")
   end
 
   # Generate sci maps
   ['sci','sciom'].each do |feature|
-    system("DISPLAY=:0 python #{soil_mapper}" +
+  system("DISPLAY=:0 python agmap.py" +
+           " --maptype=model" +
            " --output=\"#{out_dir}/#{feature}.png\"" +
-           " --featureName=#{feature}" +
            " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
-           " --mapType=QML" +
-           " --QMLFile=\"template/QMLFiles/Antares-SCI.qml\"" +
-           "#{common}")
+           " --qmlfile=\"template/QMLFiles/Antares-SCI.qml\"" +
+           " --featurename=#{feature}")
+    #system("DISPLAY=:0 python #{soil_mapper}" +
+           #" --output=\"#{out_dir}/#{feature}.png\"" +
+           #" --featureName=#{feature}" +
+           #" --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+           #" --mapType=QML" +
+           #" --QMLFile=\"template/QMLFiles/Antares-SCI.qml\"" +
+           #"#{common}")
   end
 
   # Generate crop budget maps, one for each year in the results
   data[:crop_year].each_with_index do |yr,n|
-    system("DISPLAY=:0 python #{budget_mapper}" +
+    system("DISPLAY=:0 python agmap.py" +
+           " --maptype=budget" +
            " --output=\"#{out_dir}/budget_#{n}.png\"" +
            " --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
-           " --mapType=test" +
-           " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-           " --scale=1.08")
+           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"")
+    #system("DISPLAY=:0 python #{budget_mapper}" +
+           #" --output=\"#{out_dir}/budget_#{n}.png\"" +
+           #" --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
+           #" --mapType=test" +
+           #" --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+           #" --scale=1.08")
   end
 
   # Generate crop budget average map
-  system("DISPLAY=:0 python #{budget_mapper}" +
-         " --output=\"#{out_dir}/budget_average.png\"" +
-         " --input=\"#{json_dir}/#{job_id}_#{record_id}_cbaverage.tif\"" +
-         " --mapType=test" +
-         " --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-         " --scale=1.08")
+  system("DISPLAY=:0 python agmap.py" +
+           " --maptype=budget" +
+           " --output=\"#{out_dir}/budget_average.png\"" +
+           " --input=\"#{json_dir}/#{job_id}_#{record_id}_cbaverage.tif\"" +
+           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"")
+  #system("DISPLAY=:0 python #{budget_mapper}" +
+         #" --output=\"#{out_dir}/budget_average.png\"" +
+         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_cbaverage.tif\"" +
+         #" --mapType=test" +
+         #" --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+         #" --scale=1.08")
 
   # Generate dem map
-  dem_v = field_data['dem']
-  customize_qml(dem_v['min'],dem_v['max'],dem_v['stop'])
-  system("DISPLAY=:0 python #{budget_mapper}" +
+  #dem_v = field_data['dem']
+  #customize_qml(dem_v['min'],dem_v['max'],dem_v['stop'])
+  system("DISPLAY=:0 python agmap.py" +
+         " --maptype=dem" +
          " --output=\"#{out_dir}/dem.png\"" +
-         " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
-         " --mapType=test" +
-         " --QMLFile=\"template/QMLFiles/dem.qml\"" +
-         " --scale=1.08")
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"")
+  #system("DISPLAY=:0 python #{budget_mapper}" +
+         #" --output=\"#{out_dir}/dem.png\"" +
+         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         #" --mapType=test" +
+         #" --QMLFile=\"template/QMLFiles/dem.qml\"" +
+         #" --scale=1.08")
+
+  # Generate aerial map with overlay
+  system("DISPLAY=:0 python agmap.py" +
+         " --maptype=aerial" +
+         " --output=\"#{out_dir}/aerial.png\"" +
+         " --input=\"#{in_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         " --qmlfile=bnd_redblack_name.qml" +
+         " --width=2000 --height=2000 --autofit=false")
 end
 
 
