@@ -79,6 +79,10 @@ th div {
   max-height: 265px;
 }
 
+.aerial-map {
+  max-height: 300px;
+}
+
 .eros-legend {
   max-height: 220px;
 }
