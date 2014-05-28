@@ -34,7 +34,8 @@
 				    </th>
 				    <td><img src= <%= "\"../report_data/budget_hist_#{n}.svg\"" %> class="histogram" ></td>
 				    <td><img src= <%= "\"../report_data/budget_#{n}.png\"" %> class="eros-map"></td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>
+  					<!--<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>-->
+  					<td><img src=<%= "\"./report_data/budget_#{n}_legend.svg\"" %>  class="budget-legend"></td>
 				  </tr>
 				<% end %>
 				
@@ -44,7 +45,8 @@
 				    </th>
 				    <td><img src= <%= "\"../report_data/budget_hist_cbaverage.svg\"" %> class="histogram" ></td>
 				    <td><img src= <%= "\"../report_data/budget_average.png\"" %> class="eros-map"></td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>
+  					<!--<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>-->
+  					<td><img src=<%= "\"../report_data/budget_average_legend.svg\"" %> class="budget-legend">
 				  </tr>
         
 			</tbody>
