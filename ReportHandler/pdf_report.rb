@@ -78,7 +78,8 @@ def self.make_gis_images(data,field_data)
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=musym" +
          " --output=\"#{out_dir}/musym.png\"" +
-         " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"")
+         " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
+         " --autofit=exact")
   #system("DISPLAY=:0 python #{soil_mapper}" +
            #" --output=\"#{out_dir}/musym.png\"" +
            #" --featureName=musym" +
@@ -94,7 +95,8 @@ def self.make_gis_images(data,field_data)
            " --output=\"#{out_dir}/#{feature}.png\"" +
            " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
            " --qmlfile=\"template/QMLFiles/AntaresErosion.qml\"" +
-           " --featurename=#{feature}")
+           " --featurename=#{feature}" +
+           " --autofit=exact")
     #system("DISPLAY=:0 python #{soil_mapper}" +
            #" --output=\"#{out_dir}/#{feature}.png\"" +
            #" --featureName=#{feature}" +
@@ -111,7 +113,8 @@ def self.make_gis_images(data,field_data)
            " --output=\"#{out_dir}/#{feature}.png\"" +
            " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
            " --qmlfile=\"template/QMLFiles/Antares-SCI.qml\"" +
-           " --featurename=#{feature}")
+           " --featurename=#{feature}" +
+           " --autofit=exact")
     #system("DISPLAY=:0 python #{soil_mapper}" +
            #" --output=\"#{out_dir}/#{feature}.png\"" +
            #" --featureName=#{feature}" +
@@ -155,7 +158,8 @@ def self.make_gis_images(data,field_data)
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=dem" +
          " --output=\"#{out_dir}/dem.png\"" +
-         " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"")
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         " --legendformat=png")
   #system("DISPLAY=:0 python #{budget_mapper}" +
          #" --output=\"#{out_dir}/dem.png\"" +
          #" --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
@@ -167,7 +171,7 @@ def self.make_gis_images(data,field_data)
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=aerial" +
          " --output=\"#{out_dir}/aerial.png\"" +
-         " --input=\"#{in_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
          " --qmlfile=bnd_redblack_name.qml" +
          " --width=2000 --height=2000 --autofit=false")
 end
@@ -360,16 +364,13 @@ data[:cb_multi_year_average] =
 data[:yield_mapunit] = field_data['yield_mapunit']
 data[:yield_mapunit].each do |ymi|
   mukey = ymi['mukey']
-  puts mukey
   musym = ''
   soils.each do |soil|
-    puts "#{soil['mukey']} : #{soil['musym']}"
     if soil['mukey'] == mukey
       musym = soil['musym']
       break
     end
   end
-  puts musym
   ymi['musym'] = musym
 end
 
