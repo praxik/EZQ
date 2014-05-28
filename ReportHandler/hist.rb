@@ -41,5 +41,5 @@ colors = colors.map do |hex|
 end
 
 fname = "report_data/budget_hist_#{year_id}.svg"
-command = "python histplot.py #{fname} \"#{rebinned_hist.keys.to_s}\" \"#{rebinned_hist.values.to_s}\" \"#{colors.to_s}\""
+command = "DISPLAY=:0 python histplot.py #{fname} \"#{rebinned_hist.keys.to_s}\" \"#{rebinned_hist.values.to_s}\" \"#{colors.to_s}\""
 system(command)
