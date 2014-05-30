@@ -25,65 +25,18 @@
     
 		<table class="table table-fixed-height">
 			<tbody>
+			  <% data[:soil_map_info].each do |map| %>
         <tr>
-					<th>Total Erosion
+					<th><%= map[:label] %>
 					<div></div>
 					</th>
 					<td>
 					  <div class="eros-frame">
-					  <img src="../report_data/toteros.png" class="eros-map"></td>
+					  <img src="../report_data/<%=map[:name]%>.png" class="eros-map"></td>
 					  </div>
-					<!--<td><img src="../report_data/toteros_legend.svg" class="eros-legend"></td>-->
-					<td><img src="./images/AntaresTotalErosLegend.png" class="eros-legend"></td>
+					<td><img src="../report_data/<%=map[:name]%>_legend.png" class="eros-legend"></td>
 				</tr>
-
-        <tr>
-					<th>Wind Erosion
-					<div></div>
-					</th>
-					<td>
-					  <div class="eros-frame">
-					  <img src="../report_data/winderos.png" class="eros-map"></td>
-					  </div>
-					<!--<td><img src="../report_data/winderos_legend.svg" class="eros-legend"></td>-->
-					<td><img src="./images/AntaresWindErosLegend.png" class="eros-legend"></td>
-				</tr>
-
-        <tr>
-					<th>Water Erosion
-					<div></div>
-					</th>
-					<td>
-					  <div class="eros-frame">
-					  <img src="../report_data/watereros.png" class="eros-map"></td>
-					  </div>
-					<!--<td><img src="../report_data/watereros_legend.svg" class="eros-legend"></td>-->
-					<td><img src="./images/AntaresWaterErosLegend.png" class="eros-legend"></td>
-				</tr>
-
-        <tr>
-					<th>SCI
-					<div></div>
-					</th>
-					<td>
-					  <div class="eros-frame">
-					  <img src="../report_data/sci.png" class="eros-map"></td>
-					  </div>
-					<!--<td><img src="../report_data/sci_legend.svg" class="eros-legend"></td>-->
-					<td><img src="./images/AntaresSCILegend.png" class="eros-legend"></td>
-				</tr>
-
-        <tr>
-					<th>SCIOM
-					<div></div>
-					</th>
-					<td>
-					  <div class="eros-frame">
-					  <img src="../report_data/sciom.png" class="eros-map"></td>
-					  </div>
-					<!--<td><img src="../report_data/sciom_legend.svg" class="eros-legend"></td>-->
-					<td><img src="./images/AntaresSCIOMLegend.png" class="eros-legend"></td>
-				</tr>
+				<% end %>
 			</tbody>
 		</table>
 	</div>
