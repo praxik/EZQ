@@ -16,6 +16,24 @@ body {
 /* --------------------------------------------------*/
 /* Global Components
 /* --------------------------------------------------*/
+.eros-frame {  
+  height: 280px;
+  width: 280px;
+  position: relative;
+}
+
+.budget-frame {  
+  height: 250px;
+  width: 250px;
+  position: relative;
+}
+
+.aerial-frame {  
+  height: 330px;
+  width: 330px;
+  position: relative;
+}
+
 .table tbody tr th,
 .table tbody tr td,
 .table thead tr th,
@@ -47,6 +65,22 @@ body {
   border-bottom: none;
 }
 
+.table-fixed-height tr {
+  line-height: 290px;
+}
+
+.table-fixed-height td {
+  vertical-align : middle;
+}
+
+.table-big-fixed-height tr {
+  line-height: 340px;
+}
+
+.table-big-fixed-height td {
+  vertical-align : middle;
+}
+
 .rb {
   background-color: #e67777;
 }
@@ -73,27 +107,85 @@ th div {
 
 .soil-map {
   max-height: 350px;
+  max-width: 350px;
 }
 
 .eros-map {
-  max-height: 265px;
+  max-height: 250px;
+  max-width: 250px;
+  width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  
+}
+
+.budget-map {
+  max-height: 220px;
+  max-width: 220px;
+  width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  
 }
 
 .aerial-map {
   max-height: 300px;
+  max-width: 300px;
+  width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  
+}
+
+.histogram {
+  max-height: 220px;
+  max-width: 260px;
+  width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  
 }
 
 .eros-legend {
   max-height: 220px;
+  /*width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  */
 }
 
 .budget-legend {
   max-height: 150px;
+  /*width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  */
 }
 
-.histogram {
-  max-width: 260px;
-}
 /***** Homepage
 /*-----------------------------------*/
 /***** Fields
