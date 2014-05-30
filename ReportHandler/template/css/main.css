@@ -17,8 +17,8 @@ body {
 /* Global Components
 /* --------------------------------------------------*/
 .eros-frame {  
-  height: 280px;
-  width: 280px;
+  height: 265px;
+  width: 265px;
   position: relative;
 }
 
@@ -72,7 +72,7 @@ body {
 }
 
 .table-fixed-height tr {
-  line-height: 290px;
+  line-height: 275px;
 }
 
 .table-fixed-height td {
@@ -170,14 +170,6 @@ th div {
 
 .eros-legend {
   max-height: 220px;
-  /*width: auto;
-  height: auto;
-  position: absolute;  
-  top: 0;  
-  bottom: 0;  
-  left: 0;  
-  right: 0;  
-  margin: auto;  */
 }
 
 .dem-legend {
@@ -194,14 +186,6 @@ th div {
 
 .budget-legend {
   max-height: 150px;
-  /*width: auto;
-  height: auto;
-  position: absolute;  
-  top: 0;  
-  bottom: 0;  
-  left: 0;  
-  right: 0;  
-  margin: auto;  */
 }
 
 /***** Homepage
