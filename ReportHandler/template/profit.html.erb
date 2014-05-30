@@ -34,15 +34,18 @@
 				    </th>
 				    <td>
 				      <div class="budget-frame">
-				      <img src= <%= "\"../report_data/budget_hist_#{n}.svg\"" %> class="histogram" ></td>
+				      <img src="../report_data/budget_hist_<%=n%>.svg" class="histogram" ></td>
 				      </div>
 				    <td>
 				      <div class="budget-frame">
-				      <img src= <%= "\"../report_data/budget_#{n}.png\"" %> class="budget-map">
+				      <img src="../report_data/budget_<%=n%>.png" class="budget-map">
 				      </div>
 				    </td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>
-  					<!--<td><img src=<%= "\"./report_data/budget_#{n}_legend.svg\"" %>  class="budget-legend"></td>-->
+  					<td>
+  					  <div class="budget-legend-frame">
+  					  <img src="../report_data/profit_legend.png" class="budget-legend">
+  					  </div>
+  					</td>
 				  </tr>
 				<% end %>
 				
@@ -52,15 +55,18 @@
 				    </th>
 				    <td>
 				      <div class="budget-frame">
-				      <img src= <%= "\"../report_data/budget_hist_cbaverage.svg\"" %> class="histogram" ></td>
+				      <img src="../report_data/budget_hist_cbaverage.svg" class="histogram" ></td>
 				      </div>
 				    <td>
 				      <div class="budget-frame">
-				      <img src= <%= "\"../report_data/budget_average.png\"" %> class="budget-map">
+				      <img src="../report_data/budget_average.png" class="budget-map">
 				      </div>
 				    </td>
-  					<td><img src="./images/ProfitLegendInvertedUnits.png" class="budget-legend"></td>
-  					<!--<td><img src=<%= "\"../report_data/budget_average_legend.svg\"" %> class="budget-legend">-->
+  					<td>
+  					  <div class="budget-legend-frame">
+  					  <img src="../report_data/profit_legend.png" class="budget-legend">
+  					  </div>
+  					</td>
 				  </tr>
         
 			</tbody>
