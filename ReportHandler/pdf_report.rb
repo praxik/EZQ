@@ -68,25 +68,12 @@ def self.make_gis_images(data,field_data)
 
   soil_file = "#{in_dir}/#{job_id}_#{record_id}.geojson"
 
-  common = " --width=2000" +
-           " --height=2000" +
-           " --scale=1.08" +
-           " --label=Horizontal" +
-           " --labelSize=150"
-
   # Generate musym map
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=musym" +
          " --output=\"#{out_dir}/musym.png\"" +
          " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
          " --autofit=exact")
-  #system("DISPLAY=:0 python #{soil_mapper}" +
-           #" --output=\"#{out_dir}/musym.png\"" +
-           #" --featureName=musym" +
-           #" --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
-           #" --mapType=categorized" +
-           #" --textLabel=True" +
-           #"#{common}")
            
   # Generate erosion maps
   ['toteros','watereros','winderos'].each do |feature|
@@ -96,14 +83,10 @@ def self.make_gis_images(data,field_data)
            " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
            " --qmlfile=\"template/QMLFiles/AntaresErosion.qml\"" +
            " --featurename=#{feature}" +
-           " --autofit=exact")
-    #system("DISPLAY=:0 python #{soil_mapper}" +
-           #" --output=\"#{out_dir}/#{feature}.png\"" +
-           #" --featureName=#{feature}" +
-           #" --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
-           #" --mapType=QML" +
-           #" --QMLFile=\"template/QMLFiles/AntaresErosion.qml\"" +
-           #"#{common}")
+           " --autofit=exact" +
+           " --legendtype=#{feature}" +
+           " --legendformat=png" +
+           " --legendfile=#{out_dir}/#{feature}_legend.png")
   end
 
   # Generate sci maps
@@ -114,14 +97,10 @@ def self.make_gis_images(data,field_data)
            " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
            " --qmlfile=\"template/QMLFiles/Antares-SCI.qml\"" +
            " --featurename=#{feature}" +
-           " --autofit=exact")
-    #system("DISPLAY=:0 python #{soil_mapper}" +
-           #" --output=\"#{out_dir}/#{feature}.png\"" +
-           #" --featureName=#{feature}" +
-           #" --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
-           #" --mapType=QML" +
-           #" --QMLFile=\"template/QMLFiles/Antares-SCI.qml\"" +
-           #"#{common}")
+           " --autofit=exact" +
+           " --legendtype=#{feature}" +
+           " --legendformat=png" +
+           " --legendfile=#{out_dir}/#{feature}_legend.png")
   end
 
   # Generate crop budget maps, one for each year in the results
@@ -131,12 +110,6 @@ def self.make_gis_images(data,field_data)
            " --output=\"#{out_dir}/budget_#{n}.png\"" +
            " --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
            " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"")
-    #system("DISPLAY=:0 python #{budget_mapper}" +
-           #" --output=\"#{out_dir}/budget_#{n}.png\"" +
-           #" --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_cb.tif\"" +
-           #" --mapType=test" +
-           #" --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-           #" --scale=1.08")
   end
 
   # Generate crop budget average map
@@ -144,28 +117,23 @@ def self.make_gis_images(data,field_data)
            " --maptype=budget" +
            " --output=\"#{out_dir}/budget_average.png\"" +
            " --input=\"#{json_dir}/#{job_id}_#{record_id}_cbaverage.tif\"" +
-           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"")
-  #system("DISPLAY=:0 python #{budget_mapper}" +
-         #" --output=\"#{out_dir}/budget_average.png\"" +
-         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_cbaverage.tif\"" +
-         #" --mapType=test" +
-         #" --QMLFile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-         #" --scale=1.08")
+           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+           " --legendtype=profit" +
+           " --legendformat=png" +
+           " --legendfile=#{out_dir}/profit_legend.png")
+
 
   # Generate dem map
-  #dem_v = field_data['dem']
-  #customize_qml(dem_v['min'],dem_v['max'],dem_v['stop'])
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=dem" +
          " --output=\"#{out_dir}/dem.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
-         " --legendformat=png")
-  #system("DISPLAY=:0 python #{budget_mapper}" +
-         #" --output=\"#{out_dir}/dem.png\"" +
-         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
-         #" --mapType=test" +
-         #" --QMLFile=\"template/QMLFiles/dem.qml\"" +
-         #" --scale=1.08")
+         " --legendformat=png" +
+         " --legendtype=dem" +
+         " --legendformat=png" +
+         " --legendfile=#{out_dir}/dem_legend.png" +
+         " --legendunits=ft")
+
 
   # Generate aerial map with overlay
   system("DISPLAY=:0 python agmap.py" +
@@ -174,28 +142,6 @@ def self.make_gis_images(data,field_data)
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
          " --qmlfile=bnd_redblack_name.qml" +
          " --width=2000 --height=2000 --autofit=false")
-end
-
-
-
-def self.customize_qml(min, max, stop)
-  fn = 'template/QMLFiles/dem.qml'
-  qdoc = Nokogiri::XML(open(fn)) do |config|
-    config.options = Nokogiri::XML::ParseOptions::NOBLANKS
-  end
-  rasterrenderer = qdoc.search('rasterrenderer').first
-  rasterrenderer['classificationMax'] = max
-  rasterrenderer['classificationMin'] = min
-  colorrampshader = rasterrenderer.at_xpath('rastershader/colorrampshader')
-
-  colorrampshader.children[0]['value'] = min
-  colorrampshader.children[0]['label'] = min.to_s
-  colorrampshader.children[1]['value'] = stop
-  colorrampshader.children[1]['label'] = stop.to_s
-  colorrampshader.children[2]['value'] = max
-  colorrampshader.children[2]['label'] = max.to_s
-
-  File.open(fn, 'w') { |f| f.print(qdoc.to_xml) }
 end
 
 
@@ -332,6 +278,19 @@ soils.each do |soil|
   data[:field_size] += soil['acres'].to_f
 end
 #data[:soil_details] << soil_deets
+
+
+# These control the soil properties maps that are shown on the soil_maps
+# page. They will be displayed in the order added here. :label species the
+# text that goes to the left of the map image. :name specifies the expected
+# name of the map and legend files. 'toteros' will be expanded to 'toteros.png'
+# and 'toteros_legend.png' in the generated html.
+data[:soil_map_info] = []
+data[:soil_map_info] << {:label=>'Total Erosion',:name=>'toteros'}
+data[:soil_map_info] << {:label=>'Wind Erosion',:name=>'winderos'}
+data[:soil_map_info] << {:label=>'Water Erosion',:name=>'watereros'}
+data[:soil_map_info] << {:label=>'SCI',:name=>'sci'}
+data[:soil_map_info] << {:label=>'SCIOM',:name=>'sciom'}
 
 
 # The number of entries in the following three arrays should match
