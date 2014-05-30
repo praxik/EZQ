@@ -137,10 +137,10 @@ class Job_Breaker
             @logger.info "Pushing #{bucket_comma_filename} on new thread"
             push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run, @credentials ) }
             @already_pushed << bucket_comma_filename
+            sleep(0.2)
           end
         elsif msg =~ /^error_messages: /
             puts msg # Propagate error messages up to parent processor
-          end
         else
           msg = add_preamble(msg)
           enqueue_task(msg)
@@ -215,19 +215,25 @@ class Job_Breaker
   
   
   protected
-  # Pushes a file into S3. Argument should be string in form "bucket,filename"
+  # Pushes a file into S3. Argument should be string of form "bucket,filename"
   def push_file(bucket_comma_filename,dry_run,credentials)
     bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
     if dry_run
       puts "Would be pushing '#{fname}' into bucket '#{bname}'"
       return
     end
+    @logger.info "push_file thread for #{bucket_comma_filename} ... #{fname}"
     if File.exists?(fname)
       s3 = AWS::S3.new(credentials)
       bucket = s3.buckets[bname]
       obj = bucket.objects.create(fname,Pathname.new(fname))
       AWS.config.http_handler.pool.empty!
+    else
+      @logger.error "file #{fname} does not exist; can't push it to S3."
+      return nil
     end
+    @logger.info "Successfully pushed file #{fname} to S3."
+    return nil
   end
 
 
