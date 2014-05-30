@@ -80,6 +80,13 @@
                     <td  <%= String.new("style=\"background-color: #e67777\"") if sm['domcrit'] %> style="font-size:9px"><%= sm['description'] %></td>
                   </tr>
                   <% end %>
+                  
+                  <tr>
+                    <td>Total</td>
+                    <td><%= "%.1f" % data[:field_size] %></td>
+                    <td>100</td>
+                    <td></td>
+                  </tr>
 
                 </tbody>
               </table>

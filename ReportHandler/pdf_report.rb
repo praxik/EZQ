@@ -312,6 +312,7 @@ soil_map_entry =  {'id' => '',
                    'description' => ''}
 #data[:soil_map] << {'id'=>'TO DO','ac'=>0.0,'pct'=>0.0,'description'=>'Need to sift through xxxx_yyyy_job.json for this data'}
 
+data[:field_size] = 0.0
 record_id = worker_data['record_id']
 soils = JSON.parse(File.read("report_data/#{job_id}_#{record_id}.json"))['soil_table']
 soils.each do |soil|
@@ -328,6 +329,7 @@ soils.each do |soil|
                       'ac' => soil['acres'],
                       'pct' => soil['pct'],
                       'description' => soil['muname']}
+  data[:field_size] += soil['acres'].to_f
 end
 #data[:soil_details] << soil_deets
 
