@@ -29,8 +29,14 @@ body {
 }
 
 .aerial-frame {  
-  height: 330px;
-  width: 330px;
+  height: 630px;
+  width: 550px;
+  position: relative;
+}
+
+.dem-legend-frame {
+  height: 630px;
+  width: 65px;
   position: relative;
 }
 
@@ -74,7 +80,7 @@ body {
 }
 
 .table-big-fixed-height tr {
-  line-height: 340px;
+  line-height: 640px;
 }
 
 .table-big-fixed-height td {
@@ -137,9 +143,9 @@ th div {
 }
 
 .aerial-map {
-  max-height: 300px;
-  max-width: 300px;
-  width: auto;
+  max-height: 600px;
+  max-width: 550px;
+  width: 550px;
   height: auto;
   position: absolute;  
   top: 0;  
@@ -172,6 +178,18 @@ th div {
   left: 0;  
   right: 0;  
   margin: auto;  */
+}
+
+.dem-legend {
+  max-height: 220px;
+  width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;
 }
 
 .budget-legend {
