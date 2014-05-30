@@ -40,6 +40,12 @@ body {
   position: relative;
 }
 
+.budget-legend-frame {
+  height: 250px;
+  width: 50px;
+  position: relative;
+}
+
 .table tbody tr th,
 .table tbody tr td,
 .table thead tr th,
@@ -186,6 +192,14 @@ th div {
 
 .budget-legend {
   max-height: 150px;
+  width: auto;
+  height: auto;
+  position: absolute;  
+  top: 0;  
+  bottom: 0;  
+  left: 0;  
+  right: 0;  
+  margin: auto;  
 }
 
 /***** Homepage
