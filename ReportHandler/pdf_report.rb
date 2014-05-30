@@ -397,7 +397,9 @@ PdfReport::make_gis_images(data,field_data)
 PdfReport::make_histograms(data)
 
 pdfs = []
-names = ['managements','soils','results','soil_maps','profit']
+# These are the report sections which will appear in the report in the order
+# specified by this array.
+names = ['managements','soils','results','profit','soil_maps']
 names.each do |name|
   pdfs << PdfReport::make_pdf("template/#{name}.html.erb",'header.html',data,name)
 end
