@@ -8,6 +8,8 @@ decompress_message: false
 
 dont_hit_disk: true
 
+error_queue_name: "6k_error_test_44"
+
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
@@ -19,13 +21,13 @@ retry_on_failure: false
 retries: 0
 
 # the idle_timeout option below tells reporthandler (run_r2_polling) to
-# timeout after 10 minutes of not receiving results. This timeout only kicks
+# timeout after 30 minutes of not receiving results. This timeout only kicks
 # in *after* pregrid has put a report_gen task in the report_gen queue.
-# We really expect that we shouldn't have to wait more than 10
+# We really expect that we shouldn't have to wait more than 30
 # minutes between result sets for this job.
 polling_options:
   :wait_time_seconds: 20
-  :idle_timeout: 600
+  :idle_timeout: 1800
   :attributes:
     - :all
 
