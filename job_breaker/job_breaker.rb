@@ -10,6 +10,31 @@ require 'deep_merge'
 
 module EZQ
 
+# FilePusher class pushes a file specified in the form bucket,key out to S3
+# using the supplied credentials and logging to the supplied logger. It is
+# intended to be used as a thread object.
+class FilePusher
+  def initialize(bucket_comma_filename,dry_run,credentials,logger)
+    bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
+    if dry_run
+      puts "Would be pushing '#{fname}' into bucket '#{bname}'"
+      return
+    end
+    logger.info "Pushing #{bucket_comma_filename}"
+    if File.exists?(fname)
+      s3 = AWS::S3.new(credentials)
+      bucket = s3.buckets[bname]
+      obj = bucket.objects.create(fname,Pathname.new(fname))
+      AWS.config.http_handler.pool.empty!
+    else
+      logger.error "file #{fname} does not exist; can't push it to S3."
+      return nil
+    end
+    logger.info "Successfully pushed file #{fname} to S3."
+    return nil
+  end
+end
+
 # Job_Breaker takes a JSON structure containing separate tasks, and enqueues
 # each of the separate tasks as specified in the configuration. A *Job* is
 # a collection of *Tasks*.
@@ -134,10 +159,8 @@ class Job_Breaker
           # Don't push the same file multiple times during a job.
           bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
           if !@already_pushed.include?(bucket_comma_filename)
-            @logger.info "Pushing #{bucket_comma_filename} on new thread"
-            push_threads << Thread.new{ push_file( bucket_comma_filename, @dry_run, @credentials ) }
+            push_threads << Thread.new(bucket_comma_filename, @dry_run, @credentials, @logger){ |b,d,c,l| FilePusher.new(b,d,c,l) }
             @already_pushed << bucket_comma_filename
-            sleep(0.2)
           end
         elsif msg =~ /^error_messages: /
             puts msg # Propagate error messages up to parent processor
@@ -211,29 +234,6 @@ class Job_Breaker
       preamble = "#{task_pa.to_yaml}\n..."
     end
     return "#{preamble}\n#{task.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')}"
-  end
-  
-  
-  protected
-  # Pushes a file into S3. Argument should be string of form "bucket,filename"
-  def push_file(bucket_comma_filename,dry_run,credentials)
-    bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
-    if dry_run
-      puts "Would be pushing '#{fname}' into bucket '#{bname}'"
-      return
-    end
-    @logger.info "push_file thread for #{bucket_comma_filename} ... #{fname}"
-    if File.exists?(fname)
-      s3 = AWS::S3.new(credentials)
-      bucket = s3.buckets[bname]
-      obj = bucket.objects.create(fname,Pathname.new(fname))
-      AWS.config.http_handler.pool.empty!
-    else
-      @logger.error "file #{fname} does not exist; can't push it to S3."
-      return nil
-    end
-    @logger.info "Successfully pushed file #{fname} to S3."
-    return nil
   end
 
 
