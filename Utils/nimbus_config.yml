@@ -58,6 +58,9 @@ launch_settings:
   worker_Purdue: 
     size: 'c3.8xlarge'
 
+  worker_ISA:
+    size: 'm3.2xlarge'
+
 
 # The information in this section is used to populate the userdata on
 # an instance prior to launch. The base section is merged with all launch types.
