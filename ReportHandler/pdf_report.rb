@@ -125,8 +125,19 @@ def self.make_gis_images(data,field_data)
 
   # Generate dem map
   system("DISPLAY=:0 python agmap.py" +
-         " --maptype=dem" +
+         " --maptype=aerial" +
          " --output=\"#{out_dir}/dem.png\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         " --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
+         " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+         " --width=2000 --height=2000 --autofit=false")
+
+  # Generate dem legend...right now this doesn't work along with the dem-aerial
+  # overlay
+  system("DISPLAY=:0 python agmap.py" +
+         " --maptype=dem" +
+         " --output=\"#{out_dir}/trash_dem.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
          " --legendformat=png" +
          " --legendtype=dem" +
@@ -140,7 +151,7 @@ def self.make_gis_images(data,field_data)
          " --maptype=aerial" +
          " --output=\"#{out_dir}/aerial.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
-         " --qmlfile=bnd_redblack_name.qml" +
+         " --qmlfile=\"template/QMLFiles/bnd_redblack_name.qml\"" +
          " --width=2000 --height=2000 --autofit=false")
 end
 
