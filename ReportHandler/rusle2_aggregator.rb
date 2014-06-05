@@ -19,7 +19,7 @@ class Rusle2Aggregator < SingletonApp
   def start_application
 
    
-    lf = File.new('rusle2_aggregator.log', 'a')
+    lf = File.new('StoreResults.log', 'a')
     lf.sync = true
     @log = Logger.new(lf)
     $stderr = lf
@@ -51,7 +51,8 @@ class Rusle2Aggregator < SingletonApp
   def handle_data_from_client(connection)
     data = {}
     return false if !get_json(connection,data)
-    @log.info "Rec'd: #{data}"
+    #@log.info "Rec'd: #{data}"
+    @log.info "Received data"
     #puts "Rec'd: #{data}"
     return store_data(data)
   end
@@ -76,10 +77,12 @@ class Rusle2Aggregator < SingletonApp
 
 
 
-
   # Stores data in the db. Returns true if successful, and false otherwise
   # @param [hash] data Hash of data to store in the db
   def store_data(data)
+    
+    return batch_store_data(data) if data.fetch('batch_mode',false)
+    
     non_spec_data = remove_elements_not_in_spec!(data)
     to_disk(non_spec_data,data['job_id'])
     bindings, cols, val_holders = [],[],[]
@@ -94,9 +97,49 @@ class Rusle2Aggregator < SingletonApp
     result.check
     return true
   rescue => e
-    warn e
-    warn "Database error"
+    @log.error "Database error: #{e}"
     return false
+  end
+
+
+  # Stores a batch of data to the db in a single transaction. Returns true if
+  # the transaction succeeds, and false otherwise. Unlike the single mode
+  # store_data, we don't write any non-spec data to disk. Batch mode is
+  # set up for speed, so we avoid any overhead that we can.
+  def batch_store_data(data)
+    @log.info "Batch store"
+    record_keys = data.keys # - ['batch_mode','job_id']
+    record_keys.delete_if{|k| !(k =~ /record_/) }
+    @log.debug "#{record_keys.join(', ')}" 
+
+    transaction_result = true
+    @log.info "Begin transaction"
+    @db.transaction do |conn|
+      record_keys.each do |rk|
+        record = data[rk]
+        remove_elements_not_in_spec!(record)
+        bindings, cols, val_holders = [],[],[]
+        record.each do |k,v|
+          cols.push(k)
+          bindings.push(v)
+        end
+        @log.debug "Saving record"
+        val_holders = (1..cols.size).to_a.map{|i| "$#{i}"}
+        result = conn.exec_params( %[ INSERT INTO #{@tablename} (#{cols.join(',')})
+                                   VALUES(#{val_holders.join(',')}) ],
+                                   bindings)
+        begin
+          @log.debug "Checking result"
+          result.check
+        rescue => e
+          @log.error "DB error inside transaction: #{e}"
+          transaction_result = false
+        end
+      end
+    end #transaction
+
+    @log.info "Ended transaction with result #{transaction_result}"
+    return transaction_result
   end
 
 
