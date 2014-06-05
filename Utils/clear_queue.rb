@@ -3,6 +3,7 @@
 require 'bundler/setup'
 require 'yaml'
 require 'aws-sdk'
+require '../x_queue.rb'
 
 begin
   q = String.new(ARGV[0])
@@ -18,15 +19,18 @@ begin
   credentials = YAML.load(File.read('credentials.yml'))
   AWS.config(credentials)
 
-  queue = AWS::SQS.new.queues.named(q) 
+  #queue = AWS::SQS.new.queues.named(q)
+  queue = AWS::SQS::X_queue.new(AWS::SQS.new.queues.named(q).url)
 
   # Get each message from the queue using block form that autodeletes.
   puts "\nClearing queue #{q}"
   puts "This may appear to hang for ~20 seconds at the end. Nothing is wrong." 
   puts "That's just the effect of the long-polling wait timeout on the queue."
   puts "Once you stop seeing 'Deleting...' messages, feel free to interrupt with ctrl-c.\n\n"
-  queue.poll(:idle_timeout => 2,:batch_size => 10) do |msg|
-    Array(msg).each {|item| puts "Deleting message #{item.id}"}
+  queue.poll_no_delete({:idle_timeout => 20,:batch_size => 10}) do |msg|
+    #Array(msg).each {|item| puts "Deleting message #{item.id}"}
+    puts "Deleting batch containing #{Array(msg).count} messages"
+    queue.batch_delete(*Array(msg))
   end
 rescue Interrupt
   warn "\nclear_queue aborted."
