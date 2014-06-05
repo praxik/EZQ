@@ -21,7 +21,8 @@ class RusleReport < EZQ::Processor
 
     @rr_job_id = job_details['job_id']
     @rr_task_ids = job_details['task_ids']
-    @gen_dom_crit_report = job_details['generate_dominant_critical_soil_report']
+    @gen_dom_crit_report = job_details.fetch('generate_dominant_critical_soil_report',false)
+    @batch_mode = job_details.fetch('batch_mode',false)
 
     # Each time a task is completed, we remove it from rr_remaining_tasks.
     # When rr_remaining_tasks is empty, we know we've processed all tasks
@@ -38,7 +39,7 @@ class RusleReport < EZQ::Processor
   protected
   # Override of EZQ::Processor method to add logic to keep track of completed
   # tasks.
-  def run_process_command(msg,input_filename,id)
+  def run_process_command(msg,input_filename,id,log_command=true)
     # Open up the results and insert the current job id
     parsed_msg = JSON.parse(@msg_contents)
     parsed_msg['job_id'] = @rr_job_id
@@ -46,7 +47,7 @@ class RusleReport < EZQ::Processor
     @msg_contents = parsed_msg.to_json
 
     success = true
-    task_id = JSON.parse(@msg_contents)['task_id']
+    task_id = parsed_msg['task_id']
     # Only process the task for real if we haven't already seen it; otherwise
     # just return true so the task will be deleted.
     if @waiting_for_report
@@ -76,20 +77,34 @@ class RusleReport < EZQ::Processor
     end
   end
 
+
+
   protected
   # Override of EZQ::Processor method to add logic to exit if all tasks
   # associated with this job have been completed.
   def poll_queue
+    multi_batch_poll() if @batch_mode
     @in_queue.poll_no_delete(@polling_options) do |msg|
-      Array(msg).each do |item|
+      # Batch mode should have been set as a flag in the report_gen message
+      # if we're to use it.
+      if @batch_mode
         success = false
-        success = process_message(item)
+        success = process_message_batch( Array(msg) )
         if success and @rr_remaining_tasks.empty?
-          deal_with_report if @gen_dom_crit_report # Breaks out of recursion in
-                # addition to simply seeing whether this step must be performed.
-                                                   
-          AWS::SQS.new.queues.named("#{@rr_job_id}").delete
-          exit(0)
+         AWS::SQS.new.queues.named("#{@rr_job_id}").delete
+            exit(0)
+        end
+      else
+        Array(msg).each do |item|
+          success = false
+          success = process_message(item)
+          if success and @rr_remaining_tasks.empty?
+            deal_with_report if @gen_dom_crit_report # Breaks out of recursion in
+                  # addition to simply seeing whether this step must be performed.
+                                                     
+            AWS::SQS.new.queues.named("#{@rr_job_id}").delete
+            exit(0)
+          end
         end
       end
     end
@@ -106,6 +121,83 @@ class RusleReport < EZQ::Processor
     end
   end
 
+
+  def multi_batch_poll
+    while true
+      msgs = []
+      stamp = Time.now.to_i
+      while ( (msgs.size < 100) and ((Time.now.to_i - stamp) < 20) )
+        msgs += Array( @in_queue.receive_messages(:limit => 10) )
+      end
+      success = false
+      success = process_message_batch( msgs )
+      if success and @rr_remaining_tasks.empty?
+       AWS::SQS.new.queues.named("#{@rr_job_id}").delete
+          exit(0)
+      end
+    end
+  end
+
+  # Batch-mode messages are handled differently from single messages.
+  # * file refs (S3 and uris) are not supported
+  # * file_as_body is not supported
+  # * decompression is not supported
+  # The essential feature of batch mode processing is that it will retrieve
+  # messages from a queue as quickly as possible, and hand them off to a
+  # processor as quickly as possible. The whole thing is much less flexible than
+  # single mode processing, but the benefit is an increase in throughput.
+  # Generally speaking, the dont_hit_disk flag should be set to true when using
+  # batch mode.
+  def process_message_batch(msg_ary)
+    @logger.unknown '------------------------------------------'
+    #msg_ids = []
+    #msg_ary.each{|msg| msg_ids << msg.id}
+    @logger.info "Processing message batch of size #{msg_ary.size}"
+
+    # We need *some* value for these two, and the id of the first message of the
+    # batch works as well as anything else....
+    @input_filename = msg_ary[0].id + '.in'
+    @id = msg_ary[0].id
+
+    task_ids = []
+
+    msg_batch = {}
+    msg_batch['batch_mode'] = true
+    msg_ary.each_with_index do |msg,idx|
+      strip_directives(msg)
+      contents = JSON.parse(msg.body)
+      task_ids << contents['task_id']
+      contents['job_id'] = @rr_job_id
+      msg.body.gsub!(/.+/,contents.to_json)
+      msg_batch["record_#{idx}"] = contents
+    end
+
+    # Message "body" is a JSON string containing all the supplied message bodies
+    body =  msg_batch.to_json
+    
+    @msg_contents = body
+    File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
+
+    # The first argument is spurious, but run_process_command wasn't set up to
+    # handle a batch. The argument is irrelevant to our needs here since it only
+    # controls what gets written in store_message, and we don't use that info
+    # for these batch mode aggregations anyway.
+    success = EZQ::Processor.instance_method(:run_process_command).bind(self).call(msg_ary[0],@input_filename,@id,false)
+    
+    if success
+      @rr_remaining_tasks -= task_ids
+      @rr_completed_tasks += task_ids
+      # Do result_step before deleting the message in case result_step fails.
+      if do_result_step()
+        @logger.info "Processing successful. Deleting message batch of size #{msg_ary.size}"
+        msg_ary.each_slice(10){|ary| @in_queue.batch_delete(*ary)}
+      end
+    end
+    
+    # Cleanup even if processing otherwise failed.
+    cleanup(@input_filename,@id)
+    return success
+  end
 
 
   # TODO: clean this mess up. Break out functionality into smaller, digestible
