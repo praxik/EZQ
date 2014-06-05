@@ -252,10 +252,11 @@ class Processor
   # @param [String] input_filename String that will replace the $input_file 
   # token in process_command
   # @param [String] id Unique id associated with the current message
-  def run_process_command(msg,input_filename,id)
+  def run_process_command(msg,input_filename,id,log_command=true)
     save_message(msg,id) if @store_message
     commandline = expand_vars(@process_command,input_filename,id)
-    @logger.info "Running command '#{commandline}'"
+    @logger.info "Running command '#{commandline}'" if log_command
+    @logger.info 'Running process_command' if !log_command
     success = false
     output = []
     success, output = exec_cmd(commandline)
@@ -271,10 +272,12 @@ class Processor
     end
     if !success
       err_hash = {}
-      err_hash['stdout_stderr'] = output
-      err_hash['error_collection'] = collect_errors(input_filename,id)
-      err_hash['command'] = commandline
-      err_hash['input'] = @msg_contents
+      # Everything in here that could potentially be large has to be forcibly
+      # capped to ensure we don't go over the 256kB message size limit
+      err_hash['stdout_stderr'] = output.join("\n").byteslice(0..99999) # limit to 100 kB
+      err_hash['error_collection'] = collect_errors(input_filename,id).byteslice(0..99999) # limit to 100kB
+      err_hash['command'] = commandline.byteslice(0..2999) # limit to 3kB
+      err_hash['input'] = @msg_contents.byteslice(0..49999) # limit to 50kB
       err_hash['pid'] = @pid
       err_hash['instance'] = @instance_id if !@instance_id.empty?
       send_error(err_hash.to_yaml)
@@ -404,7 +407,7 @@ class Processor
         errors << "collect_errors_command '#{command}' does not exist."
       end
     end
-    return errors.join('\n')
+    return errors.join("\n")
   end
 
   protected
@@ -550,6 +553,7 @@ class Processor
     return true if !body.kind_of?(Hash)
     return true if !body.has_key?('EZQ')
     preamble = body['EZQ']
+    return true if !preamble
     return true if !preamble.has_key?('get_s3_files')
     files = preamble['get_s3_files']
     files.each do |props|
@@ -606,6 +610,7 @@ class Processor
     return nil if !body.kind_of?(Hash)
     return nil if !body.has_key?('EZQ')
     preamble = body['EZQ']
+    return nil if !preamble
     return nil if !preamble.has_key?('get_uri_contents')
     files = preamble['get_uri_contents']
     files.each_with_index do |props,idx|
@@ -628,6 +633,7 @@ class Processor
     return nil if !body.kind_of?(Hash)
     return nil if !body.has_key?('EZQ')
     preamble = body['EZQ']
+    return nil if !preamble
     @s3_endpoints = preamble['put_s3_files'] if preamble.has_key?('put_s3_files')
     return nil
   end
