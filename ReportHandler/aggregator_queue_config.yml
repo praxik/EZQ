@@ -13,7 +13,7 @@ error_queue_name: "6k_error_test_44"
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "ruby rusle2_aggregator.rb $msg_contents"
+process_command: "ruby StoreResults.rb $msg_contents"
 
 # (true/false)
 retry_on_failure: false
