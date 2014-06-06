@@ -5,6 +5,7 @@ require 'bundler/setup'
 require './processor.rb'
 require 'json'
 require 'aws-sdk'
+require 'socket'
 require './data_spec_parser.rb'
 
 # This class overrides a few chosen methods of EZQ processor to insert task
@@ -126,7 +127,7 @@ class RusleReport < EZQ::Processor
     while true
       msgs = []
       stamp = Time.now.to_i
-      while ( (msgs.size < 100) and ((Time.now.to_i - stamp) < 20) )
+      while ( (msgs.size < 1000) and ((Time.now.to_i - stamp) < 20) )
         msgs += Array( @in_queue.receive_messages(:limit => 10) )
       end
       success = false
@@ -182,7 +183,8 @@ class RusleReport < EZQ::Processor
     # handle a batch. The argument is irrelevant to our needs here since it only
     # controls what gets written in store_message, and we don't use that info
     # for these batch mode aggregations anyway.
-    success = EZQ::Processor.instance_method(:run_process_command).bind(self).call(msg_ary[0],@input_filename,@id,false)
+    #success = EZQ::Processor.instance_method(:run_process_command).bind(self).call(msg_ary[0],@input_filename,@id,false)
+    success = socket_process_command(@msg_contents)
     
     if success
       @rr_remaining_tasks -= task_ids
@@ -197,6 +199,27 @@ class RusleReport < EZQ::Processor
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
     return success
+  end
+
+
+  def socket_process_command(data)
+    socket_path = '/tmp/rusle2'
+    client_conn = UNIXSocket.new(socket_path)
+    client_conn.puts(data) 
+    client_conn.close_write()
+    exit_code = client_conn.read()
+    client_conn.close()
+    if exit_code.to_i == 0
+      @logger.info 'socket_process_command succeeded'
+      return true
+    else
+      @logger.info 'socket_process_command failed with exit code #{exit_code}'
+      return false
+    end
+  rescue => e
+    @logger.error "socket_process_command failed with exception: #{e}"
+    send_error("socket_process_command failed with exception: #{e}")
+    return false
   end
 
 
