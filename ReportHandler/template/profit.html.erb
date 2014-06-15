@@ -81,7 +81,9 @@
 		    <tr>
 		      <th>Map Unit Symbol</th>
 		      <% data[:yield_mapunit][0]['yield'].each do |yit| %>
-		        <th><%= yit['year'] %> <%= yit['crop'] %> yield (bu/ac)</th>
+		        <% if yit['type'] == 'Standard' %>
+		          <th><%= yit['year'] %> <%= yit['crop'] %> yield (bu/ac)</th>
+		        <% end %>
 		      <% end %>
 		    </tr>
 		  </thead>
@@ -91,7 +93,9 @@
 			  <tr>
 		      <td><%= it['musym'] %></td>
 		      <% it['yield'].each do |y| %>
-		        <td><%= y['value'].round %></td>
+		        <% if y['type'] == 'Standard' %>
+		          <td><%= y['value'].round %></td>
+		        <% end %>
 		      <% end %>
 		    </tr>
 		    <% end %>
