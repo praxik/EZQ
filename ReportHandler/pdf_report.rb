@@ -122,6 +122,17 @@ def self.make_gis_images(data,field_data)
            " --legendformat=png" +
            " --legendfile=#{out_dir}/profit_legend.png")
 
+# Generate rate of return maps
+  data[:crop_year].each_with_index do |yr,n|
+    system("DISPLAY=:0 python agmap.py" +
+           " --maptype=budget" +
+           " --output=\"#{out_dir}/rate_of_return_#{n}.png\"" +
+           " --input=\"#{json_dir}/#{job_id}_#{record_id}_#{n}_rr.tif\"" +
+           " --qmlfile=\"template/QMLFiles/RateOfReturn.qml\"" +
+           " --legendtype=rr" +
+           " --legendformat=png" +
+           " --legendfile=#{out_dir}/rate_of_return_legend.png")
+  end
 
   # Generate dem map
   system("DISPLAY=:0 python agmap.py" +
@@ -371,7 +382,7 @@ PdfReport::make_histograms(data)
 pdfs = []
 # These are the report sections which will appear in the report in the order
 # specified by this array.
-names = ['managements','soils','results','profit','soil_maps']
+names = ['managements','soils','results','profit','rate_of_return','soil_maps']#,'r2_maps']
 names.each do |name|
   pdfs << PdfReport::make_pdf("template/#{name}.html.erb",'header.html',data,name)
 end
