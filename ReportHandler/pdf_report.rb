@@ -176,6 +176,8 @@ def self.make_histograms(data)
   data[:crop_year].each_with_index do |yr,n|
     command = "ruby hist.rb #{job_id}_#{record_id}_#{n}_cb.tif.aux.xml"
     system(command)
+    command = "ruby hist_rr.rb #{job_id}_#{record_id}_#{n}_rr.tif.aux.xml"
+    system(command)
   end
 
   command = "ruby hist.rb #{job_id}_#{record_id}_cbaverage.tif.aux.xml"
