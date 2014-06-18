@@ -3,6 +3,7 @@ require 'pdfkit'
 require 'aws-sdk'
 require 'yaml'
 require 'nokogiri'
+require 'fileutils'
 require './remove_blank_pages'
 
 # Module containing function(s) for making pdf reports
@@ -209,6 +210,8 @@ input_file = ARGV.shift
 job_id = ARGV.shift
 worker_data = JSON.parse(File.read(input_file))
 
+FileUtils.cp(input_file,"#{job_id}_pass_2_out")
+
 
 ################################################################################
 #  This section contains all the symbols that are accessed by                  #
@@ -332,12 +335,14 @@ data[:cb_min] = []
 data[:cb_max] = []
 data[:cb_crop] = []
 data[:cb_year] = []
+data[:cb_rr_average] = []
 field_data['crop_budget'].each_with_index do |budg|
   data[:cb_average] << budg['average']
   data[:cb_min] << budg['min']
   data[:cb_max] << budg['max']
   data[:cb_crop] << budg['crop']
   data[:cb_year] << budg['year']
+  data[:cb_rr_average] << budg['rr_average']
 end
 
 data[:cb_multi_year_average] =
