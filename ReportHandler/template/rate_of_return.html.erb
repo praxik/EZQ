@@ -29,7 +29,7 @@
         <% data[:cb_year].each_with_index do |yr,n| %>
 				  <tr>
 				    <th>Rate of Return <%= yr %>
-				    <div class="budget-font">Avg: <%= data[:cb_rr_average][n] %>%</div>
+				    <div class="budget-font">Avg: <%= "%.2f" % data[:cb_rr_average][n] %></div>
 				    </th>
 				    <!--<td>
 				      <div class="budget-frame">
