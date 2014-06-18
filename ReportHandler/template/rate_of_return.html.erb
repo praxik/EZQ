@@ -29,12 +29,12 @@
         <% data[:cb_year].each_with_index do |yr,n| %>
 				  <tr>
 				    <th>Rate of Return <%= yr %>
-				    <div class="budget-font">Avg: <%= "%.2f" % data[:cb_rr_average][n] %></div>
+				    <div class="budget-font">Avg (%): <%= "%.2f" % data[:cb_rr_average][n] %></div>
 				    </th>
-				    <!--<td>
+				    <td>
 				      <div class="budget-frame">
-				      <img src="../report_data/budget_hist_<%=n%>.svg" class="histogram" ></div>
-				      </td>-->
+				      <img src="../report_data/rate_of_return_hist_<%=n%>.svg" class="histogram" ></div>
+				      </td>
 				    <td>
 				      <div class="budget-frame">
 				      <img src="../report_data/rate_of_return_<%=n%>.png" class="budget-map">
