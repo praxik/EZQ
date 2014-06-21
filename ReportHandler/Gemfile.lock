@@ -1,0 +1,28 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    aws-sdk (1.38.0)
+      json (~> 1.4)
+      nokogiri (>= 1.4.4)
+      uuidtools (~> 2.1)
+    deep_merge (1.0.1)
+    json (1.8.1)
+    mini_portile (0.5.3)
+    nokogiri (1.6.1)
+      mini_portile (~> 0.5.0)
+    pdfkit (0.6.2)
+    pg (0.17.1)
+    rmagick (2.13.2)
+    rubyzip (1.1.2)
+    uuidtools (2.1.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  aws-sdk
+  deep_merge
+  pdfkit
+  pg
+  rmagick
+  rubyzip
