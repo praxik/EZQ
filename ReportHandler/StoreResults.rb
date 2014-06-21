@@ -84,7 +84,8 @@ class Rusle2Aggregator < SingletonApp
     return batch_store_data(data) if data.fetch('batch_mode',false)
     
     non_spec_data = remove_elements_not_in_spec!(data)
-    to_disk(non_spec_data,data['job_id'])
+    #to_disk(non_spec_data,data['job_id'])
+    to_db(non_spec_data,data['job_id'],data.fetch('task_id','-1'))
     bindings, cols, val_holders = [],[],[]
     data.each do |k,v|
       cols.push(k)
@@ -162,6 +163,16 @@ class Rusle2Aggregator < SingletonApp
   def to_disk(data,job_id)
     Dir.mkdir('report_data') unless Dir.exists?('report_data')
     File.open("report_data/#{job_id}_input_data.json", 'a') {|f| f.write("#{data['inputs'].to_json}\n####\n")}
+  end
+
+
+  def to_db(data,job_id,task_id)
+    tablename = "#{job_id}_inputs"
+    fields = 'task_id int, inputs text'
+    sql = "create table if not exists #{tablename}( #{fields} )"
+    @db.exec( sql )
+    result = @db.exec_params(%[ INSERT INTO #{tablename} (task_id, inputs) VALUES($1, $2) ],
+            [task_id,data['inputs']])
   end
 
 
