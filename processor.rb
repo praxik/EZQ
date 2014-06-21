@@ -237,7 +237,9 @@ class Processor
   # @param [String] id The id of this message to use for forming filename
   def save_message(msg,id)
     tmp = {}
-    tmp['body'] = @file_as_body != nil ? @msg_contents : msg.body
+    tmp['body'] = @msg_contents # Instead of msg.body because by now we will
+                                # have decompressed, pulled body out of S3,
+                                # and mutated the body in other ways.
     tmp['sender_id'] = msg.sender_id
     tmp['sent_at'] = msg.sent_at
     tmp['receive_count'] = msg.receive_count
@@ -252,8 +254,7 @@ class Processor
   # @param [String] input_filename String that will replace the $input_file 
   # token in process_command
   # @param [String] id Unique id associated with the current message
-  def run_process_command(msg,input_filename,id,log_command=true)
-    save_message(msg,id) if @store_message
+  def run_process_command(input_filename,id,log_command=true)
     commandline = expand_vars(@process_command,input_filename,id)
     @logger.info "Running command '#{commandline}'" if log_command
     @logger.info 'Running process_command' if !log_command
@@ -547,9 +548,9 @@ class Processor
 
   protected
   # Fetches *all* the files mentioned in get_s3_files directive in EZQ preamble
-  def fetch_s3(msg)
+  def fetch_s3(msgbody)
     @s3_files.clear
-    body = YAML.load(msg.body)
+    body = YAML.load(msgbody)
     return true if !body.kind_of?(Hash)
     return true if !body.has_key?('EZQ')
     preamble = body['EZQ']
@@ -604,9 +605,9 @@ class Processor
 
 
   protected
-  def fetch_uri(msg)
+  def fetch_uri(msgbody)
     @uri_files.clear
-    body = YAML.load(msg.body)
+    body = YAML.load(msgbody)
     return nil if !body.kind_of?(Hash)
     return nil if !body.has_key?('EZQ')
     preamble = body['EZQ']
@@ -627,9 +628,9 @@ class Processor
 
 
   protected
-  def store_s3_endpoints(msg)
+  def store_s3_endpoints(msgbody)
     @s3_endpoints.clear
-    body = YAML.load(msg.body)
+    body = YAML.load(msgbody)
     return nil if !body.kind_of?(Hash)
     return nil if !body.has_key?('EZQ')
     preamble = body['EZQ']
@@ -660,14 +661,15 @@ class Processor
     @id = msg.id
     
     override_configuration(msg.body)
-    if !fetch_s3(msg)
+    if !fetch_s3(msg.body)
       cleanup(@input_filename,@id)
       return false
     end
-    fetch_uri(msg)
-    store_s3_endpoints(msg)
+    fetch_uri(msg.body)
+    store_s3_endpoints(msg.body)
     strip_directives(msg)
 
+## Split this out into separate method
     # Message "body" will be either the actual body from the queue message,
     # sans preamble (the usual case) or the contents of the special
     # file_as_body that was pulled from S3 in the event that the message body
@@ -679,10 +681,11 @@ class Processor
       body = zi.inflate(Base64.decode64(body))
       zi.close
     end
+##
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
-    
-    success = run_process_command(msg,@input_filename,@id)
+    save_message(msg,id) if @store_message
+    success = run_process_command(@input_filename,@id)
     if success
       # Do result_step before deleting the message in case result_step fails.
       if do_result_step()
@@ -692,6 +695,56 @@ class Processor
                                              # message from queue
       end
     end
+  end
+
+
+  protected
+  # Do the actual processing of a message molecule
+  def process_molecule(mol)
+    @logger.unknown '------------------------------------------'
+    @logger.info "Received molecule of #{mol.size} messages."
+    @id = mol[0].id  # Use id of first message as the id for the entire op
+    @input_filename = @id + '.in'
+
+    preambles = []
+    mol.each{|msg| preambles << extract_preamble(msg)}
+    # FIXME: This will break file_as_body style messages
+    uni_pre = multi_merge(preambles)
+
+    override_configuration(uni_pre)
+
+    if !fetch_s3(uni_pre)
+      #mol.each{|msg| cleanup(@input_filename,msg.id)}
+      return false
+    end
+    fetch_uri(uni_pre)
+    store_s3_endpoints(uni_pre)
+
+    mol.each{|msg| strip_directives(msg)}
+
+    # FIXME: We're ignoring decompression here.
+
+    # Concatenate all the message bodies into one big one.
+    body = mol.map{|msg| msg.body}.join("\n#####!@#$$#@!#####\n")
+    @msg_contents = body
+    File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
+
+    # Just save the first message since we have no concept of saving all of
+    # them. Since save_message uses @msg_contents for the body, this is kind
+    # of okay.
+    save_message(msg,id) if @store_message
+    
+    success = run_process_command(@input_filename,@id)
+    if success
+      # Do result_step before deleting the message in case result_step fails.
+      if do_result_step()
+        @logger.info "Processing successful. Deleting molecule."
+        mol.each{|msg| msg.delete}
+        #delete_file_as_body if @file_as_body # This must stay linked to deleting
+                                             # message from queue
+      end
+    end
+
     
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
@@ -703,8 +756,62 @@ class Processor
   # Poll the in_queue, handling arrays of messages appropriately
   def poll_queue
     @in_queue.poll_no_delete(@polling_options) do |msg|
-      Array(msg).each {|item| process_message(item)}
+      msgary = Array(msg)
+      #case @atomicity
+      #when 1
+        msgary.each {|item| process_message(item)}
+      #when > 1
+        #if msgary.size() < @atomicity
+          #
+        #end
+      #end
     end
+  end
+
+
+  protected
+  def poll_queue_atom(a)
+    opts = atom_opts(a)
+    msgs = []
+    while true
+      msgs += Array(@in_queue.receive_message(opts))
+      next if msgs.size < a
+      msgs = remove_duplicates(msgs)
+      msgs.each_slice(a) do |molecule|
+        if molecule.size == a
+          process_molecule(molecule)
+          msgs -= molecule
+        end
+      end
+      # At this point, msgs may still contain fewer than 'a' entries. Don't do
+      # anything that might clobber them! The idea is to continue polling for
+      # messages until we get enough to form a molecule.
+    end
+  end
+
+
+  protected
+  # Removes (and deletes from queue!) any message duplicates and returns a new
+  # array containing only unique messages.
+  def remove_duplicates(msgs)
+    keep = []
+    tail = msgs.clone()
+    while tail.size > 0
+      keep << tail.shift
+      tail.delete_if{|m| m.body == keep.last.body ? (m.delete(); true) : false}
+    end
+    return keep
+  end
+
+
+  protected
+  # Sets up an options hash for atomic polling.
+  def atom_opts(a)
+    opts = {}
+    opts[:limit] = a
+    opts[:attributes] = @polling_options.fetch('attributes',nil)
+    opts[:wait_time_seconds] = @polling_options.fetch('wait_time_seconds',20)
+    return opts
   end
 
 
