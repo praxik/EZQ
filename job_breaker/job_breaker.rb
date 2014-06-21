@@ -163,7 +163,12 @@ class Job_Breaker
             @already_pushed << bucket_comma_filename
           end
         elsif msg =~ /^error_messages: /
-            puts msg # Propagate error messages up to parent processor
+          puts msg # Propagate error messages up to parent processor
+        elsif msg =~ /^set_queue/
+          # FIXME: this business of changing queues will break non-inline
+          # message repetition.
+          @task_queue_name = msg.sub!(/^set_queue\s*:\s*/,'')
+          get_queue()
         else
           msg = add_preamble(msg)
           enqueue_task(msg)
