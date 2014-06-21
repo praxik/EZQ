@@ -10,17 +10,44 @@ require 'aws-sdk'
 require 'json'
 require 'logger'
 
+class Pgw
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
 # below via #{ARGV[0]}, #{ARGV[1]}, etc.
-@command = YAML.load(File.read('pre_grid_command.yml'))['command']
-@pushed_files = []
-@access_key = ''
-@secret_key = ''
-@man_files = []
-@aggregator_files = []
-@job_files = []
-@gen_dom_crit_report = false
-    
+def initialize(logger,credentials)
+  @log = logger
+  @credentials = credentials
+  @pushed_files = []
+  @aggregator_files = []
+  @r2_aggregator_files = []
+  @job_files = []
+  @worker_task_queue = nil
+  @worker_r2_task_queue = nil
+end
+
+
+def set_class_vars_from_input_file(inputfile)
+  if inputfile and File.exists?(inputfile)
+    input = YAML.load(File.read(inputfile))
+    if input and input.is_a?(Hash)
+      @job_files = Array(input['job_files'])
+      # Override the pregrid command in pre_grid_command.yml with the one
+      # (if any) specified in the job message.
+      @command = input.fetch('pre_grid_command',
+                        YAML.load(File.read('pre_grid_command.yml'))['command'])
+      @worker_task_queue = input.fetch('worker_task_queue',nil)
+      @worker_r2_task_queue = input.fetch('worker_r2_task_queue',nil)
+      @job_id = input.fetch('job_id',SecureRandom.uuid)
+      # We'll end up passing more data through the body as time goes on,
+      # so we may as well just keep the full message body available.
+      @body = input
+    end
+  else
+    puts "error_messages: input file #{inputfile} does not exist."
+    exit(1)
+  end
+  @command.gsub!(/\$jobid/,@job_id)
+end
+
 
 def start
   @log.info '------------------------------------------------------------------'
@@ -28,122 +55,158 @@ def start
   
   # $input_file passed on cmdline contains some info about job-specific files
   # that will be used to populate part of the task header.
-  inputfile = ARGV[0]
-  if inputfile and File.exists?(inputfile)
-    input = YAML.load(File.read(inputfile))
-    if input and input.is_a?(Hash)
-      @job_files = Array(input['job_files'])
-      @gen_dom_crit_report =
-                     input.fetch('generate_dominant_critical_soil_report',false)
-    end
-  end
+  set_class_vars_from_input_file(ARGV[0])
   
-  # If a $input_file was passed down as a cmdline arg, it might already
-  # contain a job_id. Need to decide if job_id will be assigned here or at the
-  # web front-end.
-  @job_id = SecureRandom.uuid
-  @command.gsub!(/\$jobid/,@job_id)
   task_ids = []
-  create_result_queue
+  r2_task_ids = []
+
+  w_results = @job_id + '_w_results'
+  wr2_results = @job_id + '_wr2d_results'
+  create_result_queue(w_results)
+  create_result_queue(wr2_results)
+
   listening = false
+  r2_mode = false
   @possible_errors = []
+
+  puts "set_queue: #{@worker_task_queue}"
+  
   IO.popen(@command)  do |io| 
     while !io.eof?
       msg = io.gets
       if listening
-        if msg =~ /^pregrid_end_messages/ # Stop listening when we get this.
+        if msg =~ /^pregrid_end_messages/
           listening = false
           @log.info 'Stopped listening for messages'
-        elsif msg =~ /^push_file/  # *Starts* with 'push_file'...
-          @log.info "Push file message: #{msg}"
-          bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
-          @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
-          puts msg
-        elsif msg =~ /^aggregator_file/ # Starts with 'aggregator_file'
-          @log.info "Aggregrator file message: #{msg}"
-          bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
-          @aggregator_files.push(Hash['bucket'=>bucket,'key'=>key])
-          # Map into job_breaker's push_file directive
-          puts "push_file: #{bucket},#{key}"
-        else # This is a task to pass to job_breaker
-          @log.info "Task message: #{msg}"
-          task_ids.push( YAML.load(msg)['task_id'] )
-          msg.insert(0,make_preamble)
-          puts msg.dump
-          # Don't accumulate files across tasks
-          @pushed_files.clear
+        elsif msg =~ /^push_file/
+          push_file(msg)
+        elsif msg =~ /^aggregator_file/
+          aggregator_file(msg,r2_mode)
+        else
+          task_message(msg,r2_mode)
         end
       else
-        @log.info "Extraneous message: #{msg}"
-        if msg =~ /^pregrid_begin_messages/
-          listening = true 
-          @log.info 'Listening for messages'
-          # @command will only output valid messages now. It promises.
-        else
-          @possible_errors << msg
-        end
+        listening,r2_mode = not_a_message(msg)
       end
     end
     io.close
-    @exit_status = $?.to_i # Propagate success or failure up the chain
+    exit_status = $?.to_i # Propagate success or failure up the chain
   end
-
   
-  #system(@command)
-  #@exit_status = $?.to_i # Propagate success or failure up the chain
-#
-  #io = File.new('pregrid.txt')
-  #listening = true
-  #while !io.eof?
-    #msg = io.gets
-    #if listening
-      #if msg =~ /^push_file/  # *Starts* with 'push_file'...
-        #@log.info 'Push file message'
-        #bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
-        #@pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
-        #puts msg
-      #elsif msg =~ /^aggregator_file/ # Starts with 'aggregator_file'
-        #@log.info 'Aggregrator file message'
-        #bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
-        #@aggregator_files.push(Hash['bucket'=>bucket,'key'=>key])
-        ## Map into job_breaker's push_file directive
-        #puts "push_file: #{bucket},#{key}"
-      #else # This is a task to pass to job_breaker
-        #@log.info 'Task message'
-        #task_ids.push( YAML.load(msg)['task_id'] )
-        #msg.insert(0,make_preamble)
-        #puts msg.dump
-        ## Don't accumulate files across tasks
-        #@pushed_files.clear
-      #end
-    #else
-      #@log.info "Extraneous message: #{msg}"
-    #end
-  #end
-  #io.close
-    
+  @log.info "6k_pregrid exited with exit status #{exit_status}"
 
+  send_aggregator_msg(task_ids,
+                      @aggregator_files,
+                      @body['aggregator_queue'],
+                      @worker_task_queue,
+                      w_results,
+                      @body['settings_for_aggregator']['aggregator_table'],
+                      @body['settings_for_aggregator']['aggregator_post_process'])
+  send_aggregator_msg(r2_task_ids,
+                      @r2_aggregator_files,
+                      @body['aggregator_r2_queue'],
+                      @worker_r2_task_queue,
+                      wr2_results,
+                      @body['settings_for_aggregator']['aggregator_r2_table'],
+                      @body['settings_for_aggregator']['aggregator_r2_post_process'])
+
+  # Not strictly necessary since we exit shortly, but putting this here so
+  # I remember it's required if the workflow changes later.
+  @aggregator_files.clear()
+  @r2_aggregator_files.clear()
   
-  # Form and send off Report Gen Queue message
-  #  {
-  #    "job_id" : "My Job ID",
-  #    "task_ids" : ["TaskID_0","TaskID_1","TaskID_...","TaskID_5999"],
-  #    "aggregator_files" : [{"bucket"=>b, "key"=>k},{etc}],
-  #    "generate_dominant_critical_soil
-  #  }
-  @log.info "6k_pregrid exited with exit status #{@exit_status}"
-  @log.info "Forming up message for report_gen_queue."
-  sqs = AWS::SQS.new( :access_key_id => @access_key,
-                      :secret_access_key => @secret_key)
+  @log.info "Pre_grid_wrapper stopping."
+  if !exit_status.zero?
+    # Send possible error messages up the chain
+    puts "error_messages: #{@possible_errors.join('\n').dump}"
+  end
+  exit exit_status
+end
+
+
+# Keep track of pushed files that are to be routed to workers
+def push_file(msg)
+  @log.info "Push file message: #{msg}"
+  bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
+  @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
+  puts msg
+end
+
+
+# Keep track of pushed files that are to be routed to aggregator
+def aggregator_file(msg,r2_mode)
+  @log.info "Aggregrator file message: #{msg}"
+  bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
+  @aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if !r2_mode
+  @r2_aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if r2_mode
+  # Map into job_breaker's push_file directive
+  puts "push_file: #{bucket},#{key}"
+end
+
+
+def task_message(msg,r2_mode)
+  @log.info "Task message: #{msg}"
+  if !r2_mode
+    task_ids.push( YAML.load(msg)['task_id'] )
+    msg.insert(0,make_preamble(w_results))
+  else
+    r2_task_ids.push( YAML.load(msg)['task_id'] )
+    msg.insert(0,make_preamble(wr2_results))
+  end
+  puts msg.dump
+  # Don't accumulate files across tasks
+  @pushed_files.clear
+end
+
+
+def not_a_message(msg)
+  listening = false
+  r2_mode = false
+  @log.info "Non-message output: #{msg}"
+  if msg =~ /^pregrid_begin_messages/
+    listening = true 
+    @log.info 'Listening for messages'
+  elsif msg =~ /^R2D Tasks/
+    puts "set_queue: #{@worker_r2_task_queue}"
+    r2_mode = true
+    @log.info 'Now in R2 task mode'
+  else
+    @possible_errors << msg
+  end
+  return [listening,r2_mode]
+end
+
+# Form and send off aggregator queue message
+#  {
+#    "job_id" : "My Job ID",
+#    "queue_to_aggregate" : "..."
+#    "task_ids" : ["TaskID_0","TaskID_1","TaskID_...","TaskID_5999"],
+#    "aggregator_files" : [{"bucket"=>b, "key"=>k},{etc}],
+#    "generate_dominant_critical_soil
+#  }
+def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_table,post_proc)
+  sqs = AWS::SQS.new(@credentials)
   if !task_ids.empty?
     preamble = {}
     ezq = {}
     preamble['EZQ'] = ezq
-    ezq['get_s3_files'] = @aggregator_files
+
     report_gen = { "job_id" => @job_id }
+
+    # The file that ends in _job.json should go in the preamble because
+    # Aggregator needs that one file
+    idx = files.find_index{|f| f['key'] =~ /.+_job\.json/}
+    ezq['get_s3_files'] = files[idx] if idx
+    files.delete_at(idx) if idx
+    # The remaining files go in the body of msg to Aggregator so that it can
+    # pass their refs on to ReportGen.
+    report_gen['files_needed_to_make_report'] = files
+    
+    report_gen['queue_to_aggregate'] = q_to_agg
     report_gen['task_ids'] = task_ids
-    report_gen['aggregator_files'] = @aggregator_files
-    report_gen['generate_dominant_critical_soil_report'] = @gen_dom_crit_report
+    report_gen['db_table'] = db_table
+    report_gen['post_process'] = post_proc
+    report_gen.merge!(@body['settings_for_aggregator'])
     msg = report_gen.to_json
     # If message is too big for SQS, divert the body into S3
     if (msg.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
@@ -153,22 +216,11 @@ def start
     end
     preamble = preamble.to_yaml
     preamble += "...\n"
-    sqs.queues.named('6k_report_gen_test_44').send_message(msg.insert(0,preamble))
+    sqs.queues.named(queue_name).send_message(msg.insert(0,preamble))
   else
     # No tasks were generated for some reason, so delete the task queue
-    sqs.queues.named(@job_id).delete
+    sqs.queues.named(task_queue_name).delete
   end
-
-  # Not strictly necessary since we exit shortly, but putting this here so
-  # I remember it's required if the workflow changes later.
-  @aggregator_files.clear
-  
-  @log.info "Pre_grid_wrapper stopping with exit status #{@exit_status}"
-  if !@exit_status.zero?
-    # Send possible error messages up the chain
-    puts "error_messages: #{@possible_errors.join('\n').dump}"
-  end
-  exit @exit_status
 end
 
 # This method is copied from EZQ::Processor
@@ -198,19 +250,20 @@ def divert_body_to_s3(body,preamble)
 end
 
 
-def create_result_queue
+def create_result_queue(result_queue_name)
   sqs = AWS::SQS.new( :access_key_id => @access_key,
                       :secret_access_key => @secret_key)
-  q = sqs.queues.create("#{@job_id}")
+  q = sqs.queues.create(result_queue_name)
   # Block until the queue is available
   sleep (1000) until q.exists?
 end
 
-def make_preamble
+
+def make_preamble(result_queue_name)
   preamble = {}
   ezq = {}
   preamble['EZQ'] = ezq
-  ezq['result_queue_name'] = @job_id
+  ezq['result_queue_name'] = result_queue_name
   @pushed_files = @pushed_files + @job_files
   ezq['get_s3_files'] = @pushed_files
   preamble = preamble.to_yaml
@@ -218,13 +271,14 @@ def make_preamble
   return preamble
 end
 
+end # class
+
+
 lf = File.new('Pre_grid_wrapper.log', 'a')
 lf.sync = true
-@log = Logger.new(lf)
+log = Logger.new(lf)
 $stderr = lf
-@log.level = Logger::INFO
+log.level = Logger::INFO
 
 creds = YAML.load(File.read('credentials.yml'))
-@access_key = creds['access_key_id']
-@secret_key = creds['secret_access_key']
-start
+Pgw.new(log,creds).start()
