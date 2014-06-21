@@ -6,7 +6,35 @@ require './processor.rb'
 require 'json'
 require 'aws-sdk'
 require 'socket'
+require 'fileutils'
+require 'pg'
 require './data_spec_parser.rb'
+
+
+# FilePusher class pushes a file specified in the form bucket,key out to S3
+# using the supplied credentials and logging to the supplied logger. It is
+# intended to be used as a thread object.
+class FilePusher
+  def initialize(bucket_comma_filename,dry_run,credentials,logger)
+    bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
+    if dry_run
+      puts "Would be pushing '#{fname}' into bucket '#{bname}'"
+      return
+    end
+    logger.info "Pushing #{bucket_comma_filename}"
+    if File.exists?(fname)
+      s3 = AWS::S3.new(credentials)
+      bucket = s3.buckets[bname]
+      obj = bucket.objects.create(fname,Pathname.new(fname))
+      AWS.config.http_handler.pool.empty!
+    else
+      logger.error "file #{fname} does not exist; can't push it to S3."
+      return nil
+    end
+    logger.info "Successfully pushed file #{fname} to S3."
+    return nil
+  end
+end
 
 # This class overrides a few chosen methods of EZQ processor to insert task
 # tracking into the flow.
@@ -18,21 +46,25 @@ class RusleReport < EZQ::Processor
     # processing.
     filename = ARGV[0]
     exit 1 if !File.exists?(filename)
-    job_details = JSON.parse(File.read(filename))
+    @agg_settings = JSON.parse(File.read(filename))
 
-    @rr_job_id = job_details['job_id']
-    @rr_task_ids = job_details['task_ids']
-    @gen_dom_crit_report = job_details.fetch('generate_dominant_critical_soil_report',false)
-    @batch_mode = job_details.fetch('batch_mode',false)
+    @credentials = credentials
+    @job_id = @agg_settingss['job_id']
+    @task_ids = @agg_settings['task_ids']
+    @gen_dom_crit_report = @agg_settings.fetch('generate_dominant_critical_soil_report',false)
+    @batch_mode = @agg_settings.fetch('batch_mode',false)
 
     # Each time a task is completed, we remove it from rr_remaining_tasks.
     # When rr_remaining_tasks is empty, we know we've processed all tasks
     # related to this job.
-    @rr_remaining_tasks = @rr_task_ids.clone
-    @rr_completed_tasks = []
-    @waiting_for_report = false
+    @remaining_tasks = @task_ids.clone
+    @completed_tasks = []
 
-    overrides={"receive_queue_name"=>@rr_job_id}
+    @connection_string = @agg_settings.fetch('connection_string','')
+    @report_files = @agg_settings.fetch('files_needed_to_make_report',nil)
+
+    #overrides={"receive_queue_name"=>@job_id}
+    overrides={"receive_queue_name"=>@agg_settings['queue_to_aggregate']}
     # Set up the parent Processor
     super
   end
@@ -43,7 +75,7 @@ class RusleReport < EZQ::Processor
   def run_process_command(msg,input_filename,id,log_command=true)
     # Open up the results and insert the current job id
     parsed_msg = JSON.parse(@msg_contents)
-    parsed_msg['job_id'] = @rr_job_id
+    parsed_msg['job_id'] = @job_id
     @record_id = parsed_msg['record_id'] if @gen_dom_crit_report
     @msg_contents = parsed_msg.to_json
 
@@ -51,27 +83,17 @@ class RusleReport < EZQ::Processor
     task_id = parsed_msg['task_id']
     # Only process the task for real if we haven't already seen it; otherwise
     # just return true so the task will be deleted.
-    if @waiting_for_report
-      # Check to see if it's the report. If so, process it; if not, sink it.
-      if @msg_contents =~ /manop_table/
-        success = super
-      else
-        @logger.info "Sinking extra result message while waiting for report"
-        success = true
-      end
+    if !@completed_tasks.include?(task_id)
+      success = super
     else
-      if !@rr_completed_tasks.include?(task_id)
-        success = super
-      else
-        @logger.info "Sinking duplicate result message"
-        success = true
-      end
+      @logger.info "Sinking duplicate result message"
+      success = true
     end
 
     # If parent processing was successful, mark the task as completed
     if success
-      @rr_remaining_tasks.delete(task_id)
-      @rr_completed_tasks << task_id
+      @remaining_tasks.delete(task_id)
+      @completed_tasks << task_id
       return true
     else
       return false
@@ -86,37 +108,24 @@ class RusleReport < EZQ::Processor
   def poll_queue
     multi_batch_poll() if @batch_mode
     @in_queue.poll_no_delete(@polling_options) do |msg|
-      # Batch mode should have been set as a flag in the report_gen message
-      # if we're to use it.
-      if @batch_mode
+      Array(msg).each do |item|
         success = false
-        success = process_message_batch( Array(msg) )
-        if success and @rr_remaining_tasks.empty?
-         AWS::SQS.new.queues.named("#{@rr_job_id}").delete
-            exit(0)
-        end
-      else
-        Array(msg).each do |item|
-          success = false
-          success = process_message(item)
-          if success and @rr_remaining_tasks.empty?
-            deal_with_report if @gen_dom_crit_report # Breaks out of recursion in
-                  # addition to simply seeing whether this step must be performed.
-                                                     
-            AWS::SQS.new.queues.named("#{@rr_job_id}").delete
-            exit(0)
-          end
+        success = process_message(item)
+        if success and @remaining_tasks.empty?
+          deal_with_report if @gen_dom_crit_report
+          AWS::SQS.new.queues.named("#{@job_id}").delete
+          exit(0)
         end
       end
     end
     # Polling has timed out based on value of :idle_timeout
-    if !@rr_remaining_tasks.empty?
+    if !@remaining_tasks.empty?
       errm = <<-END
         Reporthandler on instance #{@instance_id} has timed out while
-        awaiting results from job #{@rr_job_id}.
-        #{@rr_remaining_tasks.size} result sets have not been received.
+        awaiting results from job #{@job_id}.
+        #{@remaining_tasks.size} result sets have not been received.
 
-        Their IDs are: #{@rr_remaining_tasks}
+        Their IDs are: #{@remaining_tasks}
         END
       send_error(errm)
     end
@@ -132,8 +141,8 @@ class RusleReport < EZQ::Processor
       end
       success = false
       success = process_message_batch( msgs )
-      if success and @rr_remaining_tasks.empty?
-       AWS::SQS.new.queues.named("#{@rr_job_id}").delete
+      if success and @remaining_tasks.empty?
+       AWS::SQS.new.queues.named("#{@job_id}").delete
           exit(0)
       end
     end
@@ -168,7 +177,7 @@ class RusleReport < EZQ::Processor
       strip_directives(msg)
       contents = JSON.parse(msg.body)
       task_ids << contents['task_id']
-      contents['job_id'] = @rr_job_id
+      contents['job_id'] = @job_id
       msg.body.gsub!(/.+/,contents.to_json)
       msg_batch["record_#{idx}"] = contents
     end
@@ -187,8 +196,8 @@ class RusleReport < EZQ::Processor
     success = socket_process_command(@msg_contents)
     
     if success
-      @rr_remaining_tasks -= task_ids
-      @rr_completed_tasks += task_ids
+      @remaining_tasks -= task_ids
+      @completed_tasks += task_ids
       # Do result_step before deleting the message in case result_step fails.
       if do_result_step()
         @logger.info "Processing successful. Deleting message batch of size #{msg_ary.size}"
@@ -228,35 +237,30 @@ class RusleReport < EZQ::Processor
   def deal_with_report
     @logger.info 'deal_with_report'
     data_spec = DataSpecParser::get_data_spec('main.cxx')
-    tablename = data_spec[:tablename]
-    # 6k_aggregator c++ app will look at the soil geojson and tell us which
-    # is the dominant critical soil
+    tablename = @agg_settings['db_table']
     dom_crit_id = 0
-    cpp_output = ''
-    #LD_LIBRARY_PATH=. ./6k_aggregator -j c386223a-1838-4bc8-b39d-307b37e759af -f c386223a-1838-4bc8-b39d-307b37e759af_job.json -t isa2_results -d "Driver=PostgreSQL;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;" --ssurgoconnstr "Driver=PostgreSQL;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;" --connector ODBC
-    command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@rr_job_id} -r #{@record_id} -f json/#{@rr_job_id}_#{@record_id}_job.json -t #{tablename} -d \"Driver=PostgreSQL Unicode;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL Unicode;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
-    @logger.info "\n\n#{command}\n\n"
-    IO.popen(command) do |io|
-      while !io.eof?
-        cpp_output = io.gets
-      end
-    end
+    
+    cpp_output = run_post_process(tablename)
+    
     Dir.mkdir('report_data') unless Dir.exists?('report_data')
-    File.write("report_data/#{@rr_job_id}_#{@record_id}.geojson",JSON.parse(cpp_output)['soil_geojson'].to_json)
-    File.write("report_data/#{@rr_job_id}_#{@record_id}.json",cpp_output)
+    geojsonfile = "report_data/#{@job_id}_#{@record_id}.geojson"
+    jsonfile = "report_data/#{@job_id}_#{@record_id}.json"
+
+    push_threads = []
+    write_and_push(geojsonfile,JSON.parse(cpp_output)['soil_geojson'].to_json,push_threads)
+    write_and_push(jsonfile,cpp_output.push_threads)
+    
     dom_crit_id = JSON.parse(cpp_output)['task_id']
     @logger.info "dom_crit_id is #{dom_crit_id}"
-    # Search through input_data.json to get the input structure for task_id
-    # dom_crit_id.
-    inputs = File.read("report_data/#{@rr_job_id}_input_data.json").split('####')
+
     i_data = {}
-    inputs.each do |input|
-      i_data = JSON.parse(input)
-      break if i_data['task_id'] == dom_crit_id
-    end
-    @logger.info "Found task_id in report_data/#{@rr_job_id}_input_data.json." unless i_data.empty?
-    # Add kv pair report : true to the top level of this structure,
+    i_data = get_inputs(dom_crit_id)
+
+    # Add kv pair report : true to the top level of this structure. Worker looks
+    # for this kv pair to determine if it should dump out the special report
+    # results.
     i_data['report'] = true
+
     # Form up an EZQ header for get_s3_files.
     # We rely on the fact that we know exactly how the the values of the soiR2
     # and ifcWeps keys map to filenames. A better solution would be to put a
@@ -269,7 +273,7 @@ class RusleReport < EZQ::Processor
     preamble = {}
     ezq = {}
     preamble['EZQ'] = ezq
-    ezq['result_queue_name'] = @rr_job_id
+    ezq['result_queue_name'] = "#{@job_id}_dom_crit_results"
     pushed_files = []
     pushed_files.push(Hash['bucket'=>'6k_test.praxik','key'=>soiR2])
     pushed_files.push(Hash['bucket'=>'6k_test.praxik','key'=>ifcWeps])
@@ -282,24 +286,91 @@ class RusleReport < EZQ::Processor
     @logger.info "Sending this message back for pass 2: #{msg}"
     
     # Place task back into worker task queue.
-    # FIXME: hardcoding the queue name like this will break spot instance
-    # workflows.
-    task_q_name = '6k_task_test_44'
+    task_q_name = @agg_settings['worker_task_queue']
     queue = AWS::SQS.new.queues.named(task_q_name)
     
     if !queue.exists?
       @logger.fatal "No queue named #{task_q_name} exists."
-      raise "No queue named #{task_q_name} exists."
+      send_error("No queue named #{task_q_name} exists.",true)
     end
     queue.send_message(msg)
 
-    # Start polling again.
-    @waiting_for_report = true
-    @dont_hit_disk = false # We want the results to be written this time!
-    @process_command = "ruby pdf_report.rb $input_file #{@rr_job_id}"
-    @gen_dom_crit_report = false # This will trigger a graceful exit after
-                                 # pdf_report finishes.
-    start
+    # At this point we should be able to safely drop the temporary db table
+    # containing the woker inputs
+    @db.exec("drop table #{@job_id}_inputs")
+
+    # Wait for the file pushes to finish
+    push_threads.each { |t| t.join }
+
+    # Clean up the files we've successfully sent to S3
+    FileUtils.rm(geojsonfile)
+    FileUtils.rm(jsonfile)
+
+    # Form up message to send to report gen stage
+    preamble = {}
+    ezq = {}
+    preamble['EZQ'] = ezq
+    pushed_files = []
+    pushed_files << Hash['bucket'=>'6k_test.praxik','key'=>geojsonfile]
+    pushed_files << Hash['bucket'=>'6k_test.praxik','key'=>jsonfile]
+    pushed_files.merge!(@report_files)
+    ezq['get_s3_files'] = pushed_files
+    preamble = preamble.to_yaml
+    preamble += "...\n"
+    msgdata = {}
+    msgdata['queue_to_poll'] = "#{@job_id}_dom_crit_results"
+    msgdata['atomicity'] = 2
+    msg = "#{preamble}#{i_data.to_json}"
+
+    rgq = '6k_report_gen'
+    queue = AWS::SQS.new.queues.named(rgq)
+    
+    if !queue.exists?
+      @logger.fatal "No queue named #{rgq} exists."
+      raise "No queue named #{rgq} exists."
+    end
+    queue.send_message(msg)
+  end
+
+
+  # Run the post_process command
+  def run_post_process(tablename)
+    #command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@job_id} -r #{@record_id} -f json/#{@job_id}_#{@record_id}_job.json -t #{tablename} -d \"Driver=PostgreSQL Unicode;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL Unicode;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
+    command = @agg_settings['post_process']
+    command.gsub!('$jobid',@job_id)
+    command.gsub!('$recordid',@record_id)
+    command.gsub!('$tablename',tablename)
+    @logger.info "\n\n#{command}\n\n"
+    output = ''
+    IO.popen(command) do |io|
+      while !io.eof?
+        output = io.gets
+      end
+    end
+    return(output)
+  end
+
+
+  # Write a file to disk and immediately send it out to S3
+  def write_and_push(name,content,threads)
+    File.write(name,content)
+    threads << Thread.new("6k_test.praxik,#{name}",
+                           false,
+                           @credentials,
+                           @logger){ |b,d,c,l| FilePusher.new(b,d,c,l) }
+  end
+
+
+  # Hit the db to get inputs associated with the dom_crit task
+  def get_inputs(dom_crit_id)
+    @db = PG.connect(
+        host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
+        dbname: 'praxik',
+        user: 'app',
+        password: 'app')
+    sql = "select inputs from #{@job_id}_inputs where task_id=#{dom_crit_id}"
+    result = @db.exec(sql)
+    return(JSON.parse(result[0]['inputs']))
   end
 
 end
