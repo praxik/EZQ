@@ -1,23 +1,122 @@
 ---
-EZQ:
-# If pregrid needs the files for its operation, put directives here
-  get_s3_files:
-    - bucket: 6k_test.praxik
-      key: Archive.zip
+# Notice this is a PostgreSQL connection string, *not* an ODBC connection
+# string. The parameter labels are subtly different and it uses space rather
+# than semicolon as the separator. The &conn_str bit is an internal yaml anchor
+# that we reference later to automatically duplicate this value.
+connection_string: &conn_str "host=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com
+  port=5432
+  user=app
+  password=app
+  dbname=praxik"
+
+# Short, single line queries can be formatted like this:
+#query: "SELECT * FROM isa_run1_scn"
+
+# Longer, multi-line queries can be done like this.
+query: "select
+  id,
+  uuid::text,
+  fips,
+  boundary,
+  owner,
+  field,
+  management,
+  conspract,
+  rotation,
+  yield,
+  cb
+  from isa_run1_scn 
+  order by
+  boundary asc,
+  id asc"
+
+# 'multi' or 'single'. Multi indicates that each record of the query should
+# be sent as a separate job (ISA workflow). Single indicates that all records
+# returned by the query are part of a single job (Purdue workflow).
+batch_type: 'multi'
+
+# Specifies where to place the output of batch_processor
+job_queue: '6k_job_test_44'
+
+
+# Anything in this section will be placed in the EZQ preamble for each job
+# output by bactch processor, allowing you to override settings for the next
+# process stage.
+#
+job_preamble:
+    # If we change the location of the gdb files in S3 so they are in the
+    # correct relative directory, it would be possible to specify the gdb
+    # download here via a get_s3_files entry. Currently, the gdb download takes
+    # place at instance startup (it's specified in the instance userdata).
+    get_s3_files:
+      - bucket: 6k_test.praxik
+        key: Archive.zip
+        decompress: true
+
+    # The process command that each worker process runs could be overriden here.
+    # process_command:
+    # result_queue:
+    # etc.
+
+
+# Everything in this section is added directly to the job message
+# body. Use this to communicate flags or settings to pregrid. Pregrid passes
+# much of what's in here down to the aggregator nodes, so many of these settings
+# actually affect that stage.
+add_to_job_message_body:
+
+    # toggle stuff like weps and r2d here.
+    pre_grid_command: "6k_pregrid.exe
+      -c ODBC
+      --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;
+      -g iowammp.gdb
+      -j $jobid
+      -w 1
+      --r2d
+      -f $input_file"
+
+    # Sets the queue for "normal" worker tasks
+    worker_task_queue: &wtq 6k_task_test_44
+
+    # Sets the queue for R2D worker tasks
+    worker_r2_task_queue: 6k_task_r2
+
+    # Pregrid_wrapper adds these to the worker tasks
+    job_files:
+    - bucket:     6k_test.praxik
+      key:        Archive.zip
       decompress: true
-...
-# If worker needs the files, put them here. Notice that you can send stuff to
-# pregrid that won't be sent to worker, or vice versa. To make the file go to
-# both, you have to put directives in both places.
-job_files:
-#  - bucket:     6k_test.praxik
-#    key:        share/leaf/weps/weps.wjr/ISA_weps.zip
-#    decompress: true
-  - bucket:     6k_test.praxik
-    key:        Archive.zip
-    decompress: true
-  # Add more as below. Notice the single dash before 'bucket'.
-  #- bucket: b
-  #  key: k
-  #  decompress: d
-generate_dominant_critical_soil_report: true
+
+    # These two specify the queue name that pregrid uses to communicate with
+    # each type of aggregator 
+    aggregator_queue: 6k_aggregator
+    aggregator_r2_queue: 6k_aggregator_r2
+
+
+    # Everything in this section is intended to mutate the behavior of the
+    # aggregator stage. Anything put in this section will be passed directly
+    # to aggregator stage, although some values will be duplicated into other
+    # keys along the way.
+    # **This is a sub-section of add_to_job_message_body**
+    settings_for_aggregator:
+        # Duplicates the connection string we passed to batch processor.
+        connection_string: *conn_str
+
+        # true/false
+        generate_dominant_critical_soil_report: true
+        # False for jobs that need to generate a report; true for Purdue-style jobs
+        batch_mode: false
+
+        # DB table for storing results
+        # Pregrid decides which of these to place in the db_table key for aggregator
+        aggregator_table: 'isa_results_999'
+        aggregator_r2_table: 'isa_r2_999'
+
+        # Command string for post-process part of aggregator stage.
+        # Pregrid decides which of these to place in the post_process key
+        # based on which type of aggregator it's sending things to.
+        # Aggregator knows how to expand the variables $jobid, $recordid, $tablename
+        aggregator_post_process: "LD_LIBRARY_PATH=. ./6k_aggregator -j $jobid -r $recordid -f json/$jobid_$recordid_job.json -t $tablename -d \"Driver=PostgreSQL Unicode;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL Unicode;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
+        aggregator_r2_post_process: "LD_LIBRARY_PATH=. ./6k_aggregator -j $jobid -r $recordid -f json/$jobid_$recordid_job.json -t $tablename -d \"Driver=PostgreSQL Unicode;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL Unicode;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
+
+        worker_task_queue: *wtq
