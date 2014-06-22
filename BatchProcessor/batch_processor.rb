@@ -4,6 +4,7 @@ require 'pg'
 require 'json'
 require 'yaml'
 require 'aws-sdk'
+require 'securerandom'
 
 # This application polls the Batch queue, and uses the information given there
 # to produce one or more JSON job blocks that are sent (individually) to the
