@@ -276,6 +276,7 @@ class Job_Breaker
     obj = bucket.objects.create(key,body)
     AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
     s3_info = {'bucket'=>bucket_name,'key'=>key}
+    new_preamble['EZQ'] = {} if new_preamble['EZQ'] == nil
     new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
     body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
     return [body,new_preamble]
