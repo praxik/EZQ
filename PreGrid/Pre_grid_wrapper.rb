@@ -45,7 +45,8 @@ def set_class_vars_from_input_file(inputfile)
     puts "error_messages: input file #{inputfile} does not exist."
     exit(1)
   end
-  @command.gsub!(/\$jobid/,@job_id)
+  @command.gsub!('$jobid',@job_id)
+  @command.gsub!('$input_file',inputfile)
 end
 
 
@@ -60,17 +61,18 @@ def start
   task_ids = []
   r2_task_ids = []
 
-  w_results = @job_id + '_w_results'
-  wr2_results = @job_id + '_wr2d_results'
-  create_result_queue(w_results)
-  create_result_queue(wr2_results)
+  @w_results = @job_id + '_w_results'
+  @wr2_results = @job_id + '_wr2d_results'
+  create_result_queue(@w_results)
+  create_result_queue(@wr2_results)
 
   listening = false
   r2_mode = false
   @possible_errors = []
 
   puts "set_queue: #{@worker_task_queue}"
-  
+
+  exit_status = 0
   IO.popen(@command)  do |io| 
     while !io.eof?
       msg = io.gets
@@ -83,7 +85,7 @@ def start
         elsif msg =~ /^aggregator_file/
           aggregator_file(msg,r2_mode)
         else
-          task_message(msg,r2_mode)
+          task_message(msg,r2_mode,task_ids,r2_task_ids)
         end
       else
         listening,r2_mode = not_a_message(msg)
@@ -102,13 +104,19 @@ def start
                       w_results,
                       @body['settings_for_aggregator']['aggregator_table'],
                       @body['settings_for_aggregator']['aggregator_post_process'])
-  send_aggregator_msg(r2_task_ids,
-                      @r2_aggregator_files,
-                      @body['aggregator_r2_queue'],
-                      @worker_r2_task_queue,
-                      wr2_results,
-                      @body['settings_for_aggregator']['aggregator_r2_table'],
-                      @body['settings_for_aggregator']['aggregator_r2_post_process'])
+
+  if !r2_task_ids.empty?
+    send_aggregator_msg(r2_task_ids,
+                        @r2_aggregator_files,
+                        @body['aggregator_r2_queue'],
+                        @worker_r2_task_queue,
+                        wr2_results,
+                        @body['settings_for_aggregator']['aggregator_r2_table'],
+                        @body['settings_for_aggregator']['aggregator_r2_post_process'])
+  else
+    sqs = AWS::SQS.new(@credentials)
+    sqs.queues.named(@worker_r2_task_queue).delete
+  end
 
   # Not strictly necessary since we exit shortly, but putting this here so
   # I remember it's required if the workflow changes later.
@@ -144,14 +152,14 @@ def aggregator_file(msg,r2_mode)
 end
 
 
-def task_message(msg,r2_mode)
+def task_message(msg,r2_mode,task_ids,r2_task_ids)
   @log.info "Task message: #{msg}"
   if !r2_mode
     task_ids.push( YAML.load(msg)['task_id'] )
-    msg.insert(0,make_preamble(w_results))
+    msg.insert(0,make_preamble(@w_results))
   else
     r2_task_ids.push( YAML.load(msg)['task_id'] )
-    msg.insert(0,make_preamble(wr2_results))
+    msg.insert(0,make_preamble(@wr2_results))
   end
   puts msg.dump
   # Don't accumulate files across tasks
@@ -218,8 +226,8 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     preamble += "...\n"
     sqs.queues.named(queue_name).send_message(msg.insert(0,preamble))
   else
-    # No tasks were generated for some reason, so delete the task queue
-    sqs.queues.named(task_queue_name).delete
+    # No tasks were generated for some reason, so delete the result queue
+    #sqs.queues.named().delete
   end
 end
 
@@ -229,8 +237,7 @@ def divert_body_to_s3(body,preamble)
   @log.info 'Report Gen message is too big for SQS and is beig diverted to S3'
   # Don't assume the existing preamble can be clobbered
   new_preamble = preamble.clone
-  s3 = AWS::S3.new(:access_key_id => @access_key,
-                   :secret_access_key => @secret_key)
+  s3 = AWS::S3.new(@credentials)
   bucket_name = 'EZQOverflow.praxik'
   bucket = s3.buckets[bucket_name]
   if !bucket
@@ -251,8 +258,7 @@ end
 
 
 def create_result_queue(result_queue_name)
-  sqs = AWS::SQS.new( :access_key_id => @access_key,
-                      :secret_access_key => @secret_key)
+  sqs = AWS::SQS.new(@credentials)
   q = sqs.queues.create(result_queue_name)
   # Block until the queue is available
   sleep (1000) until q.exists?
