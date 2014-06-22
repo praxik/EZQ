@@ -7,6 +7,7 @@ require 'aws-sdk'
 require 'logger'
 require 'digest/md5'
 require 'deep_merge'
+require 'securerandom'
 
 module EZQ
 
@@ -136,7 +137,13 @@ class Job_Breaker
   # @result_queue. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def get_queue
-    @queue = AWS::SQS.new.queues.named(@task_queue_name)
+	@logger.info "Getting queue '#{@task_queue_name}'"
+	begin
+		@queue = AWS::SQS.new.queues.named(@task_queue_name)
+	rescue
+	  @logger.fatal "No queue named #{@task_queue_name} exists."
+      raise "No queue named #{@task_queue_name} exists."
+	end
     if !@queue.exists?
       @logger.fatal "No queue named #{@task_queue_name} exists."
       raise "No queue named #{@task_queue_name} exists."
@@ -167,11 +174,11 @@ class Job_Breaker
         elsif msg =~ /^set_queue/
           # FIXME: this business of changing queues will break non-inline
           # message repetition.
-          @task_queue_name = msg.sub!(/^set_queue\s*:\s*/,'')
+          @task_queue_name = msg.sub!(/^set_queue\s*:\s*/,'').strip
           get_queue()
         else
-          msg = add_preamble(msg)
-          enqueue_task(msg)
+          body,preamble = make_preamble(msg)
+          msg = enqueue_task(body,preamble)
           @enqueued_tasks.push(msg)
         end
       end
@@ -193,8 +200,8 @@ class Job_Breaker
   # Breaks up a job batch into individual tasks and enqueues then
   def split_job(json)
     json['tasks'].each do |task|
-      msg = add_preamble(task.to_json)
-      enqueue_task(msg)
+      body,preamble = make_preamble(task.to_json)
+      msg = enqueue_task(body,preamble)
       @enqueued_tasks.push(msg)
     end
   end
@@ -202,17 +209,23 @@ class Job_Breaker
 
   protected
   # Enqueues a task, handling inline repeats if specified
-  def enqueue_task(task)
-    enqueue_task_impl(task)
+  def enqueue_task(body,preamble)
+    enqueue_task_impl(body,preamble)
     if @repeat_message_type == 'inline'
-      @repeat_message_n_times.times {enqueue_task_impl(task)}
+      @repeat_message_n_times.times {enqueue_task_impl(body,preamble)}
     end
   end
   
   
   protected
   # Does the true heavy-lifting of enqueueing a task
-  def enqueue_task_impl(msg)
+  def enqueue_task_impl(body,preamble)
+    if (body.bytesize + preamble.to_yaml.bytesize) > 256000  #256k limit minus assumed
+                                                     #metadata size of 6k
+                                                     #(256-6)*1024 = 256000
+      body,preamble = divert_body_to_s3(body,preamble)
+    end
+    msg = "#{preamble.to_yaml}...\n#{body}"
     if @dry_run
       puts "#Would be enqueuing this: #{msg}"
       return
@@ -230,15 +243,42 @@ class Job_Breaker
   protected
   # Deep merges the config preamble with the task-embedded preamble, favoring
   # the task-embedded preamble in any conflicts.
-  def add_preamble(task)
+  def make_preamble(task)
     preamble = @preamble
     task_pa = YAML.load(task)
     if task_pa.kind_of?(Hash) && task_pa.has_key?('EZQ')
       pa = YAML.load(preamble)
       task_pa.deep_merge(pa)
-      preamble = "#{task_pa.to_yaml}\n..."
+      #preamble = "#{task_pa.to_yaml}\n..."
+      preamble = task_pa
     end
-    return "#{preamble}\n#{task.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')}"
+    return [task.sub(/-{3}\nEZQ.+?\.{3}\n/m,''),preamble]
+    #return "#{preamble}\n#{task.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')}"
+  end
+
+  # This method is copied from EZQ::Processor
+  # Place message body in S3 and update the preamble accordingly
+  def divert_body_to_s3(body,preamble)
+    @logger.info 'Message is too big for SQS and is beig diverted to S3'
+    # Don't assume the existing preamble can be clobbered
+    new_preamble = preamble.clone
+    s3 = AWS::S3.new(@credentials)
+    bucket_name = 'EZQOverflow.praxik'
+    bucket = s3.buckets[bucket_name]
+    if !bucket
+      errm =  "The result message is too large for SQS and would be diverted " +
+              "to S3, but the specified result overflow bucket, "+
+              "#{bucket_name}, does not exist!"
+      @log.fatal errm
+      raise "Result overflow bucket #{bucket_name} does not exist!"
+    end
+    key = "overflow_body_#{SecureRandom.uuid}.txt"
+    obj = bucket.objects.create(key,body)
+    AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
+    s3_info = {'bucket'=>bucket_name,'key'=>key}
+    new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
+    body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
+    return [body,new_preamble]
   end
 
 
