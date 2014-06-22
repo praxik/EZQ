@@ -92,7 +92,7 @@ def enqueue(msg_ary,preamble,queue_name)
   
   msg_ary.each_slice(10) do |msgs|
     #msgs.map{|msg| msg.insert(0,preamble.to_yaml)}
-    msgs.map{|msg| set_preamble(msg,preamble)}
+    msgs = msgs.map{|msg| set_preamble(msg,preamble)}
     queue.batch_send(*msgs)
   end
 end
@@ -122,9 +122,11 @@ def divert_body_to_s3(body,preamble)
     raise "Result overflow bucket #{bucket_name} does not exist!"
   end
   key = "overflow_body_#{SecureRandom.uuid}.txt"
+  puts "Sending #{key} to S3"
   obj = bucket.objects.create(key,body)
   AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
   s3_info = {'bucket'=>bucket_name,'key'=>key}
+  new_preamble['EZQ'] = {} if new_preamble['EZQ'] == nil
   new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
   body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
   return [body,new_preamble]
