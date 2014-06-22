@@ -55,10 +55,8 @@ def initialize(job_desc)
   # Get preamble overrides from job_desc
   preamble = {}
   preamble['EZQ'] = job_desc.fetch('job_preamble',nil)
-  preamble_string = preamble.to_yaml + "...\n"
 
-  enqueue(msgs,preamble_string,queue_name)
-
+  enqueue(msgs,preamble,queue_name)
 end
 
 
@@ -79,7 +77,7 @@ end
 
 def unify_results(results,pass_through)
   rs = [] # Array to contain entire recordset as Ruby structure
-  results.each do {|record| rs << record}
+  results.each{|record| rs << record}
   job = {}
   job['job'] = rs
   job.merge!(pass_through) if pass_through
@@ -87,14 +85,48 @@ def unify_results(results,pass_through)
 end
 
 
-def enqueue(msg_ary,preamble_string,queue_name)
+def enqueue(msg_ary,preamble,queue_name)
   queue = AWS::SQS.new.queues.named(queue_name)
   fail_with("Invalid queue specified: #{queue_name}") if !queue
   
   msg_ary.each_slice(10) do |msgs|
-    msgs.map{|msg| msg.insert(0,preamble_string)}
+    #msgs.map{|msg| msg.insert(0,preamble.to_yaml)}
+    msgs.map{|msg| set_preamble(msg,preamble)}
     queue.batch_send(*msgs)
   end
+end
+
+
+def set_preamble(body,preamble)
+  if (body.bytesize + preamble.to_yaml.bytesize) > 256000  #256k limit minus assumed
+                                                     #metadata size of 6k
+                                                     #(256-6)*1024 = 256000
+      body,preamble = divert_body_to_s3(body,preamble)
+  end
+  return body.insert(0,"#{preamble.to_yaml}...\n")
+end
+
+
+# This method is copied from EZQ::Processor
+# Place message body in S3 and update the preamble accordingly
+def divert_body_to_s3(body,preamble)
+  #@logger.info 'Message is too big for SQS and is beig diverted to S3'
+  # Don't assume the existing preamble can be clobbered
+  new_preamble = preamble.clone
+  s3 = AWS::S3.new
+  bucket_name = 'EZQOverflow.praxik'
+  bucket = s3.buckets[bucket_name]
+  if !bucket
+    #@log.fatal errm
+    raise "Result overflow bucket #{bucket_name} does not exist!"
+  end
+  key = "overflow_body_#{SecureRandom.uuid}.txt"
+  obj = bucket.objects.create(key,body)
+  AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
+  s3_info = {'bucket'=>bucket_name,'key'=>key}
+  new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
+  body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
+  return [body,new_preamble]
 end
 
 
