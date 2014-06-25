@@ -105,7 +105,9 @@ def start
                       @body['settings_for_aggregator']['aggregator_table'],
                       @body['settings_for_aggregator']['aggregator_post_process'])
 
-  if (@body.fetch('aggregator_r2_queue',false)) and (@body['settings_for_aggregator'].fetch('aggregator_r2_table',false)) and (@body['settings_for_aggregator'].fetch('aggregator_r2_post_process',false))
+  if (@body.fetch('aggregator_r2_queue',false)) and
+     (@body['settings_for_aggregator'].fetch('aggregator_r2_table',false)) and
+     (@body['settings_for_aggregator'].fetch('aggregator_r2_post_process',false))
     send_aggregator_msg(r2_task_ids,
                         @r2_aggregator_files,
                         @body['aggregator_r2_queue'],
