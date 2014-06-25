@@ -336,7 +336,8 @@ class RusleReport < EZQ::Processor
   # Run the post_process command
   def run_post_process(tablename)
     #command = "LD_LIBRARY_PATH=. ./6k_aggregator -j #{@job_id} -r #{@record_id} -f json/#{@job_id}_#{@record_id}_job.json -t #{tablename} -d \"Driver=PostgreSQL Unicode;Server=development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com;Port=5432;Uid=app;Pwd=app;Database=praxik;\" --ssurgoconnstr \"Driver=PostgreSQL Unicode;Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;\" --connector ODBC"
-    command = @agg_settings['post_process']
+    command = @agg_settings.fetch('post_process','')
+    return '' if command.empty?
     command.gsub!('$jobid',@job_id)
     command.gsub!('$recordid',@record_id)
     command.gsub!('$tablename',tablename)
