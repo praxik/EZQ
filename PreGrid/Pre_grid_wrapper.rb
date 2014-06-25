@@ -105,7 +105,9 @@ def start
                       @body['settings_for_aggregator']['aggregator_table'],
                       @body['settings_for_aggregator']['aggregator_post_process'])
 
-  if !r2_task_ids.empty?
+  if (@body.fetch('aggregator_r2_queue',false))
+     and (@body['settings_for_aggregator'].fetch('aggregator_r2_table',false))
+     and (@body['settings_for_aggregator'].fetch('aggregator_r2_post_process',false))
     send_aggregator_msg(r2_task_ids,
                         @r2_aggregator_files,
                         @body['aggregator_r2_queue'],
@@ -113,10 +115,8 @@ def start
                         wr2_results,
                         @body['settings_for_aggregator']['aggregator_r2_table'],
                         @body['settings_for_aggregator']['aggregator_r2_post_process'])
-  else
-    sqs = AWS::SQS.new(@credentials)
-    sqs.queues.named(@worker_r2_task_queue).delete
   end
+  
 
   # Not strictly necessary since we exit shortly, but putting this here so
   # I remember it's required if the workflow changes later.
@@ -227,7 +227,7 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     sqs.queues.named(queue_name).send_message(msg.insert(0,preamble))
   else
     # No tasks were generated for some reason, so delete the result queue
-    #sqs.queues.named().delete
+    sqs.queues.named(q_to_qgg).delete
   end
 end
 
@@ -259,6 +259,7 @@ end
 
 
 def create_result_queue(result_queue_name)
+  return nil if result_queue_name == nil
   sqs = AWS::SQS.new(@credentials)
   q = sqs.queues.create(result_queue_name)
   # Block until the queue is available
@@ -273,6 +274,7 @@ def make_preamble(result_queue_name)
   ezq['result_queue_name'] = result_queue_name
   @pushed_files = @pushed_files + @job_files
   ezq['get_s3_files'] = @pushed_files
+  ezq['process_command'] = @body['worker_process_command'] if @body.fetch('worker_process_command',false)
   preamble = preamble.to_yaml
   preamble += "...\n"
   return preamble
