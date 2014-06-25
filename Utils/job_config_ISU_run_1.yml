@@ -25,7 +25,7 @@ query: "select
   rotation,
   yield,
   cb
-  from isa_run1_scn 
+  from isu_run1_scn 
   order by
   boundary asc,
   id asc"
@@ -48,10 +48,10 @@ job_preamble:
     # correct relative directory, it would be possible to specify the gdb
     # download here via a get_s3_files entry. Currently, the gdb download takes
     # place at instance startup (it's specified in the instance userdata).
-    #get_s3_files:
-    #  - bucket: 6k_test.praxik
-    #    key: Archive.zip
-    #    decompress: true
+    get_s3_files:
+      - bucket: 6k_test.praxik
+        key: ISU_Marcus_cb.zip
+        decompress: true
 
     # The process command that each worker process runs could be overriden here.
     # process_command:
