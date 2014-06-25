@@ -1,6 +1,6 @@
-receive_queue_name: "6k_job_test_44"
+receive_queue_name: "purdue_job"
 
-error_queue_name: "6k_error_test_44"
+error_queue_name: "purdue_error"
 
 # (true/false)
 store_message: false
