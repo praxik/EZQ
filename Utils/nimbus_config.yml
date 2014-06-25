@@ -18,6 +18,7 @@ ami_map:
   pregrid:        'ami-45f4ef2c'
   pregrid_Purdue: 'ami-45f4ef2c'
   pregrid_ISA:    'ami-45f4ef2c'
+  pregrid_ISU:    'ami-45f4ef2c'
   # Linux
   reporthandler:  'ami-3229cb5a'
   errorhandler:   'ami-3229cb5a'
