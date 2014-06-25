@@ -14,21 +14,19 @@ connection_string: &conn_str "host=development-rds-pgsq.csr7bxits1yb.us-east-1.r
 
 # Longer, multi-line queries can be done like this.
 query: "select
-  id,
-  uuid::text,
+  uuid,
   fips,
   boundary,
   owner,
   field,
   management,
-  conspract,
   rotation,
   yield,
-  cb
-  from isu_run1_scn 
-  order by
-  boundary asc,
-  id asc"
+  cb,
+  conspract
+  from isu_run1_scn
+  where
+  boundary = '411886'"
 
 # 'multi' or 'single'. Multi indicates that each record of the query should
 # be sent as a separate job (ISA workflow). Single indicates that all records
@@ -68,7 +66,7 @@ add_to_job_message_body:
     # toggle stuff like weps and r2d here.
     pre_grid_command: "6k_pregrid.exe
       -c ODBC
-      --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;
+      --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo_fy2014;
       -g iowammp.gdb
       -j $jobid
       -w 1
