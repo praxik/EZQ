@@ -54,12 +54,18 @@ launch_settings:
   
   pregrid_Purdue:
     size: 'm3.medium'
+
+  pregrid_ISU:
+    size: 'm3.medium'
     
   worker_Purdue: 
     size: 'c3.8xlarge'
 
   worker_ISA:
     size: 'm3.2xlarge'
+
+  worker_ISU:
+    size: 'm1.xlarge'
 
 
 # The information in this section is used to populate the userdata on
@@ -86,6 +92,14 @@ userdata:
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
+
+  worker_ISU:
+    deploy_key: arks/default/worker.zip
+    number_of_processes: 4 
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: ISU_Marcus_weps.zip
+    r2_man_key: ISU_Marcus_skels.zip
     
   worker_Purdue:
     deploy_key: arks/purdue/worker.zip
@@ -104,6 +118,13 @@ userdata:
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
+
+  pregrid_ISU:
+    deploy_key: arks/default/pregrid.zip
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: ISU_Marcus_weps.zip
+    r2_man_key: ISU_Marcus_skels.zip
 
   pregrid_Purdue:
     deploy_key: arks/purdue/pregrid.zip
