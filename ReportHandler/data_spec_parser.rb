@@ -76,7 +76,7 @@ class DataSpecParser
       end
       if line =~ /results\[/
         name, type = '',''
-        /results\[\s*"(?<name>.*)"\s*\].*\/\/\s*(?<type>.*)/ =~ line
+        /results\[\s*"(?<name>.*?)"\s*\].*\/\/\s*(?<type>.*)/ =~ line
         fields << [name, type.downcase]
       end
     end
