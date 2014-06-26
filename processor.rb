@@ -696,6 +696,10 @@ class Processor
                                              # message from queue
       end
     end
+
+    # Cleanup even if processing otherwise failed.
+    cleanup(@input_filename,@id)
+    return success
   end
 
 
