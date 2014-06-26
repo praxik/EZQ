@@ -24,9 +24,7 @@ query: "select
   yield,
   cb,
   conspract
-  from isu_run1_scn
-  where
-  boundary = '411886'"
+  from isu_run1_scn"
 
 # 'multi' or 'single'. Multi indicates that each record of the query should
 # be sent as a separate job (ISA workflow). Single indicates that all records
@@ -66,7 +64,7 @@ add_to_job_message_body:
     # toggle stuff like weps and r2d here.
     pre_grid_command: "6k_pregrid.exe
       -c ODBC
-      --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo_fy2014;
+      --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo_ia_fy2014;
       -g iowammp.gdb
       -j $jobid
       -w 1
@@ -94,7 +92,7 @@ add_to_job_message_body:
 
     # These two specify the queue name that pregrid uses to communicate with
     # each type of aggregator 
-    aggregator_queue: 6k_aggregator
+    aggregator_queue: purdue_aggregator
     #aggregator_r2_queue: 6k_aggregator_r2
 
 
@@ -114,7 +112,7 @@ add_to_job_message_body:
 
         # DB table for storing results
         # Pregrid decides which of these to place in the db_table key for aggregator
-        aggregator_table: 'purdue_06_22'
+        aggregator_table: 'isu_06_25'
         #aggregator_r2_table: 'purdue_r2_06_22'
 
         # Command string for post-process part of aggregator stage.
