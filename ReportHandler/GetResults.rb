@@ -49,7 +49,7 @@ class RusleReport < EZQ::Processor
     @agg_settings = JSON.parse(File.read(filename))
 
     @credentials = credentials
-    @job_id = @agg_settingss['job_id']
+    @job_id = @agg_settings['job_id']
     @task_ids = @agg_settings['task_ids']
     @gen_dom_crit_report = @agg_settings.fetch('generate_dominant_critical_soil_report',false)
     @batch_mode = @agg_settings.fetch('batch_mode',false)
@@ -113,7 +113,7 @@ class RusleReport < EZQ::Processor
         success = process_message(item)
         if success and @remaining_tasks.empty?
           deal_with_report if @gen_dom_crit_report
-          AWS::SQS.new.queues.named("#{@job_id}").delete
+          AWS::SQS.new.queues.named(@agg_settings['queue_to_aggregate']).delete
           exit(0)
         end
       end
@@ -142,7 +142,7 @@ class RusleReport < EZQ::Processor
       success = false
       success = process_message_batch( msgs )
       if success and @remaining_tasks.empty?
-       AWS::SQS.new.queues.named("#{@job_id}").delete
+       AWS::SQS.new.queues.named(@agg_settings['queue_to_aggregate']).delete
           exit(0)
       end
     end
