@@ -56,7 +56,7 @@ class SixK
 ################################################################################
 
   # Launch a new worker, pregrid, or reporthandler instance
-  def self.launch(config='',argv=[])
+  def self.launch_or_spot(action='launch',config='',argv=[])
     args = Array(argv)
 
     self.load_config(config) if !config.empty?
@@ -70,7 +70,7 @@ class SixK
     
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
-        Usage: 6k [options] launch <type> [<args>]
+        Usage: 6k [options] #{action} <type> [<args>]
           where type is one of #{@types}.
 
         The launch command outputs the AWS id of each launched instance onto a
@@ -85,10 +85,12 @@ class SixK
                     "  Default: 1") do |c|
         cl_count = c.to_i
       end
-      opts.on("-n","--name NAME",
-                    "Name with which to tag the instance(s)",
-                    "  Default: \"6k_TYPE\"" ) do |n|
-        cl_name = name
+      if action == 'launch'
+        opts.on("-n","--name NAME",
+                      "Name with which to tag the instance(s)",
+                      "  Default: \"6k_TYPE\"" ) do |n|
+          cl_name = name
+        end
       end
       opts.on("-p","--processors N",
                     "# processes to start on each instance.",
@@ -102,12 +104,14 @@ class SixK
                     "  Overrides setting in config file.") do |s|
         cl_size = s
       end
-      opts.on("-m","--manage",
-                    "Starts an instance without the userdata",
-                    "  needed by bootstrap. This allows you",
-                    "  to alter the base AMI and save as a new",
-                    "  AMI.") do |p|
-        cl_manage = true
+      if action == 'launch'
+        opts.on("-m","--manage",
+                      "Starts an instance without the userdata",
+                      "  needed by bootstrap. This allows you",
+                      "  to alter the base AMI and save as a new",
+                      "  AMI.") do |p|
+          cl_manage = true
+        end
       end
     end
 
@@ -153,7 +157,22 @@ class SixK
     # of info about what to start up.
     @userdata = {} if cl_manage
 
+    #puts @userdata.to_yaml
+    #exit 0
 
+    case action
+    when 'launch'
+      launch(name,type)
+    when 'spot'
+      spot(type)
+    end
+
+    
+  end
+
+
+
+  def self.launch(name,type)
     option_hash = { :image_id => @imgs[type],
                 :subnet => @vpc_subnet,
                 :security_groups => @security_groups,
@@ -175,6 +194,50 @@ class SixK
     # Print the id of each instance to stdout, allowing redirection into a file
     # for later termination.
     instances.each {|inst| puts inst.id}
+  end
+
+
+  def self.spot(type)
+    ec2 = AWS::EC2.new
+
+    avail_ips = ec2.subnets[@vpc_subnet].available_ip_address_count()
+
+    puts ''
+    puts "There are #{avail_ips} free ip addresses in the chosen subnet."
+    print "Number of instances to bid (enter '0' to cancel): "
+    count = STDIN.gets.chomp[0].to_i
+    if count <= 0
+      puts "Taking no action and exiting."
+      exit 0
+    end
+
+    price_specs = {:instance_types=>[@size],
+        :product_descriptions=>['Windows','Linux/UNIX'],
+        :availability_zone=>'us-east-1a',
+        :start_time=>Time.now.gmtime.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        :end_time=>Time.now.gmtime.strftime("%Y-%m-%dT%H:%M:%S.000Z")}
+
+    prices = ec2.client.describe_spot_price_history(price_specs)
+
+    puts ''
+    puts "Current spot prices for #{@size} are:"
+    prices[:spot_price_history_set].each{|it| puts "\t#{it[:product_description]}: $#{it[:spot_price]}"}
+    print 'Bid price ($): '
+    price = STDIN.gets.chomp
+
+    specs = { :image_id => @imgs[type],
+              :subnet_id => @vpc_subnet,
+              :security_groups => @security_groups,
+              :instance_type => @size,
+              :user_data => @userdata.to_yaml }
+
+    options = {:spot_price=>price,
+               :instance_count=>count,
+               :type=>'one-time',
+               :launch_specification=>specs
+               }
+    
+    ec2.client.request_spot_instances(options)
   end
 
 

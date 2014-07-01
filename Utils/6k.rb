@@ -45,6 +45,8 @@ op = OptionParser.new do |opts|
     commands:
        help           Display help information for a command
        launch         Launch new instance(s) of of type <type>
+       spot           Make a spot request based on type <type>. This command
+                      will interactively prompt for bid details.
        start          Re-start stopped instance(s)
        stop           Stop running instance(s)
        terminate      Terminate running instance(s)
@@ -99,7 +101,10 @@ when 'help'
   end
 when 'launch'
   setup_AWS
-  SixK.launch(config,argv)
+  SixK.launch_or_spot('launch',config,argv)
+when 'spot'
+  setup_AWS
+  SixK.launch_or_spot('spot',config,argv)
 when 'start'
   setup_AWS
   SixK.start(config,argv)
