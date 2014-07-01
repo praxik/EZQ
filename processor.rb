@@ -556,6 +556,16 @@ class Processor
     return true if !body.has_key?('EZQ')
     preamble = body['EZQ']
     return true if !preamble
+
+    if preamble.has_key?('get_s3_file_as_body')
+      info = preamble['get_s3_file_as_body']
+      bucket = info['bucket']
+      key = info['key']
+      @logger.info "Getting file as message body"
+      return false if !get_s3_file(bucket,key)
+      @file_as_body = "#{bucket},#{key}"
+    end
+    
     return true if !preamble.has_key?('get_s3_files')
     files = preamble['get_s3_files']
     files.each do |props|
@@ -568,14 +578,7 @@ class Processor
         end
       end
     end
-    if preamble.has_key?('get_s3_file_as_body')
-      info = preamble['get_s3_file_as_body']
-      bucket = info['bucket']
-      key = info['key']
-      @logger.info "Getting file as message body"
-      return false if !get_s3_file(bucket,key)
-      @file_as_body = "#{bucket},#{key}"
-    end
+    
     return true
   end
 
@@ -685,7 +688,7 @@ class Processor
 ##
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
-    save_message(msg,id) if @store_message
+    save_message(msg,@id) if @store_message
     success = run_process_command(@input_filename,@id)
     if success
       # Do result_step before deleting the message in case result_step fails.
