@@ -51,6 +51,8 @@ module EZQ
                               preamble,
                               bucket_name = 'Overflow',
                               key = SecureRandom.uuid() )
+    bucket_name = 'EZQ.Overflow' if bucket_name == nil
+    key = SecureRandom.uuid if key == nil
     new_preamble = preamble.clone
     send_data_to_s3( body,bucket_name,key )
     new_preamble['EZQ'] = {} if !new_preamble.has_key?('EZQ') or new_preamble['EZQ'] == nil
@@ -83,13 +85,13 @@ module EZQ
                           queue,
                           create_queue_if_needed = false,
                           bucket = nil,
-                          key_ary = nil )
-    q = get_queue(queue)
+                          key_ary = [] )
+    q = get_queue(queue,create_queue_if_needed)
 
     # Just to be safe; should never happen in practice.
     return ['']*body_ary.size if !q.respond_to?( :send_message )
 
-    preambles = cyclical_fill( preamble_ary,body_ary.size )
+    preambles = cyclical_fill( Array(preamble_ary),body_ary.size )
     keys = fill_array( key_ary,body_ary.size,nil )
     msgs = body_ary.zip( preambles ).zip( keys ).flatten.
       map_slice(3){|body,preamble,key| prepare_message_for_queue( body,preamble,bucket,key )}
@@ -189,11 +191,12 @@ module EZQ
   #                  be diverted to S3.
   def self.prepare_message_for_queue( body,preamble,bucket=nil,key=nil )
     # 256k limit minus assumed metadata size of 6k:  (256-6)*1024 = 256000
+    bc = body.clone
     if (body.bytesize + preamble.to_yaml.bytesize) > 256000   
       body,preamble = divert_body_to_s3( body,preamble,bucket,key )
     end
 
-    return body.insert( 0,"#{preamble.to_yaml}...\n" )
+    return bc.insert( 0,"#{preamble.to_yaml}...\n" )
   end
 
 
@@ -205,7 +208,7 @@ module EZQ
   # @param [String] key S3 key to use.
   # @return [nil] Always returns nil
   def self.send_data_to_s3( data,bucket_name,key )
-    thread = send_data_to_s3_asyc( data,bucket_name,key )
+    thread = send_data_to_s3_async( data,bucket_name,key )
     thread.join
     return nil
   end
@@ -349,7 +352,7 @@ module EZQ
 
 
   # Compresses the file and stores the result in filename.gz
-  def compress_file(filename)
+  def self.compress_file(filename)
     Zlib::GzipWriter.open("#{filename}.gz",9) do |gz|
       gz.mtime = File.mtime(filename)
       gz.orig_name = filename
@@ -359,16 +362,96 @@ module EZQ
 
 
   # Returns a new string with the **first** EZQ preamble stripped off
-  def strip_preamble(str)
+  def self.strip_preamble(str)
     return str.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')
   end
 
 
   # Replaces the body of an AWS::SQS::RecievedMessage with a version of the
   # body that doesn't contain the **first** EZQ preamble. Returns nil.
-  def strip_preamble_msg!(msg)
+  def self.strip_preamble_msg!(msg)
     msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
     return nil
   end
+
+end
+
+
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+# Unit Tests
+if __FILE__ == $0
+
+print 'Setting up AWS...'
+AWS.config(YAML.load(File.read('credentials.yml')))
+puts 'done'
+
+# Send a message to a queue, ask to receive it back, check it.
+def test_one
+  digest = EZQ.enqueue_message( "Test data", {'EZQ'=>nil},'test_queue',true )
+  print "Test one (enqueue a single message): "
+  q = EZQ.get_queue('test_queue')
+  if !q
+    puts "failed to get test_queue"
+    return nil
+  end
+  q.receive_message do |msg|
+    if msg.md5 == digest
+      puts "pass"
+    else
+      puts "fail"
+    end
+  end
+  return nil
+end
+
+# Send a message that we know is way too big to a queue. Ensure it was diverted
+# to S3 properly. Ask to receive message back from queue, and check the
+# preamble.
+def test_two
+  digest = EZQ.enqueue_message((1..40000).to_a.to_yaml,{'EZQ'=>nil},'test_queue')
+  print "Test two (enqueue an oversized message): "
+  q = EZQ.get_queue('test_queue')
+  if !q
+    puts "failed to get test_queue"
+    return nil
+  end
+  q.receive_message do |msg|
+    pre = YAML.load(msg.body)
+    if pre.has_key?('get_s3_file_as_body')
+      puts 'pass'
+    else
+      puts 'fail'
+    end
+  end
+  return nil
+end
+
+
+# Send a whole batch of messages at once.
+def test_three
+  print "Test three (enqueue batch of messages): "
+  msg_ary = (1..14).map{|i| i.to_s}
+  EZQ.enqueue_batch(msg_ary,[{'EZQ'=>nil}],'test_queue')
+  q = EZQ.get_queue('test_queue')
+  14.times do
+    q.receive_message do |msg|
+      msg_ary -= [EZQ.strip_preamble(msg.body)]
+    end
+  end
+  puts msg_ary
+  if msg_ary.empty?
+    puts 'pass'
+  else
+    puts 'fail'
+  end
+end
+
+#test_one()
+#test_two()
+#test_three()
+
 
 end
