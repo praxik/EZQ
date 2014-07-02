@@ -14,17 +14,23 @@
 # All of the above arguments are set in mmp_example_config.yml
 
 require 'json'
+require 'yaml'
+require_relative 'ezqlib'
 
-# Do whatever is required to fill out these vars (Something set in environment?
-# Query the instance's userdata? Read in a file that was written at boot?)
-worker_id = ''
-db_ip = ''
-port = ''
-db_user_name = ''
-db_passoword = ''
-db_name = ''
-geoserver_ip = ''
-db_port = ''
+AWS.config(YAML.load(File.read('credentials.yml')))
+
+# FIXME: What is the name of the file we should be reading here?
+vars = YAML.load(File.read('THE_FILE_WITH_THESE_VARS.yml'))
+
+# FIXME: What are the real key names for these values?
+worker_id = vars['worker_id']
+db_ip = vars['db_ip']
+port = vars['port']
+db_user_name = vars['db_user_name']
+db_passoword = vars['db_password']
+db_name = vars['db_name']
+geoserver_ip = vars['geoserver_ip']
+db_port = vars['db_port']
 
 input_file = ARGV.shift
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
@@ -66,6 +72,7 @@ begin
         if !already_pushed.include?(bucket_comma_filename)
           # FIXME: deal with credentials and logger for this.
           #push_threads << Thread.new(bucket_comma_filename, false, @credentials, @logger){ |b,d,c,l| EZQ.FilePusher.new(b,d,c,l) }
+          push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
           already_pushed << bucket_comma_filename
         end
       elsif msg =~ /^error_message/
