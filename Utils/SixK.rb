@@ -184,7 +184,6 @@ class SixK
 
     # Slap a Name and Type tag on each of these instances
     name = "6k_#{type}" if name.empty?
-    name = "#{name}_manage" if cl_manage
     ec2 = AWS::EC2.new
     instances.each do |inst|
       ec2.tags.create(inst, 'Name', :value => name)
