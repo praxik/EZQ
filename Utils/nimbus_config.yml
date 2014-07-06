@@ -71,7 +71,7 @@ launch_settings:
     size: 'm1.xlarge'
 
   worker_mmp:
-    size: 'm3.large'
+    size: 'm3.medium'
 
 # The information in this section is used to populate the userdata on
 # an instance prior to launch. The base section is merged with all launch types.
@@ -115,7 +115,7 @@ userdata:
     r2_man_key: R2_Purdue.zip
 
   worker_mmp:
-    deploy_key: arks/purdue/iowammp.zip
+    deploy_key: arks/default/iowammp.zip
     number_of_processes: 4
 
   pregrid:
