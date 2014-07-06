@@ -2,6 +2,8 @@ receive_queue_name: "mmp360_job_web_development"
 
 error_queue_name: "mmp360_error_web_development"
 
+result_queue_name: "mmp360_result_web_development"
+
 # (true/false)
 store_message: false
 
@@ -25,8 +27,6 @@ polling_options:
 
 # none, post_to_result_queue
 result_step: post_to_result_queue
-
-result_queue_name: "mmp_results"
 
 # (true/false)
 compress_result_message: false
