@@ -8,7 +8,7 @@ require 'aws-sdk'
 require 'net/http'
 require 'uri'
 
-command = 'ruby processor.rb -c 6k_worker_queue_config.yml'
+command = 'ruby processor.rb -c mmp_example_config.yml'
 Dir.chdir(File.dirname(__FILE__))
 
 @num = 1
