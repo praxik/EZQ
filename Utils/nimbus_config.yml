@@ -117,6 +117,13 @@ userdata:
   worker_mmp:
     deploy_key: arks/default/iowammp.zip
     number_of_processes: 4
+    db_ip: web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com
+    db_port: 5432
+    db_user_name: iowammp
+    db_password: 1234
+    db_name: iowammp_development_reports
+    geoserver_ip: 10.1.2.8
+    geoserver_port: 5432
 
   pregrid:
     deploy_key: arks/default/pregrid.zip

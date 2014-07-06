@@ -20,23 +20,32 @@ require_relative 'ezqlib'
 AWS.config(YAML.load(File.read('credentials.yml')))
 
 # FIXME: What is the name of the file we should be reading here?
-vars = YAML.load(File.read('THE_FILE_WITH_THESE_VARS.yml'))
+# vars = YAML.load(File.read('THE_FILE_WITH_THESE_VARS.yml'))
 
 # FIXME: What are the real key names for these values?
-worker_id = vars['worker_id']
-db_ip = vars['db_ip']
-port = vars['port']
-db_user_name = vars['db_user_name']
-db_passoword = vars['db_password']
-db_name = vars['db_name']
-geoserver_ip = vars['geoserver_ip']
-db_port = vars['db_port']
+#db_ip = vars['db_ip']
+#db_port = vars['db_port']
+#db_user_name = vars['db_user_name']
+#db_passoword = vars['db_password']
+#db_name = vars['db_name']
+#geoserver_ip = vars['geoserver_ip']
+#geoserver_port = vars['geoserver_port']
+
+db_ip = "web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com"
+db_port = "5432"
+db_user_name = "iowammp"
+db_passoword = "1234"
+db_name = "iowammp_development_reports"
+geoserver_ip = "10.1.2.8"
+geoserver_port = "5432"
+
 
 input_file = ARGV.shift
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
                  # multiple processes on the same instance. Not sure where it
                  # will go in the command string.
 output_file = ARGV.shift
+worker_id = pid
 
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
@@ -45,12 +54,12 @@ report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 command = "mmp_worker" +
           " -i #{worker_id}" +
           " --praxik-dev-postgres Server=#{db_ip};" +
-                                 "Port=#{port};" +
+                                 "Port=#{db_port};" +
                                  "Uid=#{db_user_name};" +
                                  "Pwd=#{db_password};" +
                                  "Database=#{db_name};" +
           " --praxik-gis-server Server=#{geoserver_ip};" +
-                               "Port=#{db_port};" +
+                               "Port=#{geoserver_port};" +
                                "Uid=postgres;" +
                                "Pwd=postgres;" +
           " -j #{report_record_id}"
