@@ -1,6 +1,6 @@
-receive_queue_name: "mmp_task"
+receive_queue_name: "mmp360_job_web_development"
 
-error_queue_name: "mmp_error"
+error_queue_name: "mmp360_error_web_development"
 
 # (true/false)
 store_message: false

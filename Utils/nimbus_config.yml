@@ -16,6 +16,7 @@ ami_map:
   worker_Purdue:  'ami-45f4ef2c'
   worker_ISA:     'ami-45f4ef2c'
   worker_ISU:     'ami-45f4ef2c'
+  worker_mmp:     'ami-0a47bc62'
   pregrid:        'ami-45f4ef2c'
   pregrid_Purdue: 'ami-45f4ef2c'
   pregrid_ISA:    'ami-45f4ef2c'
@@ -69,6 +70,8 @@ launch_settings:
   worker_ISU:
     size: 'm1.xlarge'
 
+  worker_mmp:
+    size: 'm3.large'
 
 # The information in this section is used to populate the userdata on
 # an instance prior to launch. The base section is merged with all launch types.
@@ -110,6 +113,10 @@ userdata:
     gdb_install_name: tyner.gdb
     man_key: WEPS_Purdue.zip
     r2_man_key: R2_Purdue.zip
+
+  worker_mmp:
+    deploy_key: arks/purdue/iowammp.zip
+    number_of_processes: 4
 
   pregrid:
     deploy_key: arks/default/pregrid.zip
