@@ -26,7 +26,7 @@ AWS.config(YAML.load(File.read('credentials.yml')))
 #db_ip = vars['db_ip']
 #db_port = vars['db_port']
 #db_user_name = vars['db_user_name']
-#db_passoword = vars['db_password']
+#db_password = vars['db_password']
 #db_name = vars['db_name']
 #geoserver_ip = vars['geoserver_ip']
 #geoserver_port = vars['geoserver_port']
@@ -34,7 +34,7 @@ AWS.config(YAML.load(File.read('credentials.yml')))
 db_ip = "web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com"
 db_port = "5432"
 db_user_name = "iowammp"
-db_passoword = "1234"
+db_password = "1234"
 db_name = "iowammp_development_reports"
 geoserver_ip = "10.1.2.8"
 geoserver_port = "5432"
