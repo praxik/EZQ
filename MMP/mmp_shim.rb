@@ -19,25 +19,23 @@ require_relative 'ezqlib'
 
 AWS.config(YAML.load(File.read('credentials.yml')))
 
-# FIXME: What is the name of the file we should be reading here?
-# vars = YAML.load(File.read('THE_FILE_WITH_THESE_VARS.yml'))
+vars = YAML.load(File.read('userdata.yml'))
 
-# FIXME: What are the real key names for these values?
-#db_ip = vars['db_ip']
-#db_port = vars['db_port']
-#db_user_name = vars['db_user_name']
-#db_password = vars['db_password']
-#db_name = vars['db_name']
-#geoserver_ip = vars['geoserver_ip']
-#geoserver_port = vars['geoserver_port']
+db_ip = vars['db_ip']
+db_port = vars['db_port']
+db_user_name = vars['db_user_name']
+db_password = vars['db_password']
+db_name = vars['db_name']
+geoserver_ip = vars['geoserver_ip']
+geoserver_port = vars['geoserver_port']
 
-db_ip = "web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com"
-db_port = "5432"
-db_user_name = "iowammp"
-db_password = "1234"
-db_name = "iowammp_web_development_reports"
-geoserver_ip = "10.1.2.8"
-geoserver_port = "5432"
+#db_ip = "web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com"
+#db_port = "5432"
+#db_user_name = "iowammp"
+#db_password = "1234"
+#db_name = "iowammp_web_development_reports"
+#geoserver_ip = "10.1.2.8"
+#geoserver_port = "5432"
 
 
 input_file = ARGV.shift
@@ -69,6 +67,7 @@ command = "mmp_worker.exe" +
 # this script can exit with the same status.
 exit_status = 0
 has_errors = false
+errors = []
 already_pushed = []
 push_threads = []
 begin
@@ -85,8 +84,9 @@ begin
           already_pushed << bucket_comma_filename
         end
       elsif msg =~ /^error_message/
-        puts msg # propagate up the chain
+        errors << msg.gsub(/^error_message/,'')
         has_errors = true
+        puts msg
       else
         puts msg
       end
@@ -106,7 +106,10 @@ push_threads.each{|t| t.join()}
 if exit_status.zero?
   result_message = {}
   result_message['report_record_id'] = report_record_id
-  result_message['worker_done'] = true
+  result_message['worker_succeeded'] = !has_errors
+  if has_errors
+    result_message['errors'] = errors.join("\n")
+  end
   File.write(output_file,result_message.to_json)
 end
 
