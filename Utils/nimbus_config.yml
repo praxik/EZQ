@@ -121,7 +121,7 @@ userdata:
     db_port: 5432
     db_user_name: iowammp
     db_password: 1234
-    db_name: iowammp_development_reports
+    db_name: iowammp_web_development_reports
     geoserver_ip: 10.1.2.8
     geoserver_port: 5432
 

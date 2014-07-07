@@ -35,7 +35,7 @@ db_ip = "web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws
 db_port = "5432"
 db_user_name = "iowammp"
 db_password = "1234"
-db_name = "iowammp_development_reports"
+db_name = "iowammp_web_development_reports"
 geoserver_ip = "10.1.2.8"
 geoserver_port = "5432"
 
@@ -51,7 +51,7 @@ worker_id = pid
 # "report_record_id"
 report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 
-command = "mmp_worker" +
+command = "mmp_worker.exe" +
           " -i #{worker_id}" +
           " --praxik-dev-postgres Server=#{db_ip};" +
                                  "Port=#{db_port};" +
