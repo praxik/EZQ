@@ -77,10 +77,11 @@ begin
   IO.popen(command,:err=>[:child, :out]) do |io|
     while !io.eof?
       msg = io.gets
+      log.info "Message: #{msg}"
       if msg =~ /^push_file/
         # Don't push the same file multiple times during a job.
         bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
-        log.info "Push_file directive for #{bucket_comma_fileame}"
+        log.info "Push_file directive for #{bucket_comma_filename}"
         if !already_pushed.include?(bucket_comma_filename)
           log.info "File has not been pushed previously. Doing so now...."
           begin
