@@ -304,6 +304,8 @@ module EZQ
         bucket = s3.buckets[bucket_name]
         obj = bucket.objects.create(key,Pathname.new(filename))
         AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
+      else
+        raise "File '#{filename}' does not exist."
       end
       return nil
     end
@@ -449,9 +451,19 @@ def test_three
   end
 end
 
+
+def test_four
+  print "Test four (send a file to s3 using bcf notation): "
+  File.write('test.txt',"This is a test")
+  thread = EZQ.send_bcf_to_s3_async("6k_test.praxik,test.txt")
+  thread.join
+  puts 'pass'
+end
+
 #test_one()
 #test_two()
 #test_three()
+#test_four()
 
 
 end
