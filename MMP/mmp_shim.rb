@@ -21,7 +21,7 @@ require 'logger'
 lf = File.new('mmp_shim.log', 'a')
 lf.sync = true
 log = Logger.new(lf)
-log.level = 'info'
+log.level = Logger::INFO
 
 log.info 'Setting up AWS'
 AWS.config(YAML.load(File.read('credentials.yml')))
