@@ -16,9 +16,17 @@
 require 'json'
 require 'yaml'
 require_relative 'ezqlib'
+require 'logger'
 
+lf = File.new('mmp_shim.log', 'a')
+lf.sync = true
+log = Logger.new(lf)
+log.level = 'info'
+
+log.info 'Setting up AWS'
 AWS.config(YAML.load(File.read('credentials.yml')))
 
+log.info 'Retrieving userdata'
 vars = YAML.load(File.read('userdata.yml'))
 
 db_ip = vars['db_ip']
@@ -40,6 +48,7 @@ worker_id = pid
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
 report_record_id = JSON.parse(File.read(input_file))['report_record_id']
+log.info "Operating on report_record_id: #{report_record_id}"
 
 command = "mmp_worker.exe" +
           " -i #{worker_id}" +
@@ -70,9 +79,9 @@ begin
       if msg =~ /^push_file/
         # Don't push the same file multiple times during a job.
         bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
+        log.info "Push_file directive for #{bucket_comma_fileame}"
         if !already_pushed.include?(bucket_comma_filename)
-          # FIXME: deal with credentials and logger for this.
-          #push_threads << Thread.new(bucket_comma_filename, false, @credentials, @logger){ |b,d,c,l| EZQ.FilePusher.new(b,d,c,l) }
+          log.info "File has not been pushed previously. Doing so now...."
           push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
           already_pushed << bucket_comma_filename
         end
@@ -89,9 +98,11 @@ begin
   end
 rescue => e
   exit_status = 1
+  log.error e
   puts e
 end
 
+log.info 'Waiting for file push threads to finish.'
 push_threads.each{|t| t.join()}
 
 # The message written here will be picked up by EZQ::Processor and placed into
@@ -106,4 +117,5 @@ if exit_status.zero?
   File.write(output_file,result_message.to_json)
 end
 
+log.info 'Done.'
 exit(exit_status)
