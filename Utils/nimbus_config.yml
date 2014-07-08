@@ -116,7 +116,7 @@ userdata:
 
   worker_mmp:
     deploy_key: arks/default/iowammp.zip
-    number_of_processes: 4
+    number_of_processes: 2
     db_ip: web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com
     db_port: 5432
     db_user_name: iowammp
