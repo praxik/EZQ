@@ -24,7 +24,7 @@ begin
   # two previous calls can raise an exception, and I want to do exactly the
   # same thing in any of these cases.
 #  userdata = YAML.load(instance.user_data)
-  userdata = YAML.load('userdata.yml')
+  userdata = YAML.load(File.read('userdata.yml'))
   @num = userdata['number_of_processes'].to_i
 rescue
   puts 'Number of desired processes not found in userdata. Falling back to number in processor_fan_out.yml.'
