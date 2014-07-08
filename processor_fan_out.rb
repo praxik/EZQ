@@ -4,9 +4,9 @@
 
 require 'bundler/setup'
 require 'yaml'
-require 'aws-sdk'
-require 'net/http'
-require 'uri'
+#require 'aws-sdk'
+#require 'net/http'
+#require 'uri'
 
 command = 'ruby processor.rb -c mmp_example_config.yml'
 Dir.chdir(File.dirname(__FILE__))
@@ -15,15 +15,16 @@ Dir.chdir(File.dirname(__FILE__))
 
 begin
   puts 'Looking for number of processors to run in userdata...'
-  credentials = YAML.load(File.read('credentials.yml'))
-  AWS.config(credentials)
-  uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
-  instance_id = Net::HTTP.get_response(uri).body
-  instance = AWS::EC2.new.instances[instance_id]
-  raise unless instance.exists?#Using this pattern because either of the 
+#  credentials = YAML.load(File.read('credentials.yml'))
+#  AWS.config(credentials)
+#  uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
+#  instance_id = Net::HTTP.get_response(uri).body
+#  instance = AWS::EC2.new.instances[instance_id]
+#  raise unless instance.exists?#Using this pattern because either of the 
   # two previous calls can raise an exception, and I want to do exactly the
   # same thing in any of these cases.
-  userdata = YAML.load(instance.user_data)
+#  userdata = YAML.load(instance.user_data)
+  userdata = YAML.load('userdata.yml')
   @num = userdata['number_of_processes'].to_i
 rescue
   puts 'Number of desired processes not found in userdata. Falling back to number in processor_fan_out.yml.'
