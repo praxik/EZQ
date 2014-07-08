@@ -17,6 +17,7 @@ require 'json'
 require 'yaml'
 require_relative 'ezqlib'
 require 'logger'
+require 'fileutils'
 
 lf = File.new('mmp_shim.log', 'a')
 lf.sync = true
@@ -109,6 +110,12 @@ end
 
 log.info 'Waiting for file push threads to finish.'
 push_threads.each{|t| t.join()}
+
+log.info 'Deleting local files pushed to S3.'
+already_pushed.each do |bcf|
+  bucket,key = bcf.split(',').map{|s| s.strip}
+  FileUtils.rm(key)
+end
 
 # The message written here will be picked up by EZQ::Processor and placed into
 # the result queue specified in mmp_example_config.yml.
