@@ -117,7 +117,7 @@ push_threads.each{|t| t.join()}
 log.info 'Deleting local files pushed to S3.'
 already_pushed.each do |bcf|
   bucket,key = bcf.split(',').map{|s| s.strip}
-  FileUtils.rm(key)
+  FileUtils.rm(File.basename(key))
 end
 
 # The message written here will be picked up by EZQ::Processor and placed into
