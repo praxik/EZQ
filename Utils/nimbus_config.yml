@@ -124,6 +124,7 @@ userdata:
     db_name: iowammp_web_development_reports
     geoserver_ip: 10.1.2.8
     geoserver_port: 5432
+    s3_bucket: web_development
 
   pregrid:
     deploy_key: arks/default/pregrid.zip

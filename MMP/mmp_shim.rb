@@ -28,15 +28,7 @@ db_password = vars['db_password']
 db_name = vars['db_name']
 geoserver_ip = vars['geoserver_ip']
 geoserver_port = vars['geoserver_port']
-
-#db_ip = "web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com"
-#db_port = "5432"
-#db_user_name = "iowammp"
-#db_password = "1234"
-#db_name = "iowammp_web_development_reports"
-#geoserver_ip = "10.1.2.8"
-#geoserver_port = "5432"
-
+s3_bucket = vars['s3_bucket']
 
 input_file = ARGV.shift
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
@@ -60,7 +52,8 @@ command = "mmp_worker.exe" +
                                "Port=#{geoserver_port};" +
                                "Uid=postgres;" +
                                "Pwd=postgres;" +
-          " -j #{report_record_id}"
+          " -j #{report_record_id}" +
+          " -s #{s3_bucket}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so
