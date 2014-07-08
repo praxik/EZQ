@@ -82,8 +82,13 @@ begin
         log.info "Push_file directive for #{bucket_comma_fileame}"
         if !already_pushed.include?(bucket_comma_filename)
           log.info "File has not been pushed previously. Doing so now...."
-          push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
-          already_pushed << bucket_comma_filename
+          begin
+            push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
+            already_pushed << bucket_comma_filename
+          rescue => e
+            log.error e
+            puts e
+          end
         end
       elsif msg =~ /^error_message/
         errors << msg.gsub(/^error_message/,'')
