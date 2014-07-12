@@ -441,10 +441,10 @@ class Processor
     preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
                                       @s3_outs if !@s3_outs.empty?
     # If message is too big for SQS, divert the body into S3
-    if (msg.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
+    if (body.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
                                                      #metadata size of 6k
                                                      #(256-6)*1024 = 256000
-      msg,preamble = divert_body_to_s3(msg,preamble)
+      body,preamble = divert_body_to_s3(msg,preamble)
     end
     msg = "#{preamble.to_yaml}...\n#{body}"
     digest = Digest::MD5.hexdigest(msg)
@@ -498,7 +498,7 @@ class Processor
       body = File.read(fname)
       # Pull out any preamble set directly in the body, merge it into the
       # standard preamble, then remove the preamble from the body.
-      if !body.empty?
+      if !body.empty? and body =~ /-{3}\nEZQ/
         begin
           by = YAML.load(body)
           if by.kind_of?(Hash) && by.has_key?('EZQ')
