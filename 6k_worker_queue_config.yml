@@ -28,6 +28,8 @@ result_step: post_to_result_queue
 
 result_queue_name: ""
 
+result_overflow_bucket: "EZQOverflow.praxik"
+
 # (true/false)
 compress_result_message: false
 
