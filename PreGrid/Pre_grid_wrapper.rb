@@ -88,7 +88,7 @@ def start
           task_message(msg,r2_mode,task_ids,r2_task_ids)
         end
       else
-        listening,r2_mode = not_a_message(msg)
+        listening,r2_mode = not_a_message(msg,r2_mode)
       end
     end
     io.close
@@ -153,7 +153,7 @@ end
 
 
 def task_message(msg,r2_mode,task_ids,r2_task_ids)
-  @log.info "Task message: #{msg}"
+  @log.info "Task message"
   if !r2_mode
     task_ids.push( YAML.load(msg)['task_id'] )
     msg.insert(0,make_preamble(@w_results))
@@ -167,21 +167,21 @@ def task_message(msg,r2_mode,task_ids,r2_task_ids)
 end
 
 
-def not_a_message(msg)
+def not_a_message(msg,r2_mode)
   listening = false
-  r2_mode = false
+  r2 = r2_mode
   @log.info "Non-message output: #{msg}"
   if msg =~ /^pregrid_begin_messages/
     listening = true 
     @log.info 'Listening for messages'
   elsif msg =~ /^R2D Tasks/
     puts "set_queue: #{@worker_r2_task_queue}"
-    r2_mode = true
+    r2 = true
     @log.info 'Now in R2 task mode'
   else
     @possible_errors << msg
   end
-  return [listening,r2_mode]
+  return [listening,r2]
 end
 
 # Form and send off aggregator queue message
@@ -227,7 +227,7 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     sqs.queues.named(queue_name).send_message(msg.insert(0,preamble))
   else
     # No tasks were generated for some reason, so delete the result queue
-    sqs.queues.named(q_to_qgg).delete
+    sqs.queues.named(q_to_agg).delete
   end
 end
 
