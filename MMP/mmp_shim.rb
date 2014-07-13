@@ -85,9 +85,12 @@ begin
         if !already_pushed.include?(bucket_comma_filename)
           log.info "File has not been pushed previously. Doing so now...."
           begin
-            bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
-            fname = File.basename(key)
-            push_threads << EZQ.send_file_to_s3_async(fname,bucket,key)
+            #If we want to reference files via cwd
+            #bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
+            #fname = File.basename(key)
+            #push_threads << EZQ.send_file_to_s3_async(fname,bucket,key)
+            #If we want to reference a file to mirror what is in s3
+            push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
             already_pushed << bucket_comma_filename
           rescue => e
             log.error e
