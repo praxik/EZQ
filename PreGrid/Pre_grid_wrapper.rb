@@ -204,7 +204,7 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     # The file that ends in _job.json should go in the preamble because
     # Aggregator needs that one file
     idx = files.find_index{|f| f['key'] =~ /.+_job\.json/}
-    ezq['get_s3_files'] = files[idx] if idx
+    ezq['get_s3_files'] = [files[idx]] if idx
     files.delete_at(idx) if idx
     # The remaining files go in the body of msg to Aggregator so that it can
     # pass their refs on to ReportGen.
