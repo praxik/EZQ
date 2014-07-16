@@ -17,7 +17,6 @@ class Rusle2Aggregator < SingletonApp
   # Keeps a single connection to the db open while we process everything. Only
   # called on the singleton-proper.
   def start_application
-
    
     lf = File.new('StoreResults.log', 'a')
     lf.sync = true
@@ -84,8 +83,8 @@ class Rusle2Aggregator < SingletonApp
     return batch_store_data(data) if data.fetch('batch_mode',false)
     
     non_spec_data = remove_elements_not_in_spec!(data)
-    #to_disk(non_spec_data,data['job_id'])
-    to_db(non_spec_data,data['job_id'],data.fetch('task_id','-1'))
+    # Save inputs to db only if that flag was set in the data
+    to_db(non_spec_data,data['job_id'],data.fetch('task_id','-1')) if data.fetch('aggregator_store_inputs',false)
     bindings, cols, val_holders = [],[],[]
     data.each do |k,v|
       cols.push(k)
@@ -167,12 +166,12 @@ class Rusle2Aggregator < SingletonApp
 
 
   def to_db(data,job_id,task_id)
-    tablename = "#{job_id}_inputs"
+    tablename = "_#{job_id.gsub('-','')}_inputs"
     fields = 'task_id int, inputs text'
     sql = "create table if not exists #{tablename}( #{fields} )"
     @db.exec( sql )
     result = @db.exec_params(%[ INSERT INTO #{tablename} (task_id, inputs) VALUES($1, $2) ],
-            [task_id,data['inputs']])
+            [task_id,data['inputs'].to_json])
   end
 
 
