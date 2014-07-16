@@ -53,6 +53,10 @@ class RusleReport < EZQ::Processor
     @task_ids = @agg_settings['task_ids']
     @gen_dom_crit_report = @agg_settings.fetch('generate_dominant_critical_soil_report',false)
     @batch_mode = @agg_settings.fetch('batch_mode',false)
+    job_statistics = @agg_settings.fetch('job_statistics','')
+    @store_inputs = @agg_settings.fetch('store_inputs',false)
+
+    store_job_stats(job_statistics,@job_id) if !job_statistics.empty?
 
     # Each time a task is completed, we remove it from rr_remaining_tasks.
     # When rr_remaining_tasks is empty, we know we've processed all tasks
@@ -72,10 +76,11 @@ class RusleReport < EZQ::Processor
   protected
   # Override of EZQ::Processor method to add logic to keep track of completed
   # tasks.
-  def run_process_command(msg,input_filename,id,log_command=true)
+  def run_process_command(input_filename,id,log_command=true)
     # Open up the results and insert the current job id
     parsed_msg = JSON.parse(@msg_contents)
     parsed_msg['job_id'] = @job_id
+    parsed_msg['aggregator_store_inputs'] = @store_inputs
     @record_id = parsed_msg['record_id'] if @gen_dom_crit_report
     @msg_contents = parsed_msg.to_json
 
@@ -248,7 +253,7 @@ class RusleReport < EZQ::Processor
 
     push_threads = []
     write_and_push(geojsonfile,JSON.parse(cpp_output)['soil_geojson'].to_json,push_threads)
-    write_and_push(jsonfile,cpp_output.push_threads)
+    write_and_push(jsonfile,cpp_output,push_threads)
     
     dom_crit_id = JSON.parse(cpp_output)['task_id']
     @logger.info "dom_crit_id is #{dom_crit_id}"
@@ -297,7 +302,7 @@ class RusleReport < EZQ::Processor
 
     # At this point we should be able to safely drop the temporary db table
     # containing the woker inputs
-    @db.exec("drop table #{@job_id}_inputs")
+    @db.exec("drop table _#{@job_id.gsub('-','')}_inputs")
 
     # Wait for the file pushes to finish
     push_threads.each { |t| t.join }
@@ -313,7 +318,7 @@ class RusleReport < EZQ::Processor
     pushed_files = []
     pushed_files << Hash['bucket'=>'6k_test.praxik','key'=>geojsonfile]
     pushed_files << Hash['bucket'=>'6k_test.praxik','key'=>jsonfile]
-    pushed_files.merge!(@report_files)
+    pushed_files += (@report_files)
     ezq['get_s3_files'] = pushed_files
     preamble = preamble.to_yaml
     preamble += "...\n"
@@ -348,6 +353,7 @@ class RusleReport < EZQ::Processor
         output = io.gets
       end
     end
+    @logger.info "output: #{output}"
     return(output)
   end
 
@@ -369,9 +375,24 @@ class RusleReport < EZQ::Processor
         dbname: 'praxik',
         user: 'app',
         password: 'app')
-    sql = "select inputs from #{@job_id}_inputs where task_id=#{dom_crit_id}"
+    sql = "select inputs from _#{@job_id.gsub('-','')}_inputs where task_id=#{dom_crit_id}"
     result = @db.exec(sql)
+    @logger.info "result: #{result[0]}"
     return(JSON.parse(result[0]['inputs']))
+  end
+
+
+  def store_job_stats(stats,job_id)
+    db = PG.connect(
+        host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
+        dbname: 'praxik',
+        user: 'app',
+        password: 'app')
+    tablename = 'job_statistics_6k'
+    sql = "create table if not exists #{tablename}( job_id text, stats text )"
+    db.exec( sql )
+    result = @db.exec_params(%[ UPDATE OR INSERT INTO #{tablename} (job_id, stats) VALUES($1, $2) MATCHING( job_id )],
+            [job_id,stats.to_json])
   end
 
 end
