@@ -444,7 +444,7 @@ class Processor
     if (body.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
                                                      #metadata size of 6k
                                                      #(256-6)*1024 = 256000
-      body,preamble = divert_body_to_s3(msg,preamble)
+      body,preamble = divert_body_to_s3(body,preamble)
     end
     msg = "#{preamble.to_yaml}...\n#{body}"
     digest = Digest::MD5.hexdigest(msg)
