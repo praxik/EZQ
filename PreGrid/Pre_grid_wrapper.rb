@@ -22,6 +22,7 @@ def initialize(logger,credentials)
   @job_files = []
   @worker_task_queue = nil
   @worker_r2_task_queue = nil
+  @job_stats = ''
 end
 
 
@@ -84,6 +85,8 @@ def start
           push_file(msg)
         elsif msg =~ /^aggregator_file/
           aggregator_file(msg,r2_mode)
+        elsif msg =~ /^job_statistics/
+          job_statistics(msg)
         else
           task_message(msg,r2_mode,task_ids,r2_task_ids)
         end
@@ -103,7 +106,9 @@ def start
                       @worker_task_queue,
                       @w_results,
                       @body['settings_for_aggregator']['aggregator_table'],
-                      @body['settings_for_aggregator']['aggregator_post_process'])
+                      @body['settings_for_aggregator']['aggregator_post_process'],
+                      @job_stats,
+                      true)
 
   if (@body.fetch('aggregator_r2_queue',false)) and
      (@body['settings_for_aggregator'].fetch('aggregator_r2_table',false)) and
@@ -114,7 +119,9 @@ def start
                         @worker_r2_task_queue,
                         @wr2_results,
                         @body['settings_for_aggregator']['aggregator_r2_table'],
-                        @body['settings_for_aggregator']['aggregator_r2_post_process'])
+                        @body['settings_for_aggregator']['aggregator_r2_post_process'],
+                        '',
+                        false)
   end
   
 
@@ -167,6 +174,10 @@ def task_message(msg,r2_mode,task_ids,r2_task_ids)
 end
 
 
+def job_statistics(msg)
+  @job_stats = msg.gsub(/^job_statistics\s*:\s*/,'')
+end
+
 def not_a_message(msg,r2_mode)
   listening = false
   r2 = r2_mode
@@ -192,7 +203,7 @@ end
 #    "aggregator_files" : [{"bucket"=>b, "key"=>k},{etc}],
 #    "generate_dominant_critical_soil
 #  }
-def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_table,post_proc)
+def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_table,post_proc,job_stats,store_inputs)
   sqs = AWS::SQS.new(@credentials)
   if !task_ids.empty?
     preamble = {}
@@ -200,6 +211,8 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     preamble['EZQ'] = ezq
 
     report_gen = { "job_id" => @job_id }
+
+    report_gen['job_statistics'] = job_stats if !job_stats.empty?
 
     # The file that ends in _job.json should go in the preamble because
     # Aggregator needs that one file
@@ -214,6 +227,7 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     report_gen['task_ids'] = task_ids
     report_gen['db_table'] = db_table
     report_gen['post_process'] = post_proc
+    report_gen['store_inputs'] = store_inputs
     report_gen.merge!(@body['settings_for_aggregator'])
     msg = report_gen.to_json
     # If message is too big for SQS, divert the body into S3
