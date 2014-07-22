@@ -1,6 +1,6 @@
-receive_queue_name: "purdue_task"
+receive_queue_name: "6k_task_r2"
 
-error_queue_name: "purdue_error"
+error_queue_name: "6k_error_test_44"
 
 # (true/false)
 store_message: false
@@ -11,7 +11,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "6k_worker.exe --gdbname iowammp.gdb --inputfilename $input_file --workerid $pid -o output_$id.txt"
+process_command: "6k_worker_r2p2d.exe --gdbname iowammp.gdb --inputfilename $input_file --workerid $pid -o output_$id.txt"
 
 # (true/false)
 retry_on_failure: false
