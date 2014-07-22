@@ -3,6 +3,7 @@ require 'bundler/setup'
 require 'yaml'
 require 'aws-sdk'
 require 'optparse'
+require 'base64'
 
 class SixK
 
@@ -224,17 +225,24 @@ class SixK
     print 'Bid price ($): '
     price = STDIN.gets.chomp
 
+    # When using the low-level client interface, we have to convert security
+    # group names to ids iff running in a subnet.
+    sgs = ec2.security_groups.filter('group-name',*@security_groups)
+    sgids = []
+    sgs.each{|sg| sgids << sg.id}
+
     specs = { :image_id => @imgs[type],
               :subnet_id => @vpc_subnet,
-              :security_groups => @security_groups,
+              :security_group_ids => sgids,
               :instance_type => @size,
-              :user_data => @userdata.to_yaml }
+              :user_data => Base64.encode64(@userdata.to_yaml) }
 
     options = {:spot_price=>price,
                :instance_count=>count,
                :type=>'one-time',
                :launch_specification=>specs
                }
+
     
     ec2.client.request_spot_instances(options)
   end
