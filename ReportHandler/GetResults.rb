@@ -323,9 +323,17 @@ class RusleReport < EZQ::Processor
     preamble = preamble.to_yaml
     preamble += "...\n"
     msgdata = {}
-    msgdata['queue_to_poll'] = "#{@job_id}_dom_crit_results"
+    dom_crit_results_queue = "#{@job_id}_dom_crit_results"
+    msgdata['queue_to_poll'] = dom_crit_results_queue
     msgdata['atomicity'] = 2
-    msg = "#{preamble}#{i_data.to_json}"
+    msg = "#{preamble}#{msgdata.to_json}"
+
+    sqs = AWS::SQS.new
+    begin
+      q = sqs.queues.named( dom_crit_results_queue )
+    rescue
+      sqs.queues.create( dom_crit_results_queue )
+    end
 
     rgq = '6k_report_gen'
     queue = AWS::SQS.new.queues.named(rgq)
