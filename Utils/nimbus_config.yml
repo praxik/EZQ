@@ -15,7 +15,7 @@ ami_map:
   worker:         'ami-45f4ef2c'
   worker_Purdue:  'ami-45f4ef2c'
   #worker_ISA:     'ami-45f4ef2c'
-  worker_ISA      'ami-12ac657a'
+  worker_ISA:      'ami-12ac657a'
   worker_ISU:     'ami-45f4ef2c'
   worker_mmp:     'ami-0a47bc62'
   pregrid:        'ami-45f4ef2c'
