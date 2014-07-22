@@ -14,12 +14,13 @@ ami_map:
   # Windows
   worker:         'ami-45f4ef2c'
   worker_Purdue:  'ami-45f4ef2c'
-  worker_ISA:     'ami-45f4ef2c'
+  #worker_ISA:     'ami-45f4ef2c'
+  worker_ISA      'ami-12ac657a'
   worker_ISU:     'ami-45f4ef2c'
   worker_mmp:     'ami-0a47bc62'
   pregrid:        'ami-45f4ef2c'
   pregrid_Purdue: 'ami-45f4ef2c'
-  pregrid_ISA:    'ami-45f4ef2c'
+  pregrid_ISA:    'ami-12ac657a'
   pregrid_ISU:    'ami-45f4ef2c'
   # Linux
   reporthandler:  'ami-3229cb5a'
@@ -130,7 +131,7 @@ userdata:
     deploy_key: arks/default/pregrid.zip
  
   pregrid_ISA:
-    deploy_key: arks/default/pregrid_r2d.zip
+    deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
