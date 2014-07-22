@@ -1,6 +1,6 @@
-receive_queue_name: "purdue_job"
+receive_queue_name: "6k_job_test_44"
 
-error_queue_name: "purdue_error"
+error_queue_name: "6k_error_test_44"
 
 # (true/false)
 store_message: false
@@ -28,7 +28,7 @@ result_step: none
 
 result_queue_name: ""
 
-result_overflow_bucket: ""
+result_overflow_bucket: "EZQOverflow.praxik"
 
 # (true/false)
 compress_result_message: false
