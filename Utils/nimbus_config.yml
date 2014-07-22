@@ -65,7 +65,7 @@ launch_settings:
     size: 'c3.8xlarge'
 
   worker_ISA:
-    size: 'm3.2xlarge'
+    size: 'r3.4xlarge'
 
   worker_ISU:
     size: 'm1.xlarge'
@@ -91,7 +91,7 @@ userdata:
     deploy_key: arks/default/worker.zip
     
   worker_ISA:
-    deploy_key: arks/default/worker.zip
+    deploy_key: arks/default/worker_x64.zip
     number_of_processes: 8 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
@@ -130,7 +130,7 @@ userdata:
     deploy_key: arks/default/pregrid.zip
  
   pregrid_ISA:
-    deploy_key: arks/default/pregrid.zip
+    deploy_key: arks/default/pregrid_r2d.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
