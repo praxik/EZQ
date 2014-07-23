@@ -697,6 +697,10 @@ class Processor
         msg.delete
         delete_file_as_body if @file_as_body # This must stay linked to deleting
                                              # message from queue
+      else
+        # Make the message visible again in 10 seconds, rather than whatever its
+        # natural timeout is
+        msg.visibility_timeout = 10
       end
     end
 
@@ -750,6 +754,10 @@ class Processor
         mol.each{|msg| msg.delete}
         #delete_file_as_body if @file_as_body # This must stay linked to deleting
                                              # message from queue
+      else
+        # Make the message visible again in 10 seconds, rather than whatever its
+        # natural timeout is
+        mol.each{|msg| msg.visibility_timeout = 10}
       end
     end
 
