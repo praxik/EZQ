@@ -37,6 +37,7 @@ begin
     Array(msg).each do |item|
       puts "Cloning message #{item.id}"
       File.write("#{q}/#{item.id}",item.body)
+      item.visibility_timeout = 60
     end
   end
 rescue Interrupt
