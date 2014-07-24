@@ -15,7 +15,8 @@ ami_map:
   worker:         'ami-45f4ef2c'
   worker_Purdue:  'ami-45f4ef2c'
   #worker_ISA:     'ami-45f4ef2c'
-  worker_ISA:      'ami-12ac657a'
+  worker_ISA:     'ami-12ac657a'
+  worker_r2_ISA:  'ami-12ac657a'
   worker_ISU:     'ami-45f4ef2c'
   worker_mmp:     'ami-0a47bc62'
   pregrid:        'ami-45f4ef2c'
@@ -66,6 +67,9 @@ launch_settings:
     size: 'c3.8xlarge'
 
   worker_ISA:
+    size: 'm3.2xlarge'
+
+  worker_r2_ISA:
     size: 'r3.4xlarge'
 
   worker_ISU:
@@ -98,6 +102,16 @@ userdata:
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
+    receive_queue_name: 6k_task
+
+  worker_r2_ISA:
+    deploy_key: arks/default/worker_x64.zip
+    number_of_processes: 4 
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: ISA_weps.zip
+    r2_man_key: ISA_skels.zip
+    receive_queue_name: 6k_task_r2
 
   worker_ISU:
     deploy_key: arks/default/worker.zip
@@ -106,6 +120,7 @@ userdata:
     gdb_install_name: iowammp.gdb
     man_key: ISU_Marcus_weps.zip
     r2_man_key: ISU_Marcus_skels.zip
+    receive_queue_name: purdue_task
     
   worker_Purdue:
     deploy_key: arks/purdue/worker.zip
@@ -114,6 +129,7 @@ userdata:
     gdb_install_name: tyner.gdb
     man_key: WEPS_Purdue.zip
     r2_man_key: R2_Purdue.zip
+    receive_queue_name: purdue_task
 
   worker_mmp:
     deploy_key: arks/default/iowammp.zip
@@ -136,6 +152,7 @@ userdata:
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
+    receive_queue_name: 6k_pregrid
 
   pregrid_ISU:
     deploy_key: arks/default/pregrid.zip
@@ -143,6 +160,7 @@ userdata:
     gdb_install_name: iowammp.gdb
     man_key: ISU_Marcus_weps.zip
     r2_man_key: ISU_Marcus_skels.zip
+    receive_queue_name: purdue_job
 
   pregrid_Purdue:
     deploy_key: arks/purdue/pregrid.zip
@@ -150,9 +168,11 @@ userdata:
     gdb_install_name: tyner.gdb
     man_key: WEPS_Purdue.zip
     r2_man_key: R2_Purdue.zip
+    receive_queue_name: purdue_job
 
   reporthandler:
     deploy_key: arks/default/reporthandler.zip
+    receive_queue_name: 6k_aggregator
 
   errorhandler:
     deploy_key: arks/default/errorhandler.zip
