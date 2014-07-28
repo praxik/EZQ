@@ -23,6 +23,8 @@ def initialize(logger,credentials)
   @worker_task_queue = nil
   @worker_r2_task_queue = nil
   @job_stats = ''
+  @body = {}
+  @command = ''
 end
 
 
@@ -145,6 +147,7 @@ def push_file(msg)
   bucket,key = msg.sub(/^push_file\s*:\s*/,'').split(',').map{|s| s.strip}
   @pushed_files.push(Hash["bucket"=>bucket,"key"=>key])
   puts msg
+  return nil
 end
 
 
@@ -153,9 +156,10 @@ def aggregator_file(msg,r2_mode)
   @log.info "Aggregrator file message: #{msg}"
   bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
   @aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if !r2_mode
-  @r2_aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if r2_mode
+  @r2_aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if r2_mode or key =~ /_jobdetail/
   # Map into job_breaker's push_file directive
   puts "push_file: #{bucket},#{key}"
+  return nil
 end
 
 
@@ -163,10 +167,10 @@ def task_message(msg,r2_mode,task_ids,r2_task_ids)
   @log.info "Task message"
   if !r2_mode
     task_ids.push( YAML.load(msg)['task_id'] )
-    msg.insert(0,make_preamble(@w_results))
+    msg.insert(0,make_preamble(@w_results,r2_mode))
   else
     r2_task_ids.push( YAML.load(msg)['task_id'] )
-    msg.insert(0,make_preamble(@wr2_results))
+    msg.insert(0,make_preamble(@wr2_results,r2_mode))
   end
   puts msg.dump
   # Don't accumulate files across tasks
@@ -219,6 +223,12 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
     idx = files.find_index{|f| f['key'] =~ /.+_job\.json/}
     ezq['get_s3_files'] = [files[idx]] if idx
     files.delete_at(idx) if idx
+
+    # Aggregator_r2 needs the _jobdetail.json file
+    idx = files.find_index{|f| f['key'] =~ /.+_jobdetail\.json/}
+    ezq['get_s3_files'] = [files[idx]] if idx
+    files.delete_at(idx) if idx
+    
     # The remaining files go in the body of msg to Aggregator so that it can
     # pass their refs on to ReportGen.
     report_gen['files_needed_to_make_report'] = files
@@ -281,14 +291,15 @@ def create_result_queue(result_queue_name)
 end
 
 
-def make_preamble(result_queue_name)
+def make_preamble(result_queue_name,r2_mode)
   preamble = {}
   ezq = {}
   preamble['EZQ'] = ezq
   ezq['result_queue_name'] = result_queue_name
   @pushed_files = @pushed_files + @job_files
   ezq['get_s3_files'] = @pushed_files
-  ezq['process_command'] = @body['worker_process_command'] if @body.fetch('worker_process_command',false)
+  ezq['process_command'] = @body['worker_process_command'] if @body.fetch('worker_process_command',false) and !r2_mode
+  ezq['process_command'] = @body['worker_2d_process_command'] if @body.fetch('worker_2d_process_command',false) and r2_mode
   preamble = preamble.to_yaml
   preamble += "...\n"
   return preamble
