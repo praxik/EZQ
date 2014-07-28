@@ -1,31 +1,28 @@
 #!/usr/bin/env ruby
 
-# This script runs EZQ::Processor in each of the 44 separate deploy subdirs.
+# Starts N instances of EZQ::Processor. N is pulled from key
+# 'number_of_processes' in userdata OR from processor_fan_out.yml. Userdata
+# takes precedence.
+
+# This script also pulls the receive_queue_name from userdata and, if present,
+# uses that to override the receive_queue_name that is set in
+# receive_queue_config.yml.
 
 require 'bundler/setup'
 require 'yaml'
-#require 'aws-sdk'
-#require 'net/http'
-#require 'uri'
 
-command = 'ruby processor.rb -c 6k_worker_queue_config.yml'
+command = 'ruby processor.rb -c receive_queue_config.yml'
 Dir.chdir(File.dirname(__FILE__))
 
 @num = 1
+@rec_queue = ''
 
 begin
   puts 'Looking for number of processors to run in userdata...'
-#  credentials = YAML.load(File.read('credentials.yml'))
-#  AWS.config(credentials)
-#  uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
-#  instance_id = Net::HTTP.get_response(uri).body
-#  instance = AWS::EC2.new.instances[instance_id]
-#  raise unless instance.exists?#Using this pattern because either of the 
-  # two previous calls can raise an exception, and I want to do exactly the
-  # same thing in any of these cases.
-#  userdata = YAML.load(instance.user_data)
   userdata = YAML.load(File.read('userdata.yml'))
   @num = userdata['number_of_processes'].to_i
+  @rec_queue = userdata.fetch['receive_queue_name','']
+  puts "Overriding receive queue setting with #{@rec_queue}"
 rescue
   puts 'Number of desired processes not found in userdata. Falling back to number in processor_fan_out.yml.'
   if !File.exists?('processor_fan_out.yml')
@@ -45,9 +42,7 @@ pids = []
 
 @num.times do |idx|
   command += " --log ./processor_" + "%02d" % idx + ".log"
-  #Dir.chdir("%02d" % idx) {pids << spawn(command)}
-  # To run directly in place rather than in numbered subdirs, comment
-  # out the previous line and uncomment the following:
+  command += " --queue #{@rec_queue}" if !@rec_queue.empty?
   pids << spawn(command)
 end
 

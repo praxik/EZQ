@@ -76,7 +76,7 @@ class Processor
     @uri_files = []
     @s3_endpoints = []
     @receive_queue_name = ''
-    @error_queue_name = ''
+    @error_queue_name = 'errors'
     @polling_options = {:wait_time_seconds => 20}
     @halt_instance_on_timeout = false
     @smart_halt_when_idle_N_seconds = 0
