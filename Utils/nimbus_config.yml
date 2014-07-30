@@ -12,17 +12,17 @@
 # new label and AMI in this section
 ami_map:
   # Windows
-  worker:         'ami-45f4ef2c'
-  worker_Purdue:  'ami-45f4ef2c'
-  #worker_ISA:     'ami-45f4ef2c'
-  worker_ISA:     'ami-12ac657a'
-  worker_r2_ISA:  'ami-12ac657a'
-  worker_ISU:     'ami-45f4ef2c'
-  worker_mmp:     'ami-0a47bc62'
-  pregrid:        'ami-45f4ef2c'
-  pregrid_Purdue: 'ami-45f4ef2c'
-  pregrid_ISA:    'ami-12ac657a'
-  pregrid_ISU:    'ami-45f4ef2c'
+  worker:         'ami-c802d7a0'
+  worker_Purdue:  'ami-c802d7a0'
+  #worker_ISA:     'ami-c802d7a0'
+  worker_ISA:     'ami-c802d7a0'
+  worker_r2_ISA:  'ami-c802d7a0
+  worker_ISU:     'ami-c802d7a0'
+  worker_mmp:     'ami-c802d7a0'
+  pregrid:        'ami-c802d7a0'
+  pregrid_Purdue: 'ami-c802d7a0'
+  pregrid_ISA:    'ami-c802d7a0'
+  pregrid_ISU:    'ami-c802d7a0'
   # Linux
   reporthandler:  'ami-3229cb5a'
   errorhandler:   'ami-3229cb5a'
