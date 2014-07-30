@@ -331,7 +331,7 @@ module EZQ
     'a' => "\x07", 'b' => "\x08", 't' => "\x09",
     'n' => "\x0a", 'v' => "\x0b", 'f' => "\x0c",
     'r' => "\x0d", 'e' => "\x1b", "\\\\" => "\x5c",
-    "\"" => "\x22", "'" => "\x27"
+    "\"" => "\x22", "'" => "\x27"}
 
 
 # THis one isn't quite right. The idea here was to deal with libz output that
@@ -375,6 +375,22 @@ module EZQ
   def self.strip_preamble_msg!(msg)
     msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
     return nil
+  end
+
+
+  # Rogue out single backslashes that are not real escape sequences and
+  # turn them into double backslashes.
+  def self.fix_escapes(text)
+    # (?<!\\)  -- no backslashes directly before current match
+    # (\\)     -- match a single backslash
+    # (?![\\\/\"\'rnbt])  -- not followed by a character that would indicate
+    #                        this is already a valid escape sequence:
+    #                        backslash, forwardslash, double quote,
+    #                        single quote, r, n, b, or t
+    # "\\\\\\\\" -- it takes *8* backslashes to indicate two backslashes: one
+    #               pass of escaping for the regexp (\\ --> \\\\) and a second
+    #               pass of escaping for the ruby string (\\\\ --> \\\\\\\\)
+    return text.gsub(/(?<!\\)(\\)(?![\\\/\"\'rnbt])/,"\\\\\\\\")
   end
 
 end
