@@ -16,7 +16,7 @@ ami_map:
   worker_Purdue:  'ami-c802d7a0'
   #worker_ISA:     'ami-c802d7a0'
   worker_ISA:     'ami-c802d7a0'
-  worker_r2_ISA:  'ami-c802d7a0
+  worker_r2_ISA:  'ami-c802d7a0'
   worker_ISU:     'ami-c802d7a0'
   worker_mmp:     'ami-c802d7a0'
   pregrid:        'ami-c802d7a0'
