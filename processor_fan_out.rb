@@ -22,7 +22,7 @@ begin
   userdata = YAML.load(File.read('userdata.yml'))
   @num = userdata['number_of_processes'].to_i
   @rec_queue = userdata.fetch('receive_queue_name','')
-  puts "Overriding receive queue setting with #{@rec_queue}"
+  puts "Overriding receive queue setting with #{@rec_queue}" if !@rec_queue.empty?
 rescue
   puts 'Number of desired processes not found in userdata. Falling back to number in processor_fan_out.yml.'
   if !File.exists?('processor_fan_out.yml')
