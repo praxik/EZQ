@@ -18,7 +18,9 @@ ami_map:
   worker_ISA:     'ami-c802d7a0'
   worker_r2_ISA:  'ami-c802d7a0'
   worker_ISU:     'ami-c802d7a0'
-  worker_mmp:     'ami-c802d7a0'
+  worker_mmp_dev:     'ami-c802d7a0'
+  worker_mmp_staging: 'ami-c802d7a0'
+  worker_mmp_prod:    'ami-c802d7a0'
   pregrid:        'ami-c802d7a0'
   pregrid_Purdue: 'ami-c802d7a0'
   pregrid_ISA:    'ami-c802d7a0'
@@ -41,6 +43,27 @@ security:
 
   errorhandler:
     security_groups: ['dev-base','dev-kibitz-worker','dev-dashboard']
+
+  worker_mmp_dev:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-fc94b793'
+    # If you override this on a per-type basis, be aware that the *values* in
+    # the array will not be merged. You must override the entire array.
+    security_groups: ['dev-base','dev-kibitz-worker']
+
+  worker_mmp_staging:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-fc94b793'
+    # If you override this on a per-type basis, be aware that the *values* in
+    # the array will not be merged. You must override the entire array.
+    security_groups: ['dev-base','dev-kibitz-worker']
+
+  worker_mmp_prod:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-cb9ebda4'
+    # If you override this on a per-type basis, be aware that the *values* in
+    # the array will not be merged. You must override the entire array.
+    security_groups: ['dev-base','dev-kibitz-worker']
 
 # The base settings get merged with any per-type settings. All available options
 # appear in the base section.
@@ -75,7 +98,13 @@ launch_settings:
   worker_ISU:
     size: 'm1.xlarge'
 
-  worker_mmp:
+  worker_mmp_dev:
+    size: 'm3.medium'
+
+  worker_mmp_staging:
+    size: 'm3.medium'
+
+  worker_mmp_prod:
     size: 'm3.medium'
 
 # The information in this section is used to populate the userdata on
@@ -131,7 +160,7 @@ userdata:
     r2_man_key: R2_Purdue.zip
     receive_queue_name: purdue_task
 
-  worker_mmp:
+  worker_mmp_dev:
     deploy_key: arks/default/iowammp.zip
     number_of_processes: 2
     db_ip: web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com
@@ -142,6 +171,30 @@ userdata:
     geoserver_ip: 10.1.2.8
     geoserver_port: 5432
     s3_bucket: web_development
+
+  worker_mmp_staging:
+    deploy_key: arks/default/iowammp.zip
+    number_of_processes: 2
+    db_ip: web-development-mmp360-persistence.csr7bxits1yb.us-east-1.rds.amazonaws.com
+    db_port: 5432
+    db_user_name: iowammp
+    db_password: 1234
+    db_name: iowammp_web_development_reports
+    geoserver_ip: 10.1.2.8
+    geoserver_port: 5432
+    s3_bucket: staging
+
+  worker_mmp_prod:
+    deploy_key: arks/default/iowammp.zip
+    number_of_processes: 2
+    db_ip: persistence.production.mmp360.com
+    db_port: 5432
+    db_user_name: iowammp
+    db_password: dan4yees7d
+    db_name: iowammp_production_reports
+    geoserver_ip: 10.1.6.8
+    geoserver_port: 5432
+    s3_bucket: production
 
   pregrid:
     deploy_key: arks/default/pregrid.zip
