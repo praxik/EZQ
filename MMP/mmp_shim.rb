@@ -19,10 +19,10 @@ require_relative 'ezqlib'
 require 'logger'
 require 'fileutils'
 
-lf = File.new('mmp_shim.log', 'a')
+lf = File.new("mmp_shim_#{ARGV[1]}.log", 'a')
 lf.sync = true
 log = Logger.new(lf)
-log.level = Logger::WARN
+log.level = Logger::DEBUG
 
 log.info 'Setting up AWS'
 AWS.config(YAML.load(File.read('credentials.yml')))
