@@ -185,7 +185,7 @@ userdata:
     s3_bucket: staging
 
   worker_mmp_prod:
-    deploy_key: arks/default/iowammp.zip
+    deploy_key: arks/default/iowammp_prod.zip
     number_of_processes: 2
     db_ip: persistence.production.mmp360.com
     db_port: 5432
