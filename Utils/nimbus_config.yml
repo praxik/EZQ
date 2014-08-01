@@ -63,7 +63,7 @@ security:
     vpc_subnet: 'subnet-cb9ebda4'
     # If you override this on a per-type basis, be aware that the *values* in
     # the array will not be merged. You must override the entire array.
-    security_groups: ['dev-base','dev-kibitz-worker']
+    security_groups: ['production-worker']
 
 # The base settings get merged with any per-type settings. All available options
 # appear in the base section.
