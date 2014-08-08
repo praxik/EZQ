@@ -156,6 +156,7 @@ def aggregator_file(msg,r2_mode)
   @log.info "Aggregrator file message: #{msg}"
   bucket,key = msg.sub(/^aggregator_file\s*:\s*/,'').split(',').map{|s| s.strip}
   @aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if !r2_mode
+  # R2d aggregator needs the jobdetail file too.
   @r2_aggregator_files.push(Hash['bucket'=>bucket,'key'=>key]) if r2_mode or key =~ /_jobdetail/
   # Map into job_breaker's push_file directive
   puts "push_file: #{bucket},#{key}"
