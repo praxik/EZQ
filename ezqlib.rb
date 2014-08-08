@@ -334,23 +334,26 @@ module EZQ
     "\"" => "\x22", "'" => "\x27"}
 
 
-# THis one isn't quite right. The idea here was to deal with libz output that
-# was stored in a plain file. There won''t be an entry.name involved. We need
-# two separate decompress functions: normal and libz-in-place.
   # Decompresses the file and stores the result in a file with the same name.
   def self.decompress_file(filename)
     Zip::File.open(filename) do |zip_file|
       zip_file.each { |entry| entry.extract(entry.name) }
     end
-    #File.open(filename) do |cf|
-      #zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-      #uncname = filename + '.uc'
-      #File.open(uncname, "w+") {|ucf|
-      #ucf << zi.inflate(cf.read) }
-      #zi.close
-    #end
-    #File.delete(filename)
-    #File.rename(filename + '.uc', filename)
+  end
+
+
+  # Decompress a file that contains data compressed directly with libz; that
+  # is, the file is not a standard .zip with appropriate header information.
+  def self.decompress_headerless_file(filename)
+    File.open(filename) do |cf|
+      zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+      uncname = filename + '.uc'
+      File.open(uncname, "w+") {|ucf|
+      ucf << zi.inflate(cf.read) }
+      zi.close
+    end
+    File.delete(filename)
+    File.rename(filename + '.uc', filename)
   end
 
 
@@ -377,6 +380,14 @@ module EZQ
     return nil
   end
 
+  def self.extract_preamble(msgbody)
+    body = YAML.load(msgbody)
+    return '' if !body.kind_of?(Hash)
+    return '' if !body.has_key?('EZQ')
+    return body['EZQ']
+  rescue
+    return ''
+  end
 
   # Rogue out single backslashes that are not real escape sequences and
   # turn them into double backslashes.
