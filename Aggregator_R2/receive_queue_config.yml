@@ -1,0 +1,49 @@
+receive_queue_name: "6k_aggregator_r2"
+
+error_queue_name: "6k_error"
+
+# (true/false)
+store_message: false
+
+# (true/false)
+decompress_message: false
+
+dont_hit_disk: false
+
+# Available vars: $input_file, $id, $full_msg_file, 
+#                 $s3_1, $s3_2, etc. 
+#                 $uri_1, $uri_2, etc.
+process_command: "ruby Aggregate_2d.rb -c aggregate_2d_queue_config.yml --log Agg2d.log $input_file"
+
+# (true/false)
+retry_on_failure: false
+
+retries: 0
+
+polling_options:
+  :wait_time_seconds: 20
+  :attributes:
+    - :all
+
+# none, post_to_result_queue
+result_step: none
+
+result_queue_name: ""
+
+# (true/false)
+compress_result_message: false
+
+# (true/false)
+keep_trail: false
+
+# Available vars: see process_command
+cleanup_command: ""
+
+# (true/false)
+halt_instance_on_timeout: false
+
+# 0 to turn off
+smart_halt_when_idle_N_seconds: 0
+
+# stop, terminate
+halt_type: terminate
