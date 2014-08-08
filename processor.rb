@@ -13,6 +13,7 @@ require 'fileutils'
 require 'zip'
 
 require './x_queue'
+require_relative './ezqlib'
 
 
 module EZQ
@@ -97,6 +98,7 @@ class Processor
     @file_as_body = nil # This gets set only when we see a get_s3_file_as_body
                         # directive
     @collect_errors_command = ''
+    @atomicity = 1
 
     # This will automatically create an instance variable based on each option
     # in the config. It will also populate each of our manually-
@@ -557,14 +559,7 @@ class Processor
     preamble = body['EZQ']
     return true if !preamble
 
-    if preamble.has_key?('get_s3_file_as_body')
-      info = preamble['get_s3_file_as_body']
-      bucket = info['bucket']
-      key = info['key']
-      @logger.info "Getting file as message body"
-      return false if !get_s3_file(bucket,key)
-      @file_as_body = "#{bucket},#{key}"
-    end
+    return false if !get_s3_file_as_body(preamble)
     
     return true if !preamble.has_key?('get_s3_files')
     files = preamble['get_s3_files']
@@ -579,6 +574,24 @@ class Processor
       end
     end
     
+    return true
+  end
+
+
+  protected
+  # Determines whether preamble indicates a file_as_body, and retrieves the file
+  # if so. Returns false if there were errors; true otherwise. Sets value of
+  # @file_as_body as a side effect.
+  def get_s3_file_as_body(preamble)
+    @file_as_body = nil
+    if preamble.has_key?('get_s3_file_as_body')
+      info = preamble['get_s3_file_as_body']
+      bucket = info['bucket']
+      key = info['key']
+      @logger.info "Getting file as message body"
+      return false if !get_s3_file(bucket,key)
+      @file_as_body = "#{bucket},#{key}"
+    end
     return true
   end
 
@@ -645,9 +658,9 @@ class Processor
 
 
   protected
-  def delete_file_as_body
-    return nil if !@file_as_body # Why did this even get called?
-    bucket,key = @file_as_body.split(',')
+  def delete_file_as_body(bucket_comma_file)
+    return nil if !bucket_comma_file # Why did this even get called?
+    bucket,key = bucket_comma_file.split(',')
     s3 = AWS::S3.new
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ] if b
@@ -695,7 +708,7 @@ class Processor
       if do_result_step()
         @logger.info "Processing successful. Deleting message #{@id}"
         msg.delete
-        delete_file_as_body if @file_as_body # This must stay linked to deleting
+        delete_file_as_body(@file_as_body) if @file_as_body # This must stay linked to deleting
                                              # message from queue
       else
         # Make the message visible again in 10 seconds, rather than whatever its
@@ -718,21 +731,35 @@ class Processor
     @id = mol[0].id  # Use id of first message as the id for the entire op
     @input_filename = @id + '.in'
 
-    preambles = []
-    mol.each{|msg| preambles << extract_preamble(msg)}
-    # FIXME: This will break file_as_body style messages
-    uni_pre = multi_merge(preambles)
+    preambles = mol.map{|msg| EZQ.extract_preamble(msg.body)}
+    # @file_as_body will be nil if one wasn't specified or if there were errors
+    # getting it
+    body_files = preambles.map{|pre| get_s3_file_as_body(pre); @file_as_body}
+    uni_pre = preambles.reduce(&:merge)
+    uni_pre.delete('get_s3_file_as_body')
 
-    override_configuration(uni_pre)
+    override_configuration(uni_pre.to_yaml)
 
-    if !fetch_s3(uni_pre)
+    if !fetch_s3(uni_pre.to_yaml)
       #mol.each{|msg| cleanup(@input_filename,msg.id)}
       return false
     end
-    fetch_uri(uni_pre)
-    store_s3_endpoints(uni_pre)
+    fetch_uri(uni_pre.to_yaml)
+    store_s3_endpoints(uni_pre.to_yaml)
 
-    mol.each{|msg| strip_directives(msg)}
+    #mol.each{|msg| strip_directives(msg)}
+    mol.each_with_index do |msg,idx|
+      strip_directives(msg)
+      if body_files[idx] != nil
+        begin
+          contents = File.read(body_files[idx].split(',')[1])
+        rescue
+          @logger.error "process_molecule couldn't read file #{body_files[idx].split(',')[1]}"
+          return false
+        end
+        msg.body.sub!(/.*/,contents)
+      end
+    end
 
     # FIXME: We're ignoring decompression here.
 
@@ -752,18 +779,17 @@ class Processor
       if do_result_step()
         @logger.info "Processing successful. Deleting molecule."
         mol.each{|msg| msg.delete}
-        #delete_file_as_body if @file_as_body # This must stay linked to deleting
-                                             # message from queue
       else
         # Make the message visible again in 10 seconds, rather than whatever its
         # natural timeout is
         mol.each{|msg| msg.visibility_timeout = 10}
       end
     end
-
     
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
+    body_files.delete_if{|f| f == nil}
+    body_files.each{|f| delete_file_as_body(f)}
     return success
   end
 
@@ -771,17 +797,15 @@ class Processor
   protected
   # Poll the in_queue, handling arrays of messages appropriately
   def poll_queue
+    if @atomicity > 1
+      poll_queue_atom(@atomicity)
+      return nil
+    end
     @in_queue.poll_no_delete(@polling_options) do |msg|
       msgary = Array(msg)
-      #case @atomicity
-      #when 1
-        msgary.each {|item| process_message(item)}
-      #when > 1
-        #if msgary.size() < @atomicity
-          #
-        #end
-      #end
+      msgary.each {|item| process_message(item)}
     end
+    return nil
   end
 
 
@@ -791,7 +815,11 @@ class Processor
     msgs = []
     while true
       msgs += Array(@in_queue.receive_message(opts))
-      next if msgs.size < a
+      if msgs.size < a
+        n = a - msgs.size
+        opts[:limit] = n > 10 ? 10 : n
+        next
+      end
       msgs = remove_duplicates(msgs)
       msgs.each_slice(a) do |molecule|
         if molecule.size == a
@@ -824,7 +852,7 @@ class Processor
   # Sets up an options hash for atomic polling.
   def atom_opts(a)
     opts = {}
-    opts[:limit] = a
+    opts[:limit] = a > 10 ? 10 : a
     opts[:attributes] = @polling_options.fetch('attributes',nil)
     opts[:wait_time_seconds] = @polling_options.fetch('wait_time_seconds',20)
     return opts
