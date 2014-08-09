@@ -17,8 +17,8 @@ ami_map:
   #worker_ISA:     'ami-42cf1b2a'
   worker_ISA:     'ami-42cf1b2a'
   worker_r2_ISA:  'ami-42cf1b2a'
-  worker_ISU:     'ami-42cf1b2a'
-  worker_mmp_dev:     'ami-42cf1b2a'
+  worker_ISU:     'ami-0eea3a66' #'ami-42cf1b2a'
+  worker_mmp_dev: 'ami-42cf1b2a'
   worker_mmp_staging: 'ami-42cf1b2a'
   worker_mmp_prod:    'ami-42cf1b2a'
   pregrid:        'ami-42cf1b2a'
@@ -90,13 +90,13 @@ launch_settings:
     size: 'c3.8xlarge'
 
   worker_ISA:
-    size: 'm3.2xlarge'
+    size: 'm1.medium' #'m3.2xlarge'
 
   worker_r2_ISA:
     size: 'r3.4xlarge'
 
   worker_ISU:
-    size: 'm1.xlarge'
+    size: 'm1.medium'
 
   worker_mmp_dev:
     size: 'm3.medium'
@@ -122,11 +122,11 @@ userdata:
     
     
   worker:
-    deploy_key: arks/default/worker.zip
+    deploy_key: arks/default/worker_x64.zip
     
   worker_ISA:
     deploy_key: arks/default/worker_x64.zip
-    number_of_processes: 8 
+    number_of_processes: 1 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
@@ -143,8 +143,8 @@ userdata:
     receive_queue_name: 6k_task_r2
 
   worker_ISU:
-    deploy_key: arks/default/worker.zip
-    number_of_processes: 4 
+    deploy_key: arks/default/worker_x64.zip
+    number_of_processes: 1 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISU_Marcus_weps.zip
@@ -152,7 +152,7 @@ userdata:
     receive_queue_name: purdue_task
     
   worker_Purdue:
-    deploy_key: arks/purdue/worker.zip
+    deploy_key: arks/purdue/worker_x64.zip
     number_of_processes: 44 
     gdb_key: tyner.gdb.zip
     gdb_install_name: tyner.gdb
@@ -197,7 +197,7 @@ userdata:
     s3_bucket: production
 
   pregrid:
-    deploy_key: arks/default/pregrid.zip
+    deploy_key: arks/default/pregrid_x64.zip
  
   pregrid_ISA:
     deploy_key: arks/default/pregrid_x64.zip
@@ -208,7 +208,7 @@ userdata:
     receive_queue_name: 6k_pregrid
 
   pregrid_ISU:
-    deploy_key: arks/default/pregrid.zip
+    deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISU_Marcus_weps.zip
@@ -216,7 +216,7 @@ userdata:
     receive_queue_name: purdue_job
 
   pregrid_Purdue:
-    deploy_key: arks/purdue/pregrid.zip
+    deploy_key: arks/purdue/pregrid_x64.zip
     gdb_key: tyner.gdb.zip
     gdb_install_name: tyner.gdb
     man_key: WEPS_Purdue.zip
