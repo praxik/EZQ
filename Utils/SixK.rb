@@ -205,7 +205,7 @@ class SixK
     puts ''
     puts "There are #{avail_ips} free ip addresses in the chosen subnet."
     print "Number of instances to bid (enter '0' to cancel): "
-    count = STDIN.gets.chomp[0].to_i
+    count = STDIN.gets.chomp.to_i
     if count <= 0
       puts "Taking no action and exiting."
       exit 0
@@ -242,7 +242,6 @@ class SixK
                :type=>'one-time',
                :launch_specification=>specs
                }
-
     
     ec2.client.request_spot_instances(options)
   end
