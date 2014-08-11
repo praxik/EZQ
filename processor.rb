@@ -264,7 +264,7 @@ class Processor
     output = []
     success, output = exec_cmd(commandline)
     @logger.fatal "Command does not exist!" if success == nil
-    @logger.warn "Command '#{commandline}' failed" if !success
+    @logger.warn "Command '#{commandline}' failed with output: \n#{output.join("\n")}" if !success
     if @retry_on_failure && !success
       num = @retries.to_i
       num.times do
