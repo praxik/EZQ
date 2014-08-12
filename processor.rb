@@ -779,6 +779,9 @@ class Processor
       if do_result_step()
         @logger.info "Processing successful. Deleting molecule."
         mol.each{|msg| msg.delete}
+        # body files are effectively part of the message
+        body_files.delete_if{|f| f == nil}
+        body_files.each{|f| delete_file_as_body(f)}
       else
         # Make the message visible again in 10 seconds, rather than whatever its
         # natural timeout is
@@ -788,8 +791,6 @@ class Processor
     
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
-    body_files.delete_if{|f| f == nil}
-    body_files.each{|f| delete_file_as_body(f)}
     return success
   end
 
