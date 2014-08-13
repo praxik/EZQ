@@ -181,6 +181,7 @@ end
 
 def job_statistics(msg)
   @job_stats = msg.gsub(/^job_statistics\s*:\s*/,'')
+  @log.info "job stats: #{@job_stats}"
 end
 
 def not_a_message(msg,r2_mode)
