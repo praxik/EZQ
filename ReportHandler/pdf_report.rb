@@ -137,7 +137,7 @@ def self.make_gis_images(data,field_data)
 
   # Generate dem map
   system("DISPLAY=:0 python agmap.py" +
-         " --maptype=aerial" +
+         " --maptype=dem" +
          " --output=\"#{out_dir}/dem.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
          " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
@@ -164,6 +164,27 @@ def self.make_gis_images(data,field_data)
          " --output=\"#{out_dir}/aerial.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
          " --qmlfile=\"template/QMLFiles/bnd_redblack_name.qml\"" +
+         " --width=2000 --height=2000 --autofit=false")
+
+
+  # Generate Soil Loss map
+  system("DISPLAY=:0 python agmap.py" +
+         " --maptype=dem" +
+         " --output=\"#{out_dir}/soil_loss.png\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_seg_soil_loss.tif\"" +
+         " --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
+         " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+         " --width=2000 --height=2000 --autofit=false")
+
+  # Generate Sediment Load map
+  system("DISPLAY=:0 python agmap.py" +
+         " --maptype=dem" +
+         " --output=\"#{out_dir}/sed_load.png\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_seg_sed_load.tif\"" +
+         " --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
+         " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
          " --width=2000 --height=2000 --autofit=false")
 end
 
@@ -389,7 +410,7 @@ PdfReport::make_histograms(data)
 pdfs = []
 # These are the report sections which will appear in the report in the order
 # specified by this array.
-names = ['managements','soils','results','profit','rate_of_return','soil_maps']#,'r2_maps']
+names = ['managements','soils','results','profit','rate_of_return','soil_maps','r2_maps']
 names.each do |name|
   pdfs << PdfReport::make_pdf("template/#{name}.html.erb",'header.html',data,name)
 end
