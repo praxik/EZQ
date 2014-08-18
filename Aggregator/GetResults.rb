@@ -301,7 +301,7 @@ class RusleReport < EZQ::Processor
     queue.send_message(msg)
 
     # At this point we should be able to safely drop the temporary db table
-    # containing the woker inputs
+    # containing the worker inputs
     @db.exec("drop table _#{@job_id.gsub('-','')}_inputs")
 
     # Wait for the file pushes to finish
@@ -328,6 +328,7 @@ class RusleReport < EZQ::Processor
     msgdata['atomicity'] = 2
     msg = "#{preamble}#{msgdata.to_json}"
 
+    # Create the dom crit results queue for this job
     sqs = AWS::SQS.new
     begin
       q = sqs.queues.named( dom_crit_results_queue )
@@ -335,6 +336,7 @@ class RusleReport < EZQ::Processor
       sqs.queues.create( dom_crit_results_queue )
     end
 
+    # Send the report gen message out
     rgq = '6k_report_gen'
     queue = AWS::SQS.new.queues.named(rgq)
     
