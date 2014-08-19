@@ -124,6 +124,8 @@ def start
                         @body['settings_for_aggregator']['aggregator_r2_post_process'],
                         '',
                         false)
+  else
+    sqs.queues.named(@wr2_results).delete
   end
   
 
