@@ -84,7 +84,7 @@ class Rusle2Aggregator < SingletonApp
     
     non_spec_data = remove_elements_not_in_spec!(data)
     # Save inputs to db only if that flag was set in the data
-    to_db(non_spec_data,data['job_id'],data.fetch('task_id','-1')) if data.fetch('aggregator_store_inputs',false)
+    to_db(non_spec_data,data['job_id'],data.fetch('task_id','-1')) if non_spec_data.fetch('aggregator_store_inputs',false)
     bindings, cols, val_holders = [],[],[]
     data.each do |k,v|
       cols.push(k)
