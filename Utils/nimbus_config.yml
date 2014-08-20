@@ -27,6 +27,7 @@ ami_map:
   pregrid_ISU:    'ami-42cf1b2a'
   # Linux
   reporthandler:  'ami-f4419c9c'
+  aggregator:     'ami-f4419c9c'
   aggregator_r2:  'ami-f4419c9c'
   errorhandler:   'ami-f4419c9c'
 
@@ -37,9 +38,9 @@ ami_map:
 security:
   base:
     vpc_id: 'vpc-e894b787'
-    #vpc_subnet: 'subnet-fc94b793' # development-private
+    vpc_subnet: 'subnet-fc94b793' # development-private
     #vpc_subnet: 'subnet-0f9ebd60' # staging-private
-    vpc_subnet: 'subnet-b2f1ff9a' # spot-1
+    #vpc_subnet: 'subnet-b2f1ff9a' # spot-1
     #vpc_subnet: 'subnet-83f1ffab' # spot-2
     #vpc_subnet: 'subnet-9bf1ffb3' # spot-3
     #vpc_subnet: 'subnet-92f1ffba' # spot-4
@@ -117,6 +118,9 @@ launch_settings:
     
   aggregator_r2:
     size: 'm3.2xlarge'
+    
+  aggregator:
+    size: 'm3.medium'
 
 # The information in this section is used to populate the userdata on
 # an instance prior to launch. The base section is merged with all launch types.
@@ -241,6 +245,10 @@ userdata:
   aggregator_r2:
     deploy_key: arks/default/aggregator_r2.zip
     receive_queue_name: 6k_aggregator_r2
+   
+  aggregator:
+    deploy_key: arks/default/aggregator.zip
+    receive_queue_name: 6k_aggregator
 
   errorhandler:
     deploy_key: arks/default/errorhandler.zip
