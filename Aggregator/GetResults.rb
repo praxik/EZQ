@@ -329,12 +329,12 @@ class RusleReport < EZQ::Processor
     msg = "#{preamble}#{msgdata.to_json}"
 
     # Create the dom crit results queue for this job
-    sqs = AWS::SQS.new
-    begin
-      q = sqs.queues.named( dom_crit_results_queue )
-    rescue
-      sqs.queues.create( dom_crit_results_queue )
-    end
+    #sqs = AWS::SQS.new
+    #begin
+      #q = sqs.queues.named( dom_crit_results_queue )
+    #rescue
+      #sqs.queues.create( dom_crit_results_queue )
+    #end
 
     # Send the report gen message out
     rgq = '6k_report_gen'
