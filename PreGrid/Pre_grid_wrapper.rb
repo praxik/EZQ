@@ -102,6 +102,17 @@ def start
   
   @log.info "6k_pregrid exited with exit status #{exit_status}"
 
+  if (!task_ids.empty?) and (@body['settings_for_aggregator'].fetch('generate_dominant_critical_soil_report',false))
+    # Create the dom crit results queue for this job
+    dom_crit_results_queue = "#{@job_id}_dom_crit_results"
+    sqs = AWS::SQS.new(@credentials)
+    begin
+      q = sqs.queues.named( dom_crit_results_queue )
+    rescue
+      sqs.queues.create( dom_crit_results_queue )
+    end
+  end
+
   send_aggregator_msg(task_ids,
                       @aggregator_files,
                       @body['aggregator_queue'],
@@ -211,7 +222,15 @@ end
 #    "aggregator_files" : [{"bucket"=>b, "key"=>k},{etc}],
 #    "generate_dominant_critical_soil
 #  }
-def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_table,post_proc,job_stats,store_inputs)
+def send_aggregator_msg(task_ids,
+                        files,
+                        queue_name,
+                        task_queue_name,
+                        q_to_agg,
+                        db_table,
+                        post_proc,
+                        job_stats,
+                        store_inputs)
   sqs = AWS::SQS.new(@credentials)
   if !task_ids.empty?
     preamble = {}
@@ -222,16 +241,19 @@ def send_aggregator_msg(task_ids,files,queue_name,task_queue_name,q_to_agg,db_ta
 
     report_gen['job_statistics'] = job_stats if !job_stats.empty?
 
+    get_s3_files = []
     # The file that ends in _job.json should go in the preamble because
     # Aggregator needs that one file
     idx = files.find_index{|f| f['key'] =~ /.+_job\.json/}
-    ezq['get_s3_files'] = [files[idx]] if idx
+    get_s3_files << files[idx] if idx
     files.delete_at(idx) if idx
 
     # Aggregator_r2 needs the _jobdetail.json file
     idx = files.find_index{|f| f['key'] =~ /.+_jobdetail\.json/}
-    ezq['get_s3_files'] = [files[idx]] if idx
+    get_s3_files << files[idx] if idx
     files.delete_at(idx) if idx
+
+    ezq['get_s3_files'] = get_s3_files unless get_s3_files.empty?
     
     # The remaining files go in the body of msg to Aggregator so that it can
     # pass their refs on to ReportGen.
