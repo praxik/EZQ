@@ -711,10 +711,11 @@ class Processor
         delete_file_as_body(@file_as_body) if @file_as_body # This must stay linked to deleting
                                              # message from queue
       else
-        # Make the message visible again in 10 seconds, rather than whatever its
-        # natural timeout is
+        # Since we've failed, make the message visible again in 10 seconds
         msg.visibility_timeout = 10
       end
+    else
+      msg.visibility_timeout = 10
     end
 
     # Cleanup even if processing otherwise failed.
