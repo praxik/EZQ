@@ -251,7 +251,7 @@ def send_aggregator_msg(task_ids,
     # Aggregator_r2 needs the _jobdetail.json file
     idx = files.find_index{|f| f['key'] =~ /.+_jobdetail\.json/}
     get_s3_files << files[idx] if idx
-    files.delete_at(idx) if idx
+
 
     ezq['get_s3_files'] = get_s3_files unless get_s3_files.empty?
     
