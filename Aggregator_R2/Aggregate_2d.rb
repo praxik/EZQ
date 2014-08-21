@@ -82,7 +82,7 @@ class Agg2d < EZQ::Processor
   # version of all the messages in the molecule), split it back up into separate
   # messages, do a deep merge on the contents, then write the results back out.
   def split_and_merge(file)
-    msgs = File.read(file).split("#####!@#$$#@!#####")
+    msgs = File.read(file).split("#####!@$$@!#####")
     result = {}
     msgs.each{|f| result.deep_merge!(JSON.parse(EZQ.fix_escapes(f)))}
     @record_id = JSON.parse(EZQ.fix_escapes(msgs[0]))['record_id']

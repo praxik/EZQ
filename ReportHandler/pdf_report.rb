@@ -234,7 +234,7 @@ job_id = ARGV.shift
 
 # Input file might be a concatenated file from a message molecule, but if so,
 # one of the messages is blank. We just need to remove the separator sequence
-worker_data = JSON.parse(File.read(input_file).gsub!('#####!@#$$#@!#####',''))
+worker_data = JSON.parse(File.read(input_file).gsub!('#####!@$$@!#####',''))
 
 #FileUtils.cp(input_file,"#{job_id}_pass_2_out")
 

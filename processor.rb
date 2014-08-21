@@ -738,6 +738,9 @@ class Processor
     body_files = preambles.map{|pre| get_s3_file_as_body(pre); @file_as_body}
     uni_pre = preambles.reduce(&:merge)
     uni_pre.delete('get_s3_file_as_body')
+    tmp = uni_pre
+    uni_pre = {}
+    uni_pre['EZQ'] = tmp
 
     override_configuration(uni_pre.to_yaml)
 
@@ -765,7 +768,7 @@ class Processor
     # FIXME: We're ignoring decompression here.
 
     # Concatenate all the message bodies into one big one.
-    body = mol.map{|msg| msg.body}.join("\n#####!@#$$#@!#####\n")
+    body = mol.map{|msg| msg.body}.join("\n#####!@$$@!#####\n")
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
 
