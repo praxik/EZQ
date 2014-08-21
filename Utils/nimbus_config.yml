@@ -38,9 +38,9 @@ ami_map:
 security:
   base:
     vpc_id: 'vpc-e894b787'
-    vpc_subnet: 'subnet-fc94b793' # development-private
+    #vpc_subnet: 'subnet-fc94b793' # development-private
     #vpc_subnet: 'subnet-0f9ebd60' # staging-private
-    #vpc_subnet: 'subnet-b2f1ff9a' # spot-1
+    vpc_subnet: 'subnet-b2f1ff9a' # spot-1
     #vpc_subnet: 'subnet-83f1ffab' # spot-2
     #vpc_subnet: 'subnet-9bf1ffb3' # spot-3
     #vpc_subnet: 'subnet-92f1ffba' # spot-4
@@ -120,6 +120,9 @@ launch_settings:
     size: 'm3.2xlarge'
     
   aggregator:
+    size: 'm3.medium'
+    
+  reporthandler:
     size: 'm3.medium'
 
 # The information in this section is used to populate the userdata on
@@ -240,7 +243,7 @@ userdata:
 
   reporthandler:
     deploy_key: arks/default/reporthandler.zip
-    receive_queue_name: 6k_aggregator
+    receive_queue_name: 6k_report_gen
 
   aggregator_r2:
     deploy_key: arks/default/aggregator_r2.zip
