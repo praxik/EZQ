@@ -28,8 +28,6 @@
 				<% data[:cb_year].each_with_index do |yr,n| %>
 				  <tr>
 				    <th>Profit <%= yr %> <%= data[:cb_crop][n] %> 
-				      <!--<br> Min: <%= "$ %.2f" % data[:cb_min][n] %>
-				      <br> Max: <%= "$ %.2f" % data[:cb_max][n] %>--> 
 				    <div class="budget-font">Avg ($/ac): <%= "$ %.2f" % data[:cb_average][n] %></div>
 				    </th>
 				    <td>
