@@ -4,7 +4,10 @@ input_file = ARGV.shift
 
 job_id, rec_id, year_id, rr = input_file.split('_')
 doc = Nokogiri::XML(open("json/#{input_file}"))
-hist = doc.search('HistItem')[1]
+# Something changed with the xml output from qgis: previously there were two
+# sets of hist data, and we needed the second. Now there's only one set. I have
+# no idea what changed. Cause for concern.
+hist = doc.search('HistItem')[0]
 
 #hist.at_xpath('HistMin').to_s
 
@@ -18,9 +21,9 @@ counts = counts.split('|')
 counts = counts.map{|i| i.to_i * 9 * 0.000247105} # *9 converts from mapunit to
                                                   # m^2. 0.0002... converts from
                                                   # m^2 to acre
-
 hashed = {}
-counts.each_with_index{|v,i| hashed[min + i*binwidth] = v }
+# Division by 100 on the key converts from percent to fraction
+counts.each_with_index{|v,i| hashed[(min + i*binwidth)/100.0] = v }
 
 rebinned_hist = {}
 rebinned_hist[-1.0] = hashed.reduce(0){|sum,(k,v)| sum = k < -0.9 ? sum + v : sum}
