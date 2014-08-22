@@ -136,8 +136,16 @@ def self.make_gis_images(data,field_data)
   end
 
   # Generate dem map
+  #system("DISPLAY=:0 python agmap.py" +
+         #" --maptype=dem" +
+         #" --output=\"#{out_dir}/dem.png\"" +
+         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         #" --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         #" --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
+         #" --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+         #" --width=2000 --height=2000 --autofit=false")
   system("DISPLAY=:0 python agmap.py" +
-         " --maptype=dem" +
+         " --maptype=aerial" +
          " --output=\"#{out_dir}/dem.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
          " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
@@ -145,20 +153,38 @@ def self.make_gis_images(data,field_data)
          " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
          " --width=2000 --height=2000 --autofit=false")
 
-  # Generate dem legend...right now this doesn't work along with the dem-aerial
-  # overlay
+  # Generate dem legend separately
   system("DISPLAY=:0 python agmap.py" +
-         " --maptype=dem" +
+         " --maptype=aerial" +
          " --output=\"#{out_dir}/trash_dem.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
-         " --legendformat=png" +
+         " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         " --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
          " --legendtype=dem" +
          " --legendformat=png" +
          " --legendfile=#{out_dir}/dem_legend.png" +
-         " --legendunits=ft")
+         " --width=2000 --height=2000 --autofit=false")
+
+  # Generate dem legend...right now this doesn't work along with the dem-aerial
+  # overlay
+  #system("DISPLAY=:0 python agmap.py" +
+         #" --maptype=dem" +
+         #" --output=\"#{out_dir}/trash_dem.png\"" +
+         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_dem.tif\"" +
+         #" --legendformat=png" +
+         #" --legendtype=dem" +
+         #" --legendformat=png" +
+         #" --legendfile=#{out_dir}/dem_legend.png" +
+         #" --legendunits=ft")
 
 
   # Generate aerial map with overlay
+  #system("DISPLAY=:0 python agmap.py" +
+         #" --maptype=aerial" +
+         #" --output=\"#{out_dir}/aerial.png\"" +
+         #" --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
+         #" --qmlfile=\"template/QMLFiles/bnd_redblack_name.qml\"" +
+         #" --width=2000 --height=2000 --autofit=false")
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=aerial" +
          " --output=\"#{out_dir}/aerial.png\"" +
@@ -171,20 +197,16 @@ def self.make_gis_images(data,field_data)
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=dem" +
          " --output=\"#{out_dir}/soil_loss.png\"" +
-         " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
-         " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_seg_soil_loss.tif\"" +
-         " --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
-         " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_seg_soil_loss.tif\"" +
+         " --legendtype=soilloss --legendformat=png" +
          " --width=2000 --height=2000 --autofit=false")
 
   # Generate Sediment Load map
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=dem" +
-         " --output=\"#{out_dir}/sed_load.png\"" +
-         " --input=\"#{json_dir}/#{job_id}_#{record_id}_fieldboundary.json\"" +
-         " --inputdem=\"#{json_dir}/#{job_id}_#{record_id}_seg_sed_load.tif\"" +
-         " --inputchan=\"#{json_dir}/#{job_id}_#{record_id}_channel.tif\"" +
-         " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+         " --output=\"#{out_dir}/seg_sed_load.png\"" +
+         " --input=\"#{json_dir}/#{job_id}_#{record_id}_seg_sed_load.tif\"" +
+         " --legendtype=soilloss --legendformat=png" +
          " --width=2000 --height=2000 --autofit=false")
 end
 
