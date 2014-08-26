@@ -18,7 +18,7 @@ def start
       num = n.to_i
     end
     opts.on("-t", "--check_interval SECONDS","SECONDS to wait between checking whether processes are still alive") do |s|
-      timeout = s.to_i
+      check_interval = s.to_i
     end
     opts.on("-i", "--ids","Whether to replace the pattern $pid in the command string with a unique id") do |ids|
       use_ids = ids
@@ -30,7 +30,7 @@ def start
     exit(1)
   end
   
-  if !command or n == 0  or check_interval < 1
+  if command.empty? or num == 0  or check_interval < 1
     puts op
     exit(1)
   end
@@ -38,8 +38,8 @@ def start
   pids = []
 
   # Start initial batch of processes
-  n.times do |idx|
-    cmd = ids ? command.gsub('$pid',"#{idx}") : command
+  num.times do |idx|
+    cmd = use_ids ? command.gsub('$pid',"#{idx}") : command
     pids << spawn(cmd)
   end
 
