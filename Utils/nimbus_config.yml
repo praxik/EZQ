@@ -17,7 +17,8 @@ ami_map:
   #worker_ISA:     'ami-42cf1b2a'
   worker_ISA:     'ami-42cf1b2a'
   worker_r2_ISA:  'ami-42cf1b2a'
-  worker_ISU:     'ami-42cf1b2a'
+  worker_ISU:     'ami-2c60be44' #'ami-42cf1b2a'
+  server_worker_ISU: 'ami-42cf1b2a'
   worker_mmp_dev: 'ami-42cf1b2a'
   worker_mmp_staging: 'ami-42cf1b2a'
   worker_mmp_prod:    'ami-42cf1b2a'
@@ -40,8 +41,8 @@ security:
     vpc_id: 'vpc-e894b787'
     #vpc_subnet: 'subnet-fc94b793' # development-private
     #vpc_subnet: 'subnet-0f9ebd60' # staging-private
-    vpc_subnet: 'subnet-b2f1ff9a' # spot-1
-    #vpc_subnet: 'subnet-83f1ffab' # spot-2
+    #vpc_subnet: 'subnet-b2f1ff9a' # spot-1
+    vpc_subnet: 'subnet-83f1ffab' # spot-2
     #vpc_subnet: 'subnet-9bf1ffb3' # spot-3
     #vpc_subnet: 'subnet-92f1ffba' # spot-4
     
@@ -106,6 +107,9 @@ launch_settings:
 
   worker_ISU:
     size: 'm1.medium'
+    
+  server_worker_ISU:
+    size: 'm1.medium'
 
   worker_mmp_dev:
     size: 'm3.medium'
@@ -169,6 +173,17 @@ userdata:
     r2_man_key: PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
     receive_queue_name: purdue_task
     
+  server_worker_ISU:
+    deploy_key: arks/default/server_worker_x64.zip
+    number_of_processes: 1 
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
+    r2_man_key: PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    receive_queue_name: purdue_task
+    keep_alive_check_interval: 30
+    server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
+    
   worker_Purdue:
     deploy_key: arks/purdue/worker_x64.zip
     number_of_processes: 44 
@@ -229,8 +244,8 @@ userdata:
     deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    man_key: PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
+    r2_man_key: PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
     receive_queue_name: purdue_job
 
   pregrid_Purdue:
