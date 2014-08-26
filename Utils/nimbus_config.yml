@@ -178,9 +178,9 @@ userdata:
     number_of_processes: 1 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
-    receive_queue_name: purdue_task
+    man_key: ISA_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
+    r2_man_key: ISA_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    receive_queue_name: 6k_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
     
