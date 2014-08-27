@@ -308,7 +308,7 @@ class SixK
       opts.on("-g","--ipfile FILE",
                     "File containing list of instance IP",
                     "addresses to #{action}.") do |f|
-        ipfile = f
+        ip_file = f
       end
       opts.on("-t","--type TYPE",
                     "#{action} all instances of type TYPE.",
