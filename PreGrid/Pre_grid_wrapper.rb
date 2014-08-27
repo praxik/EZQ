@@ -50,6 +50,7 @@ def set_class_vars_from_input_file(inputfile)
   end
   @command.gsub!('$jobid',@job_id)
   @command.gsub!('$input_file',inputfile)
+  @log.info "Pregrid command: #{@command}"
 end
 
 
@@ -102,10 +103,10 @@ def start
   
   @log.info "6k_pregrid exited with exit status #{exit_status}"
 
+  sqs = AWS::SQS.new(@credentials)
   if (!task_ids.empty?) and (@body['settings_for_aggregator'].fetch('generate_dominant_critical_soil_report',false))
     # Create the dom crit results queue for this job
     dom_crit_results_queue = "#{@job_id}_dom_crit_results"
-    sqs = AWS::SQS.new(@credentials)
     begin
       q = sqs.queues.named( dom_crit_results_queue )
     rescue
