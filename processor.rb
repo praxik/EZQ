@@ -664,7 +664,11 @@ class Processor
     s3 = AWS::S3.new
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ] if b
-    obj.delete if obj
+    begin
+      obj.delete if obj
+    rescue
+      @logger.warning "Failed to delete file as body #{bucket_comma_file}"
+    end
     File.delete(key) if File.exists?(key)
     return nil
   end
@@ -707,20 +711,40 @@ class Processor
       # Do result_step before deleting the message in case result_step fails.
       if do_result_step()
         @logger.info "Processing successful. Deleting message #{@id}"
-        msg.delete
+        delete_message(msg)
         delete_file_as_body(@file_as_body) if @file_as_body # This must stay linked to deleting
                                              # message from queue
       else
         # Since we've failed, make the message visible again in 10 seconds
-        msg.visibility_timeout = 10
+        set_visibility(msg,10)
       end
     else
-      msg.visibility_timeout = 10
+      set_visibility(msg,10)
     end
 
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
     return success
+  end
+
+
+  protected
+  def set_visibility(msg,timeout)
+    begin
+      msg.visibility_timeout = timeout
+    rescue
+      @logger.warning "Failed to reset timeout on msg #{msg.id}"
+    end
+  end
+
+
+  protected
+  def delete_message(msg)
+    begin
+      msg.delete
+    rescue
+      @logger.warning "Failed to delete msg #{msg.id}"
+    end
   end
 
 
@@ -782,14 +806,14 @@ class Processor
       # Do result_step before deleting the message in case result_step fails.
       if do_result_step()
         @logger.info "Processing successful. Deleting molecule."
-        mol.each{|msg| msg.delete}
+        mol.each{|msg| delete_message(msg)}
         # body files are effectively part of the message
         body_files.delete_if{|f| f == nil}
         body_files.each{|f| delete_file_as_body(f)}
       else
         # Make the message visible again in 10 seconds, rather than whatever its
         # natural timeout is
-        mol.each{|msg| msg.visibility_timeout = 10}
+        mol.each{|msg| set_visibility(msg,10)}
       end
     end
     
