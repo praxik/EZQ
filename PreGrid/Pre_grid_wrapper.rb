@@ -306,6 +306,9 @@ def divert_body_to_s3(body,preamble)
   new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
   body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
   return [body,new_preamble]
+rescue => e
+  @log.error "#{e}"
+  retry
 end
 
 
@@ -337,7 +340,7 @@ end # class
 
 lf = File.new('Pre_grid_wrapper.log', 'a')
 lf.sync = true
-log = Logger.new(lf)
+log = Logger.new(lf,5,1024*1024*20)
 $stderr = lf
 log.level = Logger::INFO
 

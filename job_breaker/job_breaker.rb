@@ -23,10 +23,15 @@ class FilePusher
     end
     logger.info "Pushing #{bucket_comma_filename}"
     if File.exists?(fname)
-      s3 = AWS::S3.new(credentials)
-      bucket = s3.buckets[bname]
-      obj = bucket.objects.create(fname,Pathname.new(fname))
-      AWS.config.http_handler.pool.empty!
+      begin
+        s3 = AWS::S3.new(credentials)
+        bucket = s3.buckets[bname]
+        obj = bucket.objects.create(fname,Pathname.new(fname))
+        AWS.config.http_handler.pool.empty!
+      rescue => e
+        logger.error "FilePusher: #{e}"
+        retry
+      end
     else
       logger.error "file #{fname} does not exist; can't push it to S3."
       return nil
@@ -367,7 +372,7 @@ if __FILE__ == $0
   
   begin
     puts "EZQ.Job_Breaker started.\n\n" unless quiet
-    log = Logger.new(log_file)
+    log = Logger.new(log_file,5,1024*1024*20)
     if quiet && log_file == STDOUT
       log.level = Logger::UNKNOWN
     else
