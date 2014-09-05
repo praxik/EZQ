@@ -111,16 +111,16 @@ launch_settings:
   #worker:
   #  size: 'c3.8xlarge'
   pregrid:
-    size: 'm3.medium'
+    size: 't2.medium'
   
   pregrid_ISA:
-    size: 'm3.medium'
+    size: 't2.medium'
   
   pregrid_Purdue:
-    size: 'm3.medium'
+    size: 't2.medium'
 
   pregrid_ISU:
-    size: 'm3.medium'
+    size: 't2.medium'
     
   pregrid_IN:
     size: 'm3.medium'
@@ -144,13 +144,13 @@ launch_settings:
     size: 'm1.xlarge'
 
   worker_mmp_dev:
-    size: 'm3.medium'
+    size: 't2.medium'
 
   worker_mmp_staging:
-    size: 'm3.medium'
+    size: 't2.medium'
 
   worker_mmp_prod:
-    size: 'm3.medium'
+    size: 't2.medium'
     
   aggregator_r2:
     size: 'm3.2xlarge'
