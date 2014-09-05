@@ -13,20 +13,52 @@ require 'securerandom'
 class BatchProcessor
 
 def initialize(job_desc)
+
+  # Pull query out of job_desc
+  query = job_desc['query']
+  fail_with("No query sepcified in job description to BatchProcessor") if !query
+
+  # Normally we just call start.
+  start()
+
+  # If we want to do custom looping or dynamic query transformation, we can do
+  # that here. For example, in the IN run we had a table with ~1.7M records
+  # which we wanted to partition into batches of 75k. To do that, we rewrote the
+  # query to contain replaceable tokens that specify a range of records, then
+  # loop through the partitions, replacing those tokens as appropriate.
+  # The non-tokened query was:
+  #      "select * from purdue_in_scn_08_27_14"
+  # We replaced this with:
+  #      "select * from purdue_in_scn_08_27_14 where id > $min and id <= $max order by id"
+  # and then used the following code to partition into chunks of 75k
+  # min = 0 # actual min id in table is 1
+  # max = 75000
+  # interval = 75000
+  # limit = 1725000 # There are actually ~1 670 000 records. 1725000 is the multiple
+                  # of interval that is just above the actual upper limit.
+
+  # while max <= limit
+  #   start(job_desc, query.gsub('$min',"#{min}").gsub('$max',"#{max}"))
+  #   min = max
+  #   max += interval
+  # end
+end
+
+
+
+def start(job_desc, query)
+  puts query
+
   # Pull connection string out of job_desc
   conn_str = job_desc['connection_string']
   fail_wtih("No connection string specified for BatchProcessor.") if !conn_str
-
+  
   # Connect to db
   begin
     db = PG.connect(conn_str)
   rescue => e
     fail_with("Failed to connect to db with error: #{e}")
   end
-
-  # Pull query out of job_desc
-  query = job_desc['query']
-  fail_with("No query sepcified in job description to BatchProcessor") if !query
 
   # Execute query
   result = db.exec(query)
