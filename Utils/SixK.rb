@@ -27,6 +27,7 @@ class SixK
     @config['ami_map'].each { |k,v| @imgs[k] = v }
 
     @types = @imgs.keys
+    @spot_subnets = @config['spot_subnets']
   end
 
 ################################################################################
@@ -174,7 +175,7 @@ class SixK
   end
 
 
-
+################################################################################
   def self.launch(name,type)
     option_hash = { :image_id => @imgs[type],
                 :subnet => @vpc_subnet,
@@ -198,17 +199,31 @@ class SixK
     instances.each {|inst| puts inst.id}
   end
 
-
+################################################################################
   def self.spot(type)
     ec2 = AWS::EC2.new
 
-    avail_ips = ec2.subnets[@vpc_subnet].available_ip_address_count()
+    puts ''
+    puts "Choose subnets across which to span bid: "
+    @spot_subnets.each_with_index do |sn,idx|
+      ips = ec2.subnets[sn].available_ip_address_count()
+      name = ec2.subnets[sn].tags['Name']
+      cidr = ec2.subnets[sn].cidr_block()
+      info = [idx+1,sn,name,cidr,ips]
+      puts "%-2d:  %-15s  %-15.15s  %-15.15s  %-3d free ips" % info
+    end
+    print "Enter as a comma-separated list of numbers: "
+    subnet_indices = STDIN.gets.chomp.split(',').map{|i| i.strip.to_i}
+    subnets = subnet_indices.map{|i| @spot_subnets[i-1]}
+
+    n_ips = subnets.reduce(0){|acc,s| acc += ec2.subnets[s].available_ip_address_count()}
+    
+    #avail_ips = ec2.subnets[@vpc_subnet].available_ip_address_count()
 
     puts ''
-    puts "There are #{avail_ips} free ip addresses in the chosen subnet."
-    print "Number of instances to bid (enter '0' to cancel): "
+    print "Number of instances to bid (0 - #{n_ips}): "
     count = STDIN.gets.chomp.to_i
-    if count <= 0
+    if count <= 0 or count > n_ips
       puts "Taking no action and exiting."
       exit 0
     end
@@ -227,25 +242,45 @@ class SixK
     print 'Bid price ($): '
     price = STDIN.gets.chomp
 
+    puts ''
+    print "#{count} instances at $ %2.5f will cost $ %5.2f per hour. Continue? [y/N]: " % [price.to_f,count*price.to_f]
+    cont = STDIN.gets.chomp
+    if cont.downcase != 'y'
+      puts "Taking no action and exiting."
+      exit 0
+    end
+
     # When using the low-level client interface, we have to convert security
     # group names to ids iff running in a subnet.
     sgs = ec2.security_groups.filter('group-name',*@security_groups)
     sgids = []
     sgs.each{|sg| sgids << sg.id}
 
-    specs = { :image_id => @imgs[type],
-              :subnet_id => @vpc_subnet,
-              :security_group_ids => sgids,
-              :instance_type => @size,
-              :user_data => Base64.encode64(@userdata.to_yaml) }
+    # Rather than doing a fair spread across the subnets, we fill up the subnets
+    # in the order they were chosen.
+    sn_index = 0
+    while (count > 0) and (sn_index < subnets.size)
+      sn_id = subnets[sn_index]
+      specs = { :image_id => @imgs[type],
+                :subnet_id => sn_id,
+                :security_group_ids => sgids,
+                :instance_type => @size,
+                :user_data => Base64.encode64(@userdata.to_yaml) }
 
-    options = {:spot_price=>price,
-               :instance_count=>count,
-               :type=>'one-time',
-               :launch_specification=>specs
-               }
+      av = ec2.subnets[sn_id].available_ip_address_count
+      num_instances = (count >= av) ? av : count
+      count = (count >= av) ? (count - av) : 0
+
+      options = {:spot_price=>price,
+                 :instance_count=>num_instances,
+                 :type=>'one-time',
+                 :launch_specification=>specs
+                 }
+
+      ec2.client.request_spot_instances(options)
+      sn_index += 1
+    end
     
-    ec2.client.request_spot_instances(options)
   end
 
 
@@ -572,9 +607,9 @@ class SixK
       #v.insert(0,k) # Insert the image ID at the head of the value array
       if ssh_connect
         v.insert(0,idx+1)
-        str = "%4d %-30s  %-3s  %-12s  %-10s  %-4s" % v
+        str = "%4d %-30.30s  %-3s  %-12s  %-10s  %-4s" % v
       else
-        str = "%-30s  %-3s  %-12s  %-10s  %-4s" % v
+        str = "%-30.30s  %-3s  %-12s  %-10s  %-4s" % v
       end
       puts str
     end
