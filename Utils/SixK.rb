@@ -4,6 +4,8 @@ require 'yaml'
 require 'aws-sdk'
 require 'optparse'
 require 'base64'
+require 'json'
+require './instance_info_collection'
 
 class SixK
 
@@ -531,6 +533,7 @@ class SixK
     # Prepend '6K_' onto the list of types.
     type.map! {|e| "6k_#{e}"}
 
+    # The short status tags we'll use for display in a list
     status_replacements = { :pending => 'P',
                             :running => 'R',
                             :shutting_down => 'ShD',
@@ -542,83 +545,97 @@ class SixK
       status_flags =
                [:pending,:running,:shutting_down,:terminated,:stopping,:stopped]
     end
-                            
-    ec2 = AWS::EC2.new
-    all_inst = ec2.instances.filter('tag-key','Type').reduce({}) do |h, i|
-      if type.include?( i.tags['Type'] ) and status_flags.include?(i.status)
-        h[i.id] = [i.tags['Name'],
-                   status_replacements[i.status],
-                   i.private_ip_address,
-                   i.instance_type]
-      end
-      h        
+
+    # List of available filters is at
+    # http://docs.aws.amazon.com/cli/latest/reference/ec2/describe-instances.html
+    # 'instance-state-name' filter works on strings, not symbols
+    status_filter = status_flags.map{|s| s.to_s}
+    filters = [{:name=>'instance-state-name',:values => status_filter},
+               {:name=>'tag:Type',:values=>type}]
+    instances = Nimbus::InstanceInfoCollection.new.filter(filters)
+    disp_info = {}
+    instances.each do |i|
+      disp_info[i.id] = [ i.tags['Name'],
+                          status_replacements[i.status],
+                          i.private_ip_address,
+                          i.type,
+                          i.spot? ? 'T' : 'F' ]
     end
 
-    if !all_inst || all_inst.empty?
+    if !disp_info || disp_info.empty?
       puts 'No matching instances.'
       exit 0
     end
 
-    puts '---------------------------------------------------------------------'
-    space = ssh_connect ? ' # ' : '' #Add padding if ssh numbers will appear
-    puts "#{space}%-10s  %-30s  %-3s  %-12s  %-10s" %
-      ['ID','Name','State','Priv. IP','Size']
-    puts '---------------------------------------------------------------------'
-    all_inst.each_with_index do |(k,v),idx|
-      v.insert(0,k) # Insert the image ID at the head of the value array
+    puts '--------------------------------------------------------------------------------'
+    space = ssh_connect ? '   # ' : '' #Add padding if ssh numbers will appear
+    puts "#{space}%-30s  %-3s  %-12s  %-10s  %-4s" %
+      ['Name','Sts','IP','Size','Spt?']
+    puts '--------------------------------------------------------------------------------'
+    disp_info.each_with_index do |(k,v),idx|
+      #v.insert(0,k) # Insert the image ID at the head of the value array
       if ssh_connect
         v.insert(0,idx+1)
-        str = "%2d %-10s  %-30s  %-3s  %-12s  %-10s" % v
+        str = "%4d %-30s  %-3s  %-12s  %-10s  %-4s" % v
       else
-        str = "%-10s  %-30s  %-3s  %-12s  %-10s" % v
+        str = "%-30s  %-3s  %-12s  %-10s  %-4s" % v
       end
       puts str
     end
 
-    if ssh_connect
-      puts ''
-      puts 'Enter # of instance to which to connect and press Enter.'
-      puts 'Leave blank to exit without connecting to an instance.'
-      print '> '
-      n = gets
-
-      if n.strip.empty?
-        puts 'Exiting without making a connection.'
-        exit 0
-      else
-        conn_to = n.strip.to_i
-        if conn_to < 1 or conn_to > all_inst.size
-          warn "#{conn_to} is not a valid instance number."
-          exit 1
-        end
-        ssh_config = YAML.load(File.read('nimbus_ssh.yml'))
-
-        inst = ec2.instances[all_inst.keys[conn_to-1]]
-        i_type = inst.tags['Type'].gsub(/^6k_/,'')
-
-        flags = ssh_config['base']
-        flags.merge!(ssh_config[i_type]) if ssh_config.has_key?(i_type)
-
-        p_user = flags['proxy_user']
-        p_id = flags['proxy_identity']
-        p_ip = flags['proxy_ip']
-        h_user = flags['host_user']
-        h_id = flags['host_identity']
-        h_ip = inst.private_ip_address
-        l_p = flags['local_tunnel_port']
-        h_p = flags['host_tunnel_port']
-        
-        case flags['action']
-        when 'tunnel'
-          ssh_cmd = "ssh -i #{p_id} -L #{l_p}:#{h_ip}:#{h_p} #{p_user}@#{p_ip}"
-        when 'shell'
-          ssh_cmd = "ssh -i #{h_id} -o 'ProxyCommand=ssh -i #{p_id} #{p_user}@#{p_ip} nc -q0 #{h_ip} 22' #{h_user}@#{h_ip}"
-        end
-        #puts ssh_cmd
-        system(ssh_cmd)
-      end
-    end
+    connect(instances) if ssh_connect
       
+  end
+
+
+################################################################################
+  def self.connect(instances)
+    puts ''
+    puts 'Enter # of instance to which to connect and press Enter.'
+    puts 'Leave blank to exit without connecting to an instance.'
+    print '> '
+    n = gets
+
+    if n.strip.empty?
+      puts 'Exiting without making a connection.'
+      exit 0
+    else
+      conn_to = n.strip.to_i
+      if conn_to < 1 or conn_to > instances.size
+        warn "#{conn_to} is not a valid instance number."
+        exit 1
+      end
+      ssh_config = YAML.load(File.read('nimbus_ssh.yml'))
+
+      ec2 = AWS::EC2.new
+      inst = instances[conn_to-1]
+      i_type = inst.tags['Type'].gsub(/^6k_/,'')
+
+      flags = ssh_config['base']
+      # Default to tunnel if windows, shell otherwise
+      flags['action'] = inst.platform() == 'windows' ? 'tunnel' : 'shell'
+      # action can still be overridden by setting in type-specific config
+      flags.merge!(ssh_config[i_type]) if ssh_config.has_key?(i_type)
+
+      p_user = flags['proxy_user']
+      p_id = flags['proxy_identity']
+      p_ip = flags['proxy_ip']
+      h_user = flags['host_user']
+      h_id = flags['host_identity']
+      h_ip = inst.private_ip_address()
+      l_p = flags['local_tunnel_port']
+      h_p = flags['host_tunnel_port']
+      
+      case flags['action']
+      when 'tunnel'
+        puts "Setting up tunnel to #{h_ip} mapping port #{h_p} to local port #{l_p}"
+        ssh_cmd = "ssh -i #{p_id} -L #{l_p}:#{h_ip}:#{h_p} #{p_user}@#{p_ip}"
+      when 'shell'
+        puts "Setting up shell for #{h_ip}"
+        ssh_cmd = "ssh -i #{h_id} -o 'ProxyCommand=ssh -i #{p_id} #{p_user}@#{p_ip} nc -q0 #{h_ip} 22' #{h_user}@#{h_ip}"
+      end
+      system(ssh_cmd)
+    end
   end
   
 ################################################################################
