@@ -270,7 +270,7 @@ module EZQ
   #                                        a comma and no spaces. The bucket
   #                                        will be created if it doesn't exist.
   # @return [Thread] Returns a handle to a Thread. You should ensure that
-  #                  Thread#join is called on this thread before existing your
+  #                  Thread#join is called on this thread before exiting your
   #                  application.
   def self.send_bcf_to_s3_async( bucket_comma_filename )
     bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
@@ -323,8 +323,35 @@ module EZQ
   end
 
 
+  # Pulls a single file down from S3. This method checks for the existence of
+  # a local file with the same name as the one in S3. If the local file
+  # exists and its md5 is the same as the file in S3, the method returns true
+  # without actually downloading the file.
+  # @param [String] bucket The S3 bucket from which to pull
+  # @param [String] key The S3 key, which will also map directly to the local filename
+  # @return [Bool] true if successful, false otherwise
+  def self.get_s3_file(bucket,key)
+    s3 = AWS::S3.new
+    b = s3.buckets[ bucket ]
+    obj = b.objects[ key ]
+    FileUtils.mkdir_p(File.dirname(key))
+    
+    # Do we already have a current version of this file?
+    return true if File.exists?(key) and (obj.etag() == md5file(key).hexdigest)
+    
+    begin
+      File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
+    rescue
+      return false  
+    end
+    return true
+  end
+
+
   # Get md5 of a file without having to read entire file into memory at once.
   # From https://www.ruby-forum.com/topic/58563
+  # @param [String] filename The name of the file to digest.
+  # @return [Digest] An md5 digest object.
   def self.md5file(filename)
     md5 = File.open(filename, 'rb') do |io|
       dig = Digest::MD5.new
