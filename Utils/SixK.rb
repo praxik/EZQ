@@ -354,7 +354,7 @@ class SixK
       exit 1
     end
 
-    instances = AWS::EC2::InstanceCollection.new
+    filters = []
     if !type.empty?
       allowable = ['all'] + @types
       if !allowable.include?(type)
@@ -368,12 +368,7 @@ class SixK
       # allowed tags. This prevents us from being able to accidentally
       # stop or terminate a non-6k instance. This protection only works if a 
       # type was sepcified, though!
-      filter_string = ''
-      type.each do |t|
-        filter_string += "'#{t}',"
-      end
-      filter_string.slice!(filter_string.length - 1) # chomp the terminal comma
-      instances = eval("instances.filter('tag:Type',#{filter_string})")
+      filters << {:name=>"tag:Type",:values=>type}
     end
 
     # Gather together all ids from both possible id sources
@@ -397,23 +392,24 @@ class SixK
     end
 
     # Filter instances by id and ip
-    instances = instances.filter('private-ip-address',ip_list) if !ip_list.empty?
-    instances = instances.filter('instance-id',id_list) if !id_list.empty?
+    filters << {:name=>'private-ip-address',:values=>ip_list} if !ip_list.empty?
+    filters << {:name=>'instance-id',:values=>id_list} if !id_list.empty?
 
 
     # Select only the running or pending ones if stopping
     case action
     when 'stop'
-      instances = instances.filter('instance-state-name','running',
-                                                         'pending')
+      filters << {:name=>'instance-state-name',:values=>['running',
+                                                         'pending']}
     when 'terminate'
-      instances = instances.filter('instance-state-name','running',
+      filters << {:name=>'instance-state-name',:values=>['running',
                                                          'pending',
-                                                         'stopped')
+                                                         'stopped']}
     when 'start'
-      instances = instances.filter('instance-state-name','stopped')
+      filters << {:name=>'instance-state-name',:values=>['stopped']}
     end
 
+    instances = Nimbus::InstanceInfoCollection.new.filter(filters)
     
     # Really start|stop|terminate these?
     unless no_prompt
@@ -441,13 +437,13 @@ class SixK
 
     case action
     when 'start'
-      instances.each {|i| i.start}
+      instances.start_all()
       puts 'Started instances.'
     when 'stop'
-      instances.each {|i| i.stop}
+      instances.stop_all()
       puts 'Stopped instances.'
     when 'terminate'
-      instances.each {|i| i.terminate}
+      instances.terminate_all()
       puts 'Terminated instances.'
     else
       warn 'Error: This branch of stopinate should never be called.'
