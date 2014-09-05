@@ -22,6 +22,11 @@ class InstanceInfoCollection
     return nil
   end
 
+  def start_all
+    @client.start_instances({:instance_ids=>ids()})
+    return nil
+  end
+
   def get_ids
     return @instances.map{|i| i.instance_id}
   end
