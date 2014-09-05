@@ -283,12 +283,18 @@ module EZQ
   # as a thread object.
   class DataPusher
     def initialize( data,bucket_name,key )
+      @retries ||= 10
       s3 = AWS::S3.new
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
-      obj = bucket.objects.create(key,data)
+      obj = bucket.objects[key]
+      return nil if obj.exists? and obj.etag() == Digest::MD5.hexdigest(data)
+      obj.write(data)
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
+    rescue => e
+      retry if (@retries -= 1) > -1
+      raise e
     end
   end
 
@@ -298,16 +304,33 @@ module EZQ
   # as a thread object.
   class FilePusher
     def initialize( filename,bucket_name,key )
-      if File.exists?(filename)
-        s3 = AWS::S3.new
-        s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
-        bucket = s3.buckets[bucket_name]
-        obj = bucket.objects.create(key,Pathname.new(filename))
-        AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
-      else
+      @retries ||= 10
+      if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
       end
+      s3 = AWS::S3.new
+      s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
+      bucket = s3.buckets[bucket_name]
+      obj = bucket.objects[key]
+      return nil if obj.exists? and obj.etag() == md5file(filename).hexdigest
+      obj.write(Pathname.new(filename))
+      AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
+    rescue => e
+      retry if (@retries -= 1) > -1
+      raise e
+    end
+  end
+
+
+  # Get md5 of a file without having to read entire file into memory at once.
+  # From https://www.ruby-forum.com/topic/58563
+  def self.md5file(filename)
+    md5 = File.open(filename, 'rb') do |io|
+      dig = Digest::MD5.new
+      buf = ""
+      dig.update(buf) while io.read(4096, buf)
+      return dig
     end
   end
 
@@ -315,7 +338,7 @@ module EZQ
   # Un-escapes an escaped string. Cribbed from
   # http://stackoverflow.com/questions/8639642/whats-the-best-way-to-escape-and-unescape-strings
   # 
-  def unescape(str)
+  def self.unescape(str)
     str.gsub(/\\(?:([#{UNESCAPES.keys.join}])|u([\da-fA-F]{4}))|\\0?x([\da-fA-F]{2})/) {
       if $1
         if $1 == '\\' then '\\' else UNESCAPES[$1] end
