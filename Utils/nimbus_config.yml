@@ -10,22 +10,32 @@
 
 # Map type labels to specific AMIs. New types can be added by adding a
 # new label and AMI in this section
+
+# 'ami-4ab61122' is 30gb windows base
+# 'ami-baf652d2' IN 4 proc ssd
+# 'ami-34f3575c' IN 4 proc mag
+# 'ami-a8ff5bc0' IN 1 proc ssd
+# 'ami-30f85c58' IN 1 proc mag
+# 'ami-7a822612' IN 4 proc ssd long timeout
+
 ami_map:
   # Windows
-  worker:         'ami-42cf1b2a'
-  worker_Purdue:  'ami-42cf1b2a'
-  #worker_ISA:     'ami-42cf1b2a'
-  worker_ISA:     'ami-42cf1b2a'
-  worker_r2_ISA:  'ami-42cf1b2a'
-  worker_ISU:     'ami-2c60be44' #'ami-42cf1b2a'
-  server_worker_ISU: 'ami-42cf1b2a'
-  worker_mmp_dev: 'ami-42cf1b2a'
-  worker_mmp_staging: 'ami-42cf1b2a'
-  worker_mmp_prod:    'ami-42cf1b2a'
-  pregrid:        'ami-42cf1b2a'
-  pregrid_Purdue: 'ami-42cf1b2a'
-  pregrid_ISA:    'ami-42cf1b2a'
-  pregrid_ISU:    'ami-42cf1b2a'
+  worker:         'ami-4ab61122'
+  worker_Purdue:  'ami-4ab61122'
+  #worker_ISA:     'ami-4ab61122'
+  worker_ISA:     'ami-4ab61122'
+  worker_r2_ISA:  'ami-4ab61122'
+  worker_ISU:     'ami-4ab61122'
+  server_worker_ISU:  'ami-4ab61122'   #'ami-7e32e816' #<--ssd_r2 'ami-c85f85a0' # <-- magnetic
+  server_worker_IN: 'ami-7a822612' #'ami-4ab61122'
+  worker_mmp_dev: 'ami-4ab61122'
+  worker_mmp_staging: 'ami-4ab61122'
+  worker_mmp_prod:    'ami-4ab61122'
+  pregrid:        'ami-4ab61122'
+  pregrid_Purdue: 'ami-4ab61122'
+  pregrid_ISA:    'ami-4ab61122'
+  pregrid_ISU:    'ami-4ab61122'
+  pregrid_IN:     'ami-4ab61122'
   # Linux
   reporthandler:  'ami-f4419c9c'
   aggregator:     'ami-f4419c9c'
@@ -39,12 +49,28 @@ ami_map:
 security:
   base:
     vpc_id: 'vpc-e894b787'
-    #vpc_subnet: 'subnet-fc94b793' # development-private
+    vpc_subnet: 'subnet-fc94b793' # development-private
     #vpc_subnet: 'subnet-0f9ebd60' # staging-private
-    #vpc_subnet: 'subnet-b2f1ff9a' # spot-1
-    vpc_subnet: 'subnet-83f1ffab' # spot-2
-    #vpc_subnet: 'subnet-9bf1ffb3' # spot-3
-    #vpc_subnet: 'subnet-92f1ffba' # spot-4
+    #vpc_subnet: 'subnet-b2f1ff9a' # spot-1  4proc ssd
+    #vpc_subnet: 'subnet-83f1ffab' # spot-2  4proc ssd
+    #vpc_subnet: 'subnet-9bf1ffb3' # spot-3  4proc ssd
+    #vpc_subnet: 'subnet-92f1ffba' # spot-4  4proc ssd
+    #vpc_subnet: 'subnet-f1d7dfd9' # spot-5
+    #vpc_subnet: 'subnet-c7d7dfef' # spot-6
+    #vpc_subnet: 'subnet-d6d7dffe' # spot-7
+    #vpc_subnet: 'subnet-3be8e013' # spot-8
+    #vpc_subnet: 'subnet-1ee8e036' # spot-9
+    #vpc_subnet: 'subnet-6be8e043' # spot-10
+    #vpc_subnet: 'subnet-63e8e04b' # spot-11
+    #vpc_subnet: 'subnet-72e8e05a' # spot-12
+    #vpc_subnet: 'subnet-54e8e07c' # spot-13
+    #vpc_subnet: 'subnet-a1e8e089' # spot-14
+    #vpc_subnet: 'subnet-b7e8e09f' # spot-15
+    #vpc_subnet: 'subnet-81e8e0a9' # spot-16
+    #vpc_subnet: 'subnet-ece8e0c4' # spot-17
+    #vpc_subnet: 'subnet-fae8e0d2' # spot-18
+    #vpc_subnet: 'subnet-f2e8e0da' # spot-19
+    #vpc_subnet: 'subnet-dce8e0f4' # spot-20
     
     
     # If you override this on a per-type basis, be aware that the *values* in
@@ -96,6 +122,9 @@ launch_settings:
   pregrid_ISU:
     size: 'm3.medium'
     
+  pregrid_IN:
+    size: 'm3.medium'
+    
   worker_Purdue: 
     size: 'c3.8xlarge'
 
@@ -110,6 +139,9 @@ launch_settings:
     
   server_worker_ISU:
     size: 'm1.medium'
+    
+  server_worker_IN:
+    size: 'm1.xlarge'
 
   worker_mmp_dev:
     size: 'm3.medium'
@@ -169,8 +201,8 @@ userdata:
     number_of_processes: 1 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    man_key: INL_Webster_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
+    r2_man_key: INL_Webster_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
     receive_queue_name: purdue_task
     
   server_worker_ISU:
@@ -178,11 +210,23 @@ userdata:
     number_of_processes: 1 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: ISA_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: ISA_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
-    receive_queue_name: 6k_task
+    man_key: INL_Webster_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
+    r2_man_key: INL_Webster_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    receive_queue_name: purdue_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
+    
+    
+  server_worker_IN:
+    deploy_key: arks/default/server_worker_x64.zip
+    number_of_processes: 4 
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: IN_state_weps.zip
+    r2_man_key: IN_state_skels.zip
+    receive_queue_name: IN_task
+    keep_alive_check_interval: 30
+    server_worker_command: "6k_server_worker.exe --gdbname tyner.gdb --workerid $pid"
     
   worker_Purdue:
     deploy_key: arks/purdue/worker_x64.zip
@@ -244,9 +288,18 @@ userdata:
     deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    man_key: INL_Webster_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
+    r2_man_key: INL_Webster_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
     receive_queue_name: purdue_job
+    
+    
+  pregrid_IN:
+    deploy_key: arks/default/pregrid_x64_IN.zip
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: IN_state_weps.zip
+    r2_man_key: IN_state_skels.zip
+    receive_queue_name: IN_job
 
   pregrid_Purdue:
     deploy_key: arks/purdue/pregrid_x64.zip
