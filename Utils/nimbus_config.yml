@@ -12,27 +12,19 @@
 # new label and AMI in this section
 
 # 'ami-4ab61122' is 30gb windows base
-# 'ami-baf652d2' IN 4 proc ssd
-# 'ami-34f3575c' IN 4 proc mag
-# 'ami-a8ff5bc0' IN 1 proc ssd
-# 'ami-30f85c58' IN 1 proc mag
-# 'ami-7a822612' IN 4 proc ssd long timeout
 
 ami_map:
   # Windows
   worker:         'ami-4ab61122'
-  worker_Purdue:  'ami-4ab61122'
-  #worker_ISA:     'ami-4ab61122'
   worker_ISA:     'ami-4ab61122'
   worker_r2_ISA:  'ami-4ab61122'
   worker_ISU:     'ami-4ab61122'
-  server_worker_ISU:  'ami-4ab61122'   #'ami-7e32e816' #<--ssd_r2 'ami-c85f85a0' # <-- magnetic
-  server_worker_IN: 'ami-7a822612' #'ami-4ab61122'
+  server_worker_ISU:  'ami-be1fb2d6' # 8 proc'ami-b209a4da' #'ami-4ab61122'
+  server_worker_IN: 'ami-4ab61122'
   worker_mmp_dev: 'ami-4ab61122'
   worker_mmp_staging: 'ami-4ab61122'
   worker_mmp_prod:    'ami-4ab61122'
   pregrid:        'ami-4ab61122'
-  pregrid_Purdue: 'ami-4ab61122'
   pregrid_ISA:    'ami-4ab61122'
   pregrid_ISU:    'ami-4ab61122'
   pregrid_IN:     'ami-4ab61122'
@@ -107,18 +99,13 @@ security:
 # appear in the base section.
 launch_settings:
   base:
-    size: 't1.micro'
+    size: 't2.micro'
     count: 1
     
-  #worker:
-  #  size: 'c3.8xlarge'
   pregrid:
     size: 't2.medium'
   
   pregrid_ISA:
-    size: 't2.medium'
-  
-  pregrid_Purdue:
     size: 't2.medium'
 
   pregrid_ISU:
@@ -127,8 +114,8 @@ launch_settings:
   pregrid_IN:
     size: 'm3.medium'
     
-  worker_Purdue: 
-    size: 'c3.8xlarge'
+  worker:
+    size: 'm1.medium'
 
   worker_ISA:
     size: 'm1.medium' #'m3.2xlarge'
@@ -140,7 +127,8 @@ launch_settings:
     size: 'm1.medium'
     
   server_worker_ISU:
-    size: 'm1.medium'
+    size: 'm1.xlarge'
+    #size: 'm3.2xlarge'
     
   server_worker_IN:
     size: 'm1.xlarge'
@@ -209,11 +197,11 @@ userdata:
     
   server_worker_ISU:
     deploy_key: arks/default/server_worker_x64.zip
-    number_of_processes: 1 
+    number_of_processes: 4 
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: INL_Webster_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: INL_Webster_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    man_key: PT_York_weps.zip
+    r2_man_key: PT_York_skels.zip
     receive_queue_name: purdue_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
@@ -229,15 +217,7 @@ userdata:
     receive_queue_name: IN_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname tyner.gdb --workerid $pid"
-    
-  worker_Purdue:
-    deploy_key: arks/purdue/worker_x64.zip
-    number_of_processes: 44 
-    gdb_key: tyner.gdb.zip
-    gdb_install_name: tyner.gdb
-    man_key: WEPS_Purdue.zip
-    r2_man_key: R2_Purdue.zip
-    receive_queue_name: purdue_task
+
 
   worker_mmp_dev:
     deploy_key: arks/default/iowammp.zip
@@ -290,8 +270,8 @@ userdata:
     deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: INL_Webster_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: INL_Webster_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
+    man_key: PT_York_weps.zip
+    r2_man_key: PT_York_skels.zip
     receive_queue_name: purdue_job
     
     
@@ -302,14 +282,6 @@ userdata:
     man_key: IN_state_weps.zip
     r2_man_key: IN_state_skels.zip
     receive_queue_name: IN_job
-
-  pregrid_Purdue:
-    deploy_key: arks/purdue/pregrid_x64.zip
-    gdb_key: tyner.gdb.zip
-    gdb_install_name: tyner.gdb
-    man_key: WEPS_Purdue.zip
-    r2_man_key: R2_Purdue.zip
-    receive_queue_name: purdue_job
 
   reporthandler:
     deploy_key: arks/default/reporthandler.zip
