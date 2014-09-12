@@ -38,3 +38,13 @@ errorhandler:
   # Just in case the base version gets changed, this is what we need here.
   host_identity: ~/.ssh/praxik.pem
   host_user: ubuntu
+  
+aggregator_r2:
+  action: shell
+  host_identity: ~/.ssh/praxik.pem
+  host_user: ubuntu
+  
+aggregator:
+  action: shell
+  host_identity: ~/.ssh/praxik.pem
+  host_user: ubuntu
