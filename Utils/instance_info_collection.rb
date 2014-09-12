@@ -60,6 +60,10 @@ class InstanceInfoCollection
     return nil
   end
 
+  def size
+    return @instances.size()
+  end
+
 end #class
 
 
