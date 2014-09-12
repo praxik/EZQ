@@ -19,7 +19,7 @@ def initialize(job_desc)
   fail_with("No query sepcified in job description to BatchProcessor") if !query
 
   # Normally we just call start.
-  start()
+  start(job_desc, query)
 
   # If we want to do custom looping or dynamic query transformation, we can do
   # that here. For example, in the IN run we had a table with ~1.7M records
