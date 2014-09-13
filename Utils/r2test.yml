@@ -56,7 +56,7 @@ add_to_job_message_body:
     # toggle stuff like weps and r2d here.
     pre_grid_command: "6k_pregrid.exe
       -c ODBC
-      --ssurgoconnstr \"Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;Driver={PostgreSQL Unicode(x64)};\"
+      --ssurgoconnstr \"Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo;Driver={PostgreSQL ANSI(x64)};\"
       -g iowammp.gdb
       -j $jobid
       --r2d
