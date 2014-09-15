@@ -1,8 +1,18 @@
 # The contents of this file (excluding this  comment block and the blank line
 # following it) would be placed into the SQS queue named "mmp_task".
 #
+# To refer to the s3 files in your process_command in receive_queue_config.yml:
+# process_command: "your_app_here.exe $s3_1 $s3_2"
+# The $s3_n refers to the files (in order, starting at 1) listed in the get_s3_files  
+# directive.
+#
 
 ---
 EZQ:
+ get_s3_files:
+ - bucket: Some_S3_Bucket
+   key: some_object_in_the_bucket
+ - bucket: Some_S3_Bucket
+   key: some_other_object_in_the_bucket
 ...
-{ "report_record_id": "28-1404419496"}
+{"Other_job_info" : "Would go in this section as JSON"}
