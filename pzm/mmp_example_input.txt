@@ -1,0 +1,8 @@
+# The contents of this file (excluding this  comment block and the blank line
+# following it) would be placed into the SQS queue named "mmp_task".
+#
+
+---
+EZQ:
+...
+{ "report_record_id": "28-1404419496"}
