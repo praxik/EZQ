@@ -144,6 +144,7 @@ class RusleReport < EZQ::Processor
       while ( (msgs.size < 1000) and ((Time.now.to_i - stamp) < 20) )
         msgs += Array( @in_queue.receive_messages(:limit => 10) )
       end
+      next if msgs.empty? #continue polling if we came up completely empty
       success = false
       success = process_message_batch( msgs )
       if success and @remaining_tasks.empty?
@@ -165,8 +166,6 @@ class RusleReport < EZQ::Processor
   # batch mode.
   def process_message_batch(msg_ary)
     @logger.unknown '------------------------------------------'
-    #msg_ids = []
-    #msg_ary.each{|msg| msg_ids << msg.id}
     @logger.info "Processing message batch of size #{msg_ary.size}"
 
     # We need *some* value for these two, and the id of the first message of the
@@ -175,17 +174,8 @@ class RusleReport < EZQ::Processor
     @id = msg_ary[0].id
 
     task_ids = []
-
-    msg_batch = {}
+    msg_batch = hash_messages_and_yield_taskids(msg_ary){|id| task_ids << id}
     msg_batch['batch_mode'] = true
-    msg_ary.each_with_index do |msg,idx|
-      strip_directives(msg)
-      contents = JSON.parse(msg.body)
-      task_ids << contents['task_id']
-      contents['job_id'] = @job_id
-      msg.body.gsub!(/.+/,contents.to_json)
-      msg_batch["record_#{idx}"] = contents
-    end
 
     # Message "body" is a JSON string containing all the supplied message bodies
     body =  msg_batch.to_json
@@ -193,11 +183,6 @@ class RusleReport < EZQ::Processor
     @msg_contents = body
     File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
 
-    # The first argument is spurious, but run_process_command wasn't set up to
-    # handle a batch. The argument is irrelevant to our needs here since it only
-    # controls what gets written in store_message, and we don't use that info
-    # for these batch mode aggregations anyway.
-    #success = EZQ::Processor.instance_method(:run_process_command).bind(self).call(msg_ary[0],@input_filename,@id,false)
     success = socket_process_command(@msg_contents)
     
     if success
@@ -213,6 +198,29 @@ class RusleReport < EZQ::Processor
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
     return success
+  end
+
+  # Returns a hash containing each message's contents associated with a unique
+  # key. At the same time, this inserts the job_id into the message, and yields
+  # the task id for each message. It's goofy, but combining these
+  # operations like this allows us to avoid the expensive operation of parsing
+  # the messages as json multiple times. Speed is important for batch processing.
+  def hash_messages_and_yield_taskids(ary)
+    task_ids = []
+    msg_batch = {}
+    ary.each_with_index do |msg,idx|
+      begin
+        strip_directives(msg)
+        contents = JSON.parse(msg.body)
+        yield contents['task_id']
+        contents['job_id'] = @job_id
+        msg.body.gsub!(/.+/,contents.to_json)
+        msg_batch["record_#{idx}"] = contents
+      rescue => e
+        @logger.error "Error parsing JSON, skipping result: #{msg.body}"
+      end
+    end
+    return msg_batch
   end
 
 
@@ -491,6 +499,5 @@ if __FILE__ == $0
   end
 end
 ################################################################################
-
 
 
