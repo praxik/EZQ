@@ -227,8 +227,10 @@ userdata:
     db_user_name: iowammp
     db_password: 1234
     db_name: iowammp_web_development_reports
-    geoserver_ip: 10.1.2.8
+    geoserver_ip: development-gis-persistence.agsolver.com
     geoserver_port: 5432
+    gs_db_username: postgres
+    gs_db_password: agsolver_postgres
     s3_bucket: web_development
 
   worker_mmp_staging:
@@ -239,8 +241,10 @@ userdata:
     db_user_name: iowammp
     db_password: 1234
     db_name: iowammp_web_development_reports
-    geoserver_ip: 10.1.2.8
+    geoserver_ip: development-gis-persistence.agsolver.com
     geoserver_port: 5432
+    gs_db_username: postgres
+    gs_db_password: agsolver_postgres
     s3_bucket: staging
 
   worker_mmp_prod:
@@ -253,6 +257,8 @@ userdata:
     db_name: iowammp_production_reports
     geoserver_ip: 10.1.6.8
     geoserver_port: 5432
+    gs_db_username: postgres
+    gs_db_password: postgres
     s3_bucket: production
 
   pregrid:

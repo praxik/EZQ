@@ -37,6 +37,8 @@ db_password = vars['db_password']
 db_name = vars['db_name']
 geoserver_ip = vars['geoserver_ip']
 geoserver_port = vars['geoserver_port']
+gs_db_password = vars['gs_db_password']
+gs_db_username = vars['gs_db_username']
 s3_bucket = vars['s3_bucket']
 
 input_file = ARGV.shift
@@ -60,8 +62,8 @@ command = "mmp_worker.exe" +
                                  "Database=#{db_name};" +
           " --praxik-gis-server Server=#{geoserver_ip};" +
                                "Port=#{geoserver_port};" +
-                               "Uid=postgres;" +
-                               "Pwd=postgres;" +
+                               "Uid=#{gs_db_username};" +
+                               "Pwd=#{gs_db_password};" +
           " -j #{report_record_id}" +
           " -s #{s3_bucket}"
 
