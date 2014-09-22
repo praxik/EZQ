@@ -51,6 +51,10 @@ worker_id = pid
 report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 log.info "Operating on report_record_id: #{report_record_id}"
 
+machine data path
+field boundary path
+root output path for cmprocessor
+
 command = "mmp_worker.exe" +
           " -i #{worker_id}" +
           " --praxik-dev-postgres Server=#{db_ip};" +
