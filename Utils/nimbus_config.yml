@@ -15,15 +15,15 @@
 
 ami_map:
   # Windows
-  worker:         'ami-4ab61122'
-  worker_ISA:     'ami-4ab61122'
-  worker_r2_ISA:  'ami-4ab61122'
-  worker_ISU:     'ami-4ab61122'
+  worker:         'ami-be6cc0d6'
+  worker_ISA:     'ami-be6cc0d6'
+  worker_r2_ISA:  'ami-be6cc0d6'
+  worker_ISU:     'ami-be6cc0d6'
   server_worker_ISU:  'ami-be1fb2d6' # 8 proc'ami-b209a4da' #'ami-4ab61122'
   server_worker_IN: 'ami-4ab61122'
-  worker_mmp_dev: 'ami-4ab61122'
-  worker_mmp_staging: 'ami-4ab61122'
-  worker_mmp_prod:    'ami-4ab61122'
+  worker_mmp_dev: 'ami-be6cc0d6'
+  worker_mmp_staging: 'ami-be6cc0d6'
+  worker_mmp_prod:    'ami-be6cc0d6'
   pregrid:        'ami-4ab61122'
   pregrid_ISA:    'ami-4ab61122'
   pregrid_ISU:    'ami-4ab61122'
