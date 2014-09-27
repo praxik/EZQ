@@ -19,7 +19,7 @@ require_relative 'ezqlib'
 require 'logger'
 require 'fileutils'
 
-lf = File.new("mmp_shim_#{ARGV[1]}.log", 'a')
+lf = File.new("md_shim_#{ARGV[1]}.log", 'a')
 lf.sync = true
 log = Logger.new(lf)
 log.level = Logger::DEBUG
@@ -30,14 +30,7 @@ AWS.config(YAML.load(File.read('credentials.yml')))
 log.info 'Retrieving userdata'
 vars = YAML.load(File.read('userdata.yml'))
 
-db_ip = vars['db_ip']
-db_port = vars['db_port']
-db_user_name = vars['db_user_name']
-db_password = vars['db_password']
-db_name = vars['db_name']
-geoserver_ip = vars['geoserver_ip']
-geoserver_port = vars['geoserver_port']
-s3_bucket = vars['s3_bucket']
+cmprocessor_root = vars['cmprocessor_root']
 
 input_file = ARGV.shift
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
@@ -51,23 +44,16 @@ worker_id = pid
 report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 log.info "Operating on report_record_id: #{report_record_id}"
 
-machine data path
-field boundary path
-root output path for cmprocessor
+# machine data path
+# field boundary path
+# root output path for cmprocessor
 
-command = "mmp_worker.exe" +
+command = "FieldOpsReader.exe " +
           " -i #{worker_id}" +
-          " --praxik-dev-postgres Server=#{db_ip};" +
-                                 "Port=#{db_port};" +
-                                 "Uid=#{db_user_name};" +
-                                 "Pwd=#{db_password};" +
-                                 "Database=#{db_name};" +
-          " --praxik-gis-server Server=#{geoserver_ip};" +
-                               "Port=#{geoserver_port};" +
-                               "Uid=postgres;" +
-                               "Pwd=postgres;" +
-          " -j #{report_record_id}" +
-          " -s #{s3_bucket}"
+          " --in=" +
+          " --out=#{cmprocessor_root}" +
+          " --yldFile=$s3_1" +
+          " --s3out=$s3_2"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so

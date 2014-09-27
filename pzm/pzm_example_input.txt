@@ -7,6 +7,10 @@
 # directive.
 #
 
+# The first bucket is the input yield or as applied data
+
+# The second bucket is the output raster data path
+
 ---
 EZQ:
  get_s3_files:
