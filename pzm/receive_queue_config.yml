@@ -13,7 +13,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "ruby shim.rb $input_file $pid output_$id.txt"
+process_command: "ruby shim.rb $input_file $s3_1 $s3_2 $pid output_$id.txt"
 
 # (true/false)
 retry_on_failure: false

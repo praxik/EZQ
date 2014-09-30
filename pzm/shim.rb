@@ -31,6 +31,8 @@ log.info 'Retrieving userdata'
 vars = YAML.load(File.read('userdata.yml'))
 
 input_file = ARGV.shift
+s3_1 = ARGV.shift # the yield file
+s3_2 = ARGV.shift # the field boundary file
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
                  # multiple processes on the same instance. Not sure where it
                  # will go in the command string.
@@ -42,9 +44,9 @@ s3_bucket = vars['s3_bucket']
 cmprocessor_root = s3_bucket + "/yields/yield_maps"
 raster_root = s3_bucket + "/yields/yield_maps/#{worker_id}"
 # roi.agsolver/web_development/yields/yield_maps/yield.zip
-yld_data = Dir.pwd() + "/$s3_1"
+yld_data = Dir.pwd() + "/#{s3_1}"
 # roi.agsolver/web_development/yields/yield_maps/field.json
-fld_data = Dir.pwd() + "/$s3_2"
+fld_data = Dir.pwd() + "/#{s3_2}"
 
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
