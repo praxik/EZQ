@@ -24,6 +24,7 @@ ami_map:
   worker_mmp_dev:     'ami-b83d8bd0'
   worker_mmp_staging: 'ami-b83d8bd0'
   worker_mmp_prod:    'ami-b83d8bd0'
+  worker_pzm_md_dev:  'ami-b83d8bd0'
   pregrid:        'ami-b83d8bd0'
   pregrid_ISA:    'ami-b83d8bd0'
   pregrid_ISU:    'ami-b83d8bd0'
@@ -95,6 +96,13 @@ security:
     # the array will not be merged. You must override the entire array.
     security_groups: ['production-worker']
 
+  worker_pzm_md_dev:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-fc94b793'
+    # If you override this on a per-type basis, be aware that the *values* in
+    # the array will not be merged. You must override the entire array.
+    security_groups: ['dev-base','dev-kibitz-worker']
+
 # The base settings get merged with any per-type settings. All available options
 # appear in the base section.
 launch_settings:
@@ -141,7 +149,10 @@ launch_settings:
 
   worker_mmp_prod:
     size: 't2.medium'
-    
+
+  worker_pzm_md_dev:
+    size: 't2.medium'
+
   aggregator_r2:
     size: 'm3.2xlarge'
     
@@ -261,7 +272,7 @@ userdata:
     gs_db_password: postgres
     s3_bucket: production
 
-  worker_pzm_md:
+  worker_pzm_md_dev:
     deploy_key: arks/default/md_worker.zip
     number_of_processes: 1
     s3_bucket: web_development
