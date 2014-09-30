@@ -69,6 +69,28 @@ class Processor
     # Set up AWS with the specified credentials
     AWS.config(credentials)
 
+    # Create a bunch of instance variables and give them sensible defaults
+    set_defaults()
+
+    # Create an instance variable based on each option in the config, and
+    # populate each of our manually-created ivars from set_defaults with
+    # the value specified in the config.
+    config.each { |k,v| make_var("@#{k}",v) }
+    
+    # Grab the receive_queue
+    init_receive_queue()
+    
+    # Get the result queue, if one was specified
+    if @result_step == 'post_to_result_queue'
+      init_result_queue()
+    end
+
+    set_instance_details()
+  end
+
+
+  protected
+  def set_defaults
     @pid = Process.pid
    
     # Create instance variables with sensible defaults
@@ -100,43 +122,44 @@ class Processor
     @collect_errors_command = ''
     @atomicity = 1
 
-    # This will automatically create an instance variable based on each option
-    # in the config. It will also populate each of our manually-
-    # created ivars above with the default value as specified in the config.
     @var_hash = {}
-    config.each { |k,v| make_var("@#{k}",v) }
-    
-    # Check for existence of receive queue
-    @in_queue = AWS::SQS::X_queue.new(AWS::SQS.new.queues.named(@receive_queue_name).url)
+
+    @instance_id = ""
+    @instance = nil
+    @launch_time = nil
+  end
+
+
+  protected
+  def set_instance_details
+    # Are we running on an EC2 instance?
+    uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
+    @instance_id = Net::HTTP.get_response(uri).body
+    @instance = AWS::EC2.new.instances[@instance_id]
+    raise unless @instance.exists? # Either of the two previous calls can raise
+    # an exception, and we want to do the same thing in either case.
+    @launch_time = @instance.launch_time
+    @logger.unknown "Running on EC2 instance #{@instance_id}"
+  rescue
+    @instance_id = ""
+    @instance = nil
+    @launch_time = nil
+    @logger.unknown "Not running on an EC2 instance"
+  end
+
+
+
+  protected
+  # Grabs the receive_queue set up in the configuration and stores it in
+  # instance var @in_queue. If the queue doesn't exist, we try to create it.
+  def init_receive_queue
+    @in_queue = EZQ.exceptional_retry_with_backoff(4) do
+      AWS::SQS::X_queue.new(EZQ.get_queue(@receive_queue_name,true).url)
+    end
     if !@in_queue.exists?
       m = "Exception: No queue named #{@receive_queue_name} exists."
       @logger.fatal m
       send_error(m,true)
-    end
-    
-    # Get the result queue, if one was specified
-    if @result_step == 'post_to_result_queue'
-      get_result_queue
-    end  
-    
-    # Are we running on an EC2 instance?
-    @instance_id = ""
-    @instance = nil
-    @launch_time = nil
-    uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
-    begin
-      @instance_id = Net::HTTP.get_response(uri).body
-      @instance = AWS::EC2.new.instances[@instance_id]
-      raise unless @instance.exists?#Using this pattern because either of the 
-      # two previous calls can raise an exception, and I want to do exactly the
-      # same thing in any of these cases.
-      @launch_time = @instance.launch_time
-      @logger.unknown "Running on EC2 instance #{@instance_id}"
-    rescue
-      @instance_id = ""
-      @instance = nil
-      @launch_time = nil
-      @logger.unknown "Not running on an EC2 instance"
     end
   end
   
@@ -145,16 +168,19 @@ class Processor
   # Call into AWS to get the result queue and put it into the variable 
   # +@result_queue+. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
-  def get_result_queue
-    return if @result_queue_name.empty?
+  def init_result_queue
+    return nil if @result_queue_name.empty?
     if (!@result_queue) || ( @result_queue && (@result_queue.arn.split(':').last != @result_queue_name) )
-      @result_queue = AWS::SQS.new.queues.named(@result_queue_name)
+      @result_queue = EZQ.exceptional_retry_with_backoff(3) do
+        EZQ.get_queue(@result_queue_name,true)
+      end
     end
     if !@result_queue.exists?
       m = "Exception: No queue named #{@result_queue_name} exists."
       @logger.fatal m
       send_error(m, true)
     end
+    return nil
   end
   
   
@@ -364,6 +390,8 @@ class Processor
         @logger.info "overrode config for #{k}"
       end
     end
+    # Result queue may have changed. This does nothing if it hasn't.
+    init_result_queue() 
   end
 
 
@@ -442,17 +470,9 @@ class Processor
     # Non-destuctively add our s3 files to any that were previously set
     preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
                                       @s3_outs if !@s3_outs.empty?
-    # If message is too big for SQS, divert the body into S3
-    if (body.bytesize + preamble.to_yaml.bytesize) > 256000   #256k limit minus assumed
-                                                     #metadata size of 6k
-                                                     #(256-6)*1024 = 256000
-      body,preamble = divert_body_to_s3(body,preamble)
-    end
-    msg = "#{preamble.to_yaml}...\n#{body}"
-    digest = Digest::MD5.hexdigest(msg)
-    get_result_queue
-    sent = @result_queue.send_message(msg)
-    if digest == sent.md5
+    digest = EZQ.enqueue_message(body,preamble,@result_queue,false,
+                                 bucket = 'EZQOverflow.praxik')
+    if !digest.empty?
       @logger.info "Posted result message #{sent.id} to queue '#{@result_queue_name}'"
       return true
     else
