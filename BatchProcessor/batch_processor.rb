@@ -4,7 +4,7 @@ require 'pg'
 require 'json'
 require 'yaml'
 require 'aws-sdk'
-require 'securerandom'
+require_relative './ezqlib'
 
 # This application polls the Batch queue, and uses the information given there
 # to produce one or more JSON job blocks that are sent (individually) to the
@@ -13,42 +13,67 @@ require 'securerandom'
 class BatchProcessor
 
 def initialize(job_desc)
-
   # Pull query out of job_desc
   query = job_desc['query']
   fail_with("No query sepcified in job description to BatchProcessor") if !query
 
-  # Normally we just call start.
-  start(job_desc, query)
+  # Are we partitioning the query results?
+  if job_desc.fetch('partition',false)
+    # Yes
+    min      = job_desc['min'].to_i
+    interval = job_desc['interval'].to_i
+    max      = min + interval
+    limit    = job_desc['limit']
+    
+    if limit == 'auto'
+      limit = query_limit(job_desc,query)
+    end
+    
+    limit = round_limit(limit.to_i,min,interval)
 
-  # If we want to do custom looping or dynamic query transformation, we can do
-  # that here. For example, in the IN run we had a table with ~1.7M records
-  # which we wanted to partition into batches of 75k. To do that, we rewrote the
-  # query to contain replaceable tokens that specify a range of records, then
-  # loop through the partitions, replacing those tokens as appropriate.
-  # The non-tokened query was:
-  #      "select * from purdue_in_scn_08_27_14"
-  # We replaced this with:
-  #      "select * from purdue_in_scn_08_27_14 where id > $min and id <= $max order by id"
-  # and then used the following code to partition into chunks of 75k
-  # min = 0 # actual min id in table is 1
-  # max = 75000
-  # interval = 75000
-  # limit = 1725000 # There are actually ~1 670 000 records. 1725000 is the multiple
-                  # of interval that is just above the actual upper limit.
+    query = append_partitioning(query)
 
-  # while max <= limit
-  #   start(job_desc, query.gsub('$min',"#{min}").gsub('$max',"#{max}"))
-  #   min = max
-  #   max += interval
-  # end
+    while max <= limit
+      start(job_desc, query.gsub('$min',"#{min}").gsub('$max',"#{max}"))
+      min = max
+      max += interval
+    end
+  else
+    # No
+    start(job_desc, query)
+  end
+  exit(0)
 end
 
 
 
-def start(job_desc, query)
-  puts query
+# Finds the max id of the query subset
+def query_limit(job_desc,query)
+  return exec_query(job_desc,"select max(id) from (#{query}) as querylimit")
+end
 
+
+
+# Rounds a limit up to the closest interval break
+def round_limit(limit,min,interval)
+  return min + interval*((Float(limit)/Float(interval)).ceil)
+end
+
+
+
+# Appends partitioning by id to the query
+def append_partitioning(query)
+  criteria = "id > $min and id <= $max order by id"
+  # If query already contains a 'where' clause, we will append 'and' rather than
+  # 'where'
+  conjunction = query =~ / where /i ? 'and' : 'where'
+  return "#{query} #{conjunction} #{criteria}"
+end
+
+
+
+# Executes a query, handling basic failures appropriately, and return the result
+def exec_query(job_desc,query)
   # Pull connection string out of job_desc
   conn_str = job_desc['connection_string']
   fail_wtih("No connection string specified for BatchProcessor.") if !conn_str
@@ -67,6 +92,16 @@ def start(job_desc, query)
   rescue => e
     fail_with("Database error: #{e}")
   end
+  return result
+end
+
+
+
+# Runs a query and sends off a job message.
+def start(job_desc, query)
+  puts query
+
+  result = exec_query(job_desc,query)
 
   queue_name = job_desc['job_queue']
   fail_with("No job queue specified") if !queue_name
@@ -89,10 +124,14 @@ def start(job_desc, query)
   preamble = {}
   preamble['EZQ'] = job_desc.fetch('job_preamble',nil)
 
+  EZQ.enqueue_batch(msgs,[preamble],queue_name,true,'EZQOverflow.praxik')
+
   enqueue(msgs,preamble,queue_name)
 end
 
 
+
+# Splits a result set into separate jobs
 def split_results(results,pass_through)
   # Array to contain each record as JSON. Each record will first be turned
   # into an array of one record, because Pregrid expects to iterate through an
@@ -108,6 +147,8 @@ def split_results(results,pass_through)
 end
 
 
+
+# Unifies a result set into a single job
 def unify_results(results,pass_through)
   rs = [] # Array to contain entire recordset as Ruby structure
   results.each{|record| rs << record}
@@ -118,53 +159,8 @@ def unify_results(results,pass_through)
 end
 
 
-def enqueue(msg_ary,preamble,queue_name)
-  queue = AWS::SQS.new.queues.named(queue_name)
-  fail_with("Invalid queue specified: #{queue_name}") if !queue
-  
-  msg_ary.each_slice(10) do |msgs|
-    #msgs.map{|msg| msg.insert(0,preamble.to_yaml)}
-    msgs = msgs.map{|msg| set_preamble(msg,preamble)}
-    queue.batch_send(*msgs)
-  end
-end
 
-
-def set_preamble(body,preamble)
-  if (body.bytesize + preamble.to_yaml.bytesize) > 256000  #256k limit minus assumed
-                                                     #metadata size of 6k
-                                                     #(256-6)*1024 = 256000
-      body,preamble = divert_body_to_s3(body,preamble)
-  end
-  return body.insert(0,"#{preamble.to_yaml}...\n")
-end
-
-
-# This method is copied from EZQ::Processor
-# Place message body in S3 and update the preamble accordingly
-def divert_body_to_s3(body,preamble)
-  #@logger.info 'Message is too big for SQS and is beig diverted to S3'
-  # Don't assume the existing preamble can be clobbered
-  new_preamble = preamble.clone
-  s3 = AWS::S3.new
-  bucket_name = 'EZQOverflow.praxik'
-  bucket = s3.buckets[bucket_name]
-  if !bucket
-    #@log.fatal errm
-    raise "Result overflow bucket #{bucket_name} does not exist!"
-  end
-  key = "overflow_body_#{SecureRandom.uuid}.txt"
-  puts "Sending #{key} to S3"
-  obj = bucket.objects.create(key,body)
-  AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
-  s3_info = {'bucket'=>bucket_name,'key'=>key}
-  new_preamble['EZQ'] = {} if new_preamble['EZQ'] == nil
-  new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
-  body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
-  return [body,new_preamble]
-end
-
-
+# Prints error message and exits with error status
 def fail_with(msg)
   puts "Fatal: #{msg}"
   exit(1)
