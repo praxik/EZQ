@@ -262,7 +262,7 @@ userdata:
     s3_bucket: production
 
   worker_pzm_md:
-    deploy_key: arks/default/pzm_md.zip
+    deploy_key: arks/default/md_worker.zip
     number_of_processes: 1
     s3_bucket: web_development
 
