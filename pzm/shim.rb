@@ -30,14 +30,21 @@ AWS.config(YAML.load(File.read('credentials.yml')))
 log.info 'Retrieving userdata'
 vars = YAML.load(File.read('userdata.yml'))
 
-cmprocessor_root = vars['cmprocessor_root']
-
 input_file = ARGV.shift
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
                  # multiple processes on the same instance. Not sure where it
                  # will go in the command string.
 output_file = ARGV.shift
 worker_id = pid
+
+s3_bucket = vars['s3_bucket']
+
+cmprocessor_root = s3_bucket + "/yields/yield_maps"
+raster_root = s3_bucket + "/yields/yield_maps/#{worker_id}"
+# roi.agsolver/web_development/yields/yield_maps/yield.zip
+yld_data = Dir.pwd() + "/$s3_1"
+# roi.agsolver/web_development/yields/yield_maps/field.json
+fld_data = Dir.pwd() + "/$s3_2"
 
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
@@ -49,11 +56,10 @@ log.info "Operating on report_record_id: #{report_record_id}"
 # root output path for cmprocessor
 
 command = "FieldOpsReader.exe " +
-          " -i #{worker_id}" +
-          " --in=" +
+          " --in=#{yld_data}" +
           " --out=#{cmprocessor_root}" +
-          " --yldFile=$s3_1" +
-          " --s3out=$s3_2"
+          " --field=#{fld_data}" +
+          " --raster=#{raster_root}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so

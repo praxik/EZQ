@@ -14,9 +14,9 @@
 ---
 EZQ:
  get_s3_files:
- - bucket: Some_S3_Bucket
-   key: some_object_in_the_bucket
- - bucket: Some_S3_Bucket
-   key: some_other_object_in_the_bucket
+ - bucket: roi.agsolver
+   key: web_development/yields/yield_maps/voight_yld_2011.zip
+ - bucket: roi.agsolver
+   key: web_development/yields/yield_maps/Fredericks_Voight_North.geojson
 ...
 {"Other_job_info" : "Would go in this section as JSON"}

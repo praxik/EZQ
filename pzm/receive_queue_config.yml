@@ -1,8 +1,8 @@
-receive_queue_name: "mmp360_job_web_development"
+receive_queue_name: "roi_job_web_development"
 
-error_queue_name: "mmp360_error_web_development"
+error_queue_name: "roi_error_web_development"
 
-result_queue_name: "mmp360_result_web_development"
+result_queue_name: "roi_results_web_development"
 
 # (true/false)
 store_message: false
@@ -13,7 +13,7 @@ decompress_message: false
 # Available vars: $input_file, $id, $full_msg_file, 
 #                 $s3_1, $s3_2, etc. 
 #                 $uri_1, $uri_2, etc.
-process_command: "ruby mmp_shim.rb $input_file $pid output_$id.txt"
+process_command: "ruby shim.rb $input_file $pid output_$id.txt"
 
 # (true/false)
 retry_on_failure: false

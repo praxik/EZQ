@@ -264,16 +264,7 @@ userdata:
   worker_pzm_md:
     deploy_key: arks/default/pzm_md.zip
     number_of_processes: 1
-    db_ip: persistence.production.mmp360.com
-    db_port: 5432
-    db_user_name: iowammp
-    db_password: dan4yees7d
-    db_name: iowammp_production_reports
-    geoserver_ip: 10.1.6.8
-    geoserver_port: 5432
-    gs_db_username: postgres
-    gs_db_password: postgres
-    s3_bucket: production
+    s3_bucket: web_development
 
   pregrid:
     deploy_key: arks/default/pregrid_x64.zip
