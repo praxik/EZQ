@@ -9,32 +9,8 @@ require 'socket'
 require 'fileutils'
 require 'pg'
 require './data_spec_parser.rb'
+require_relative './ezqlib'
 
-
-# FilePusher class pushes a file specified in the form bucket,key out to S3
-# using the supplied credentials and logging to the supplied logger. It is
-# intended to be used as a thread object.
-class FilePusher
-  def initialize(bucket_comma_filename,dry_run,credentials,logger)
-    bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
-    if dry_run
-      puts "Would be pushing '#{fname}' into bucket '#{bname}'"
-      return
-    end
-    logger.info "Pushing #{bucket_comma_filename}"
-    if File.exists?(fname)
-      s3 = AWS::S3.new(credentials)
-      bucket = s3.buckets[bname]
-      obj = bucket.objects.create(fname,Pathname.new(fname))
-      AWS.config.http_handler.pool.empty!
-    else
-      logger.error "file #{fname} does not exist; can't push it to S3."
-      return nil
-    end
-    logger.info "Successfully pushed file #{fname} to S3."
-    return nil
-  end
-end
 
 # This class overrides a few chosen methods of EZQ processor to insert task
 # tracking into the flow.
@@ -259,9 +235,8 @@ class RusleReport < EZQ::Processor
     geojsonfile = "report_data/#{@job_id}_#{@record_id}.geojson"
     jsonfile = "report_data/#{@job_id}_#{@record_id}.json"
 
-    push_threads = []
-    write_and_push(geojsonfile,JSON.parse(cpp_output)['soil_geojson'].to_json,push_threads)
-    write_and_push(jsonfile,cpp_output,push_threads)
+    write_and_push(geojsonfile,JSON.parse(cpp_output)['soil_geojson'].to_json)
+    write_and_push(jsonfile,cpp_output)
     
     dom_crit_id = JSON.parse(cpp_output)['task_id']
     @logger.info "dom_crit_id is #{dom_crit_id}"
@@ -311,9 +286,6 @@ class RusleReport < EZQ::Processor
     # At this point we should be able to safely drop the temporary db table
     # containing the worker inputs
     @db.exec("drop table _#{@job_id.gsub('-','')}_inputs")
-
-    # Wait for the file pushes to finish
-    push_threads.each { |t| t.join }
 
     # Clean up the files we've successfully sent to S3
     FileUtils.rm(geojsonfile)
@@ -379,10 +351,7 @@ class RusleReport < EZQ::Processor
   # Write a file to disk and immediately send it out to S3
   def write_and_push(name,content,threads)
     File.write(name,content)
-    threads << Thread.new("6k_test.praxik,#{name}",
-                           false,
-                           @credentials,
-                           @logger){ |b,d,c,l| FilePusher.new(b,d,c,l) }
+    EZQ.send_file_to_s3(name,"6k_test.praxik",name)
   end
 
 
