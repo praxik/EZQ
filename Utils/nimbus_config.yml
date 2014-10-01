@@ -11,24 +11,24 @@
 # Map type labels to specific AMIs. New types can be added by adding a
 # new label and AMI in this section
 
-# 'ami-b83d8bd0' is 30gb windows base
+# 'ami-5c3a8b34' is 30gb windows base
 
 ami_map:
   # Windows
-  worker:         'ami-b83d8bd0'
-  worker_ISA:     'ami-b83d8bd0'
-  worker_r2_ISA:  'ami-b83d8bd0'
-  worker_ISU:     'ami-b83d8bd0'
-  server_worker_ISU:  'ami-b83d8bd0' # 8 proc'ami-b209a4da' #'ami-4ab61122'
-  server_worker_IN:   'ami-b83d8bd0'
-  worker_mmp_dev:     'ami-b83d8bd0'
-  worker_mmp_staging: 'ami-b83d8bd0'
-  worker_mmp_prod:    'ami-b83d8bd0'
-  worker_pzm_md_dev:  'ami-b83d8bd0'
-  pregrid:        'ami-b83d8bd0'
-  pregrid_ISA:    'ami-b83d8bd0'
-  pregrid_ISU:    'ami-b83d8bd0'
-  pregrid_IN:     'ami-b83d8bd0'
+  worker:         'ami-5c3a8b34'
+  worker_ISA:     'ami-5c3a8b34'
+  worker_r2_ISA:  'ami-5c3a8b34'
+  worker_ISU:     'ami-5c3a8b34'
+  server_worker_ISU:  'ami-5c3a8b34' # 8 proc'ami-b209a4da' #'ami-4ab61122'
+  server_worker_IN:   'ami-5c3a8b34'
+  worker_mmp_dev:     'ami-5c3a8b34'
+  worker_mmp_staging: 'ami-5c3a8b34'
+  worker_mmp_prod:    'ami-5c3a8b34'
+  worker_pzm_md_dev:  'ami-5c3a8b34'
+  pregrid:        'ami-5c3a8b34'
+  pregrid_ISA:    'ami-5c3a8b34'
+  pregrid_ISU:    'ami-5c3a8b34'
+  pregrid_IN:     'ami-5c3a8b34'
   # Linux
   reporthandler:  'ami-f4419c9c'
   aggregator:     'ami-f4419c9c'
