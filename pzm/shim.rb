@@ -19,7 +19,9 @@ require_relative 'ezqlib'
 require 'logger'
 require 'fileutils'
 
-lf = File.new("md_shim_#{ARGV[1]}.log", 'a')
+# The command line arg order
+# process_command: "ruby shim.rb $input_file $s3_1 $s3_2 $pid output_$id.txt"
+lf = File.new("md_shim_#{ARGV[3]}.log", 'a')
 lf.sync = true
 log = Logger.new(lf)
 log.level = Logger::DEBUG
