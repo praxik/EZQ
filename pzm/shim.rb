@@ -43,7 +43,7 @@ worker_id = pid
 
 s3_bucket = vars['s3_bucket']
 
-cmprocessor_root = s3_bucket + "/yields/yield_maps"
+cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
 raster_root = s3_bucket + "/yields/yield_maps/#{worker_id}"
 # roi.agsolver/web_development/yields/yield_maps/yield.zip
 yld_data = Dir.pwd() + "/#{s3_1}"
