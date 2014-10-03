@@ -379,7 +379,7 @@ class RusleReport < EZQ::Processor
     sql = "create table if not exists #{tablename}( job_id text, stats text )"
     db.exec( sql )
     result = db.exec_params(%[ INSERT INTO #{tablename} (job_id, stats) VALUES($1, $2) ],
-            [job_id,stats.to_json])
+            [job_id,EZQ.unescape(stats)])
   end
 
 end
