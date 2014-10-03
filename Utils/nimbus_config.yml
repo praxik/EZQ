@@ -15,11 +15,11 @@
 
 ami_map:
   # Windows
-  worker:         'ami-5c3a8b34'
+#  worker:         'ami-5c3a8b34'
   worker_ISA:     'ami-5c3a8b34'
   worker_r2_ISA:  'ami-5c3a8b34'
-  worker_ISU:     'ami-5c3a8b34'
-  server_worker_ISU:  'ami-5c3a8b34' # 8 proc'ami-b209a4da' #'ami-4ab61122'
+#  worker_ISU:     'ami-5c3a8b34'
+  server_worker_ISU:  'ami-5c3a8b34'
   server_worker_IN:   'ami-5c3a8b34'
   worker_mmp_dev:     'ami-5c3a8b34'
   worker_mmp_staging: 'ami-5c3a8b34'
@@ -120,23 +120,23 @@ launch_settings:
     size: 't2.medium'
     
   pregrid_IN:
-    size: 'm3.medium'
+    size: 't2.medium'
     
-  worker:
-    size: 'm1.medium'
+#  worker:
+#    size: 'm1.medium'
 
   worker_ISA:
-    size: 'm1.medium' #'m3.2xlarge'
+    size: 'm1.medium'
 
   worker_r2_ISA:
-    size: 'r3.4xlarge'
+    size: 'r3.xlarge'
+    #size: 'r3.4xlarge'
 
-  worker_ISU:
-    size: 'm1.medium'
+#  worker_ISU:
+#    size: 'm1.medium'
     
   server_worker_ISU:
     size: 'm1.xlarge'
-    #size: 'm3.2xlarge'
     
   server_worker_IN:
     size: 'm1.xlarge'
@@ -176,39 +176,41 @@ userdata:
     r2_man_bucket: 6k_test.praxik
     
     
-  worker:
-    deploy_key: arks/default/worker_x64.zip
+#  worker:
+#    deploy_key: arks/default/worker_x64.zip
     
   worker_ISA:
-    deploy_key: arks/default/worker_x64.zip
-    number_of_processes: 1 
+    deploy_key: arks/default/server_worker_x64.zip
+    number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
     receive_queue_name: 6k_task
+    keep_alive_check_interval: 30
+    server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
 
   worker_r2_ISA:
     deploy_key: arks/default/worker_r2p2d_x64.zip
-    number_of_processes: 4 
+    number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
     receive_queue_name: 6k_task_r2
 
-  worker_ISU:
-    deploy_key: arks/default/worker_x64.zip
-    number_of_processes: 1 
-    gdb_key: iowammp.gdb.zip
-    gdb_install_name: iowammp.gdb
-    man_key: INL_Webster_weps.zip #PT_York_weps.zip #INL_Marcus_Rev2_weps.zip  #ISU_Marcus_weps.zip
-    r2_man_key: INL_Webster_skels.zip #PT_York_skels.zip #INL_Marcus_Rev2_skels.zip   #ISU_Marcus_skels.zip
-    receive_queue_name: purdue_task
+#  worker_ISU:
+#    deploy_key: arks/default/worker_x64.zip
+#    number_of_processes: 1 
+#    gdb_key: iowammp.gdb.zip
+#    gdb_install_name: iowammp.gdb
+#    man_key: INL_Webster_weps.zip
+#    r2_man_key: INL_Webster_skels.zip
+#    receive_queue_name: purdue_task
     
   server_worker_ISU:
     deploy_key: arks/default/server_worker_x64.zip
-    number_of_processes: 4 
+    number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: PT_York_weps.zip
@@ -220,14 +222,14 @@ userdata:
     
   server_worker_IN:
     deploy_key: arks/default/server_worker_x64.zip
-    number_of_processes: 4 
+    number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: IN_state_weps.zip
     r2_man_key: IN_state_skels.zip
     receive_queue_name: IN_task
     keep_alive_check_interval: 30
-    server_worker_command: "6k_server_worker.exe --gdbname tyner.gdb --workerid $pid"
+    server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
 
 
   worker_mmp_dev:
