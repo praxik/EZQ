@@ -1,5 +1,6 @@
 
 require 'aws/sqs/queue'
+require_relative 'ezqlib'
 
 # We have to monkey-patch the AWS module in order to derive from Queue because 
 # AWS does some internal magic with namespaces. Perhaps there is a cleaner way,
@@ -31,7 +32,7 @@ module AWS
             got_first = false
             loop do
               got_msg = false
-              message = receive_messages(opts)
+              message = EZQ.exceptional_retry_with_backoff(3){receive_messages(opts)}
               if message && !(message.is_a?(Array) && message.empty?)
                 got_msg = got_first = true
                 last_message_at = Time.now
