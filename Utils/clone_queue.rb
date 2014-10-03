@@ -3,7 +3,7 @@
 require 'bundler/setup'
 require 'yaml'
 require 'aws-sdk'
-require '../x_queue'
+require_relative '../x_queue'
 
 begin
   q = String.new(ARGV[0])
