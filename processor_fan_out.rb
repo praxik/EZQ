@@ -10,6 +10,7 @@
 
 require 'bundler/setup'
 require 'yaml'
+require 'parallel'
 
 command = 'ruby processor.rb -c receive_queue_config.yml'
 Dir.chdir(File.dirname(__FILE__))
@@ -20,7 +21,12 @@ Dir.chdir(File.dirname(__FILE__))
 begin
   puts 'Looking for number of processors to run in userdata...'
   userdata = YAML.load(File.read('userdata.yml'))
-  @num = userdata['number_of_processes'].to_i
+  @num = userdata['number_of_processes']
+  if @num == 'auto'
+    @num = Parallel.processor_count()  
+  else
+    @num = @num.to_i
+  end
   @rec_queue = userdata.fetch('receive_queue_name','')
   puts "Overriding receive queue setting with #{@rec_queue}" if !@rec_queue.empty?
 rescue
