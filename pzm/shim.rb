@@ -18,6 +18,7 @@ require 'yaml'
 require_relative 'ezqlib'
 require 'logger'
 require 'fileutils'
+require 'securerandom'
 
 # The command line arg order
 # process_command: "ruby shim.rb $input_file $s3_1 $s3_2 $pid output_$id.txt"
@@ -40,15 +41,20 @@ pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
                  # will go in the command string.
 output_file = ARGV.shift
 worker_id = pid
-
 s3_bucket = vars['s3_bucket']
+report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
-raster_root = s3_bucket + "/yields/yield_maps/#{worker_id}"
+raster_prefix = SecureRandom.uuid
+#raster_root = s3_bucket + "/yields/yield_maps/#{raster_prefix}"
+raster_root = s3_bucket + "/" + File.dirname( "#{s3_1}" ) + "/#{raster_prefix}"
 # roi.agsolver/web_development/yields/yield_maps/yield.zip
 yld_data = Dir.pwd() + "/#{s3_1}"
 # roi.agsolver/web_development/yields/yield_maps/field.json
 fld_data = Dir.pwd() + "/#{s3_2}"
+
+File.dirname('web_development/yields/yield_maps/yield.zip') will give you what you 
+
 
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
@@ -131,6 +137,12 @@ if exit_status.zero?
   result_message = {}
   result_message['report_record_id'] = report_record_id
   result_message['worker_succeeded'] = !has_errors
+
+  bucket,key = already_pushed[0].split(',').map{|s| s.strip}
+  result_message['tiff_raster'] = key
+  bucket,key = already_pushed[1].split(',').map{|s| s.strip}
+  result_message['json_raster'] = key
+
   if has_errors
     result_message['errors'] = errors.join("\n")
   end
