@@ -153,9 +153,9 @@ class SixK
     @size = cl_size if !cl_size.empty?
     @size = 't1.micro' if @size.empty?
     name = cl_name
-    @userdata['number_of_processes'] = cl_processes if cl_processes > 0
-    @userdata['number_of_processes'] = 1 if !@userdata.has_key?('number_of_processes')
-    @userdata['number_of_processes'] = 1 if @userdata['number_of_processes'] <= 0
+    np = @userdata.fetch('number_of_processes',1)
+    np = cl_processes if cl_processes > 0
+    np = 1 if np != 'auto' and np.to_i <= 0
 
     # Clearing out the userdata ensures that bootstrap exits due to lack
     # of info about what to start up.
