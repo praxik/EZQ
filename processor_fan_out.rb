@@ -21,7 +21,7 @@ Dir.chdir(File.dirname(__FILE__))
 begin
   puts 'Looking for number of processors to run in userdata...'
   userdata = YAML.load(File.read('userdata.yml'))
-  @num = userdata['number_of_processes']
+  @num = userdata.fetch('number_of_processes',1)
   if @num == 'auto'
     @num = Parallel.processor_count()  
   else
