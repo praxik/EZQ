@@ -47,14 +47,11 @@ report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
 raster_prefix = SecureRandom.uuid
 #raster_root = s3_bucket + "/yields/yield_maps/#{raster_prefix}"
-raster_root = s3_bucket + "/" + File.dirname( "#{s3_1}" ) + "/#{raster_prefix}"
+raster_root = File.dirname( "#{s3_1}" ) + "/#{raster_prefix}"
 # roi.agsolver/web_development/yields/yield_maps/yield.zip
 yld_data = Dir.pwd() + "/#{s3_1}"
 # roi.agsolver/web_development/yields/yield_maps/field.json
 fld_data = Dir.pwd() + "/#{s3_2}"
-
-File.dirname('web_development/yields/yield_maps/yield.zip') will give you what you 
-
 
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
