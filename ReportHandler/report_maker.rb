@@ -42,7 +42,7 @@ class ReportMaker < EZQ::Processor
   def process_molecule(mol)
     success = super
     if success
-      AWS::SQS.new.queues.named(@agg_settings['queue_to_aggregate']).delete
+      AWS::SQS.new.queues.named(@settings['queue_to_aggregate']).delete
       exit(0)
     else
       @logger.error("Process_molecule error")
