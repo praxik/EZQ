@@ -35,6 +35,14 @@ module EZQ
   end
 
 
+  # Returns handle to S3.
+  def self.get_s3()
+    # The retry here is an attempt to deal with this uninformative error:
+    # `block in add_service': undefined method `global_endpoint?' for AWS::S3:
+    #  Class (NoMethodError)
+    return @s3 ||= exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
+  end
+
 
   # Diverts the body of a message intended for SQS off to S3. This is useful
   # when the message size exceeds SQS's limit.
@@ -284,7 +292,7 @@ module EZQ
   class DataPusher
     def initialize( data,bucket_name,key )
       @retries ||= 10
-      s3 = AWS::S3.new
+      s3 = get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
@@ -308,7 +316,7 @@ module EZQ
       if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
       end
-      s3 = AWS::S3.new
+      s3 = get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
@@ -331,7 +339,7 @@ module EZQ
   # @param [String] key The S3 key, which will also map directly to the local filename
   # @return [Bool] true if successful, false otherwise
   def self.get_s3_file(bucket,key)
-    s3 = AWS::S3.new
+    s3 = get_s3()
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ]
     FileUtils.mkdir_p(File.dirname(key))
