@@ -151,6 +151,6 @@ log.info 'Done.'
 exit(exit_status)
 
 rescue => e
-  log.info(e)
+  log.fatal(e)
   exit(1)
 end
