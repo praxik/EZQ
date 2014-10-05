@@ -473,7 +473,7 @@ class Processor
     digest = EZQ.enqueue_message(body,preamble,@result_queue,false,
                                  bucket = 'EZQOverflow.praxik')
     if !digest.empty?
-      @logger.info "Posted result message #{sent.id} to queue '#{@result_queue_name}'"
+      @logger.info "Posted result message to queue '#{@result_queue_name}'"
       return true
     else
       @logger.error "Failed to send result message for originating message #{@id}"
