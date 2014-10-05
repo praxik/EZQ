@@ -292,7 +292,7 @@ module EZQ
   class DataPusher
     def initialize( data,bucket_name,key )
       @retries ||= 10
-      s3 = get_s3()
+      s3 = EZQ.get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
@@ -316,7 +316,7 @@ module EZQ
       if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
       end
-      s3 = get_s3()
+      s3 = EZQ.get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
@@ -339,7 +339,7 @@ module EZQ
   # @param [String] key The S3 key, which will also map directly to the local filename
   # @return [Bool] true if successful, false otherwise
   def self.get_s3_file(bucket,key)
-    s3 = get_s3()
+    s3 = EZQ.get_s3()
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ]
     FileUtils.mkdir_p(File.dirname(key))
