@@ -20,6 +20,7 @@ require 'logger'
 require 'fileutils'
 require 'securerandom'
 
+begin
 # The command line arg order
 # process_command: "ruby shim.rb $input_file $s3_1 $s3_2 $pid output_$id.txt"
 lf = File.new("md_shim_#{ARGV[3]}.log", 'a')
@@ -148,3 +149,8 @@ end
 
 log.info 'Done.'
 exit(exit_status)
+
+rescue => e
+  log.info(e)
+  exit(1)
+end
