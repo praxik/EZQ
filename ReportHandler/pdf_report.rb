@@ -199,15 +199,17 @@ def self.make_gis_images(data,field_data)
          " --output=\"#{out_dir}/soil_loss.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_seg_soil_loss.tif\"" +
          " --legendtype=soilloss --legendformat=png" +
-         " --width=2000 --height=2000 --autofit=false")
+         " --width=2000 --height=2000 --autofit=false" +
+         " --stndevs=1.5")
 
   # Generate Sediment Load map
   system("DISPLAY=:0 python agmap.py" +
          " --maptype=dem" +
          " --output=\"#{out_dir}/seg_sed_load.png\"" +
          " --input=\"#{json_dir}/#{job_id}_#{record_id}_seg_sed_load.tif\"" +
-         " --legendtype=soilloss --legendformat=png" +
-         " --width=2000 --height=2000 --autofit=false")
+         " --legendtype=sedload --legendformat=png" +
+         " --width=2000 --height=2000 --autofit=false" +
+         " --stndevs=1.5")
 end
 
 
