@@ -90,11 +90,15 @@ def start
           aggregator_file(msg,r2_mode)
         elsif msg =~ /^job_statistics/
           job_statistics(msg)
+        elsif msg =~ /^task_mode: R2D/
+          puts "set_queue: #{@worker_r2_task_queue}"
+          r2_mode = true
+          @log.info 'Now in R2 task mode'
         else
           task_message(msg,r2_mode,task_ids,r2_task_ids)
         end
       else
-        listening,r2_mode = not_a_message(msg,r2_mode)
+        listening = not_a_message(msg)
       end
     end
     io.close
@@ -198,21 +202,16 @@ def job_statistics(msg)
   @log.info "job stats: #{@job_stats}"
 end
 
-def not_a_message(msg,r2_mode)
+def not_a_message(msg)
   listening = false
-  r2 = r2_mode
   @log.info "Non-message output: #{msg}"
   if msg =~ /^pregrid_begin_messages/
     listening = true 
     @log.info 'Listening for messages'
-  elsif msg =~ /^R2D Tasks/
-    puts "set_queue: #{@worker_r2_task_queue}"
-    r2 = true
-    @log.info 'Now in R2 task mode'
   else
     @possible_errors << msg
   end
-  return [listening,r2]
+  return listening
 end
 
 # Form and send off aggregator queue message
