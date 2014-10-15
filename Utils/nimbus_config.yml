@@ -271,7 +271,7 @@ userdata:
     geoserver_ip: production-gis-persistence.agsolver.com
     geoserver_port: 5432
     gs_db_username: postgres
-    gs_db_password: postgres
+    gs_db_password: agsolver_postgres
     s3_bucket: production
 
   worker_pzm_md_dev:
