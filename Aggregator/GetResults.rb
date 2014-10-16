@@ -349,7 +349,7 @@ class RusleReport < EZQ::Processor
 
 
   # Write a file to disk and immediately send it out to S3
-  def write_and_push(name,content,threads)
+  def write_and_push(name,content)
     File.write(name,content)
     EZQ.send_file_to_s3(name,"6k_test.praxik",name)
   end
@@ -358,7 +358,7 @@ class RusleReport < EZQ::Processor
   # Hit the db to get inputs associated with the dom_crit task
   def get_inputs(dom_crit_id)
     @db = PG.connect(
-        host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
+        host: 'development-ezq-persistence.agsolver.com',
         dbname: 'praxik',
         user: 'app',
         password: 'app')
@@ -371,7 +371,7 @@ class RusleReport < EZQ::Processor
 
   def store_job_stats(stats,job_id)
     db = PG.connect(
-        host: 'development-rds-pgsq.csr7bxits1yb.us-east-1.rds.amazonaws.com',
+        host: 'development-ezq-persistence.agsolver.com',
         dbname: 'praxik',
         user: 'app',
         password: 'app')
