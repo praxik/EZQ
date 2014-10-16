@@ -201,7 +201,7 @@ module EZQ
     # 256k limit minus assumed metadata size of 6k:  (256-6)*1024 = 256000
     bc = body.clone
     if (body.bytesize + preamble.to_yaml.bytesize) > 256000   
-      body,preamble = divert_body_to_s3( body,preamble,bucket,key )
+      bc,preamble = divert_body_to_s3( bc,preamble,bucket,key )
     end
 
     return bc.insert( 0,"#{preamble.to_yaml}...\n" )
@@ -320,7 +320,7 @@ module EZQ
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
-      return nil if obj.exists? and obj.etag() == md5file(filename).hexdigest
+      return nil if obj.exists? and obj.etag() == EZQ.md5file(filename).hexdigest
       obj.write(Pathname.new(filename))
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
@@ -345,7 +345,7 @@ module EZQ
     FileUtils.mkdir_p(File.dirname(key))
     
     # Do we already have a current version of this file?
-    return true if File.exists?(key) and (obj.etag() == md5file(key).hexdigest)
+    return true if File.exists?(key) and (obj.etag() == EZQ.md5file(key).hexdigest)
     
     begin
       File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
@@ -372,7 +372,7 @@ module EZQ
 
   # Un-escapes an escaped string. Cribbed from
   # http://stackoverflow.com/questions/8639642/whats-the-best-way-to-escape-and-unescape-strings
-  # 
+  # Does *not* modify str in place. Returns a new, unescaped string.
   def self.unescape(str)
     str.gsub(/\\(?:([#{UNESCAPES.keys.join}])|u([\da-fA-F]{4}))|\\0?x([\da-fA-F]{2})/) {
       if $1
