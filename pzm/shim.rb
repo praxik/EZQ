@@ -132,19 +132,22 @@ end
 # The message written here will be picked up by EZQ::Processor and placed into
 # the result queue specified in mmp_example_config.yml.
 if exit_status.zero?
-  result_message = {}
-  result_message['report_record_id'] = report_record_id
-  result_message['worker_succeeded'] = !has_errors
+    result_message = {}
+    result_message['report_record_id'] = report_record_id
+    result_message['worker_succeeded'] = !has_errors
 
-  bucket,key = already_pushed[0].split(',').map{|s| s.strip}
-  result_message['tiff_raster'] = key
-  bucket,key = already_pushed[1].split(',').map{|s| s.strip}
-  result_message['json_raster'] = key
+    if has_errors
+        result_message['errors'] = errors.join("\n")
+        result_message['tiff_raster'] = ''
+        result_message['json_raster'] = ''
+    else
+        bucket,key = already_pushed[0].split(',').map{|s| s.strip}
+        result_message['tiff_raster'] = key
+        bucket,key = already_pushed[1].split(',').map{|s| s.strip}
+        result_message['json_raster'] = key
+    end
 
-  if has_errors
-    result_message['errors'] = errors.join("\n")
-  end
-  File.write(output_file,result_message.to_json)
+    File.write(output_file,result_message.to_json)
 end
 
 log.info 'Done.'
