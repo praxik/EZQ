@@ -391,7 +391,9 @@ class Processor
       end
     end
     # Result queue may have changed. This does nothing if it hasn't.
-    init_result_queue() 
+    init_result_queue()
+  rescue
+    @logger.info "No overrides."
   end
 
 
