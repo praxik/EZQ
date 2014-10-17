@@ -8,38 +8,9 @@ require 'logger'
 require 'digest/md5'
 require 'deep_merge'
 require 'securerandom'
+require_relative './ezqlib'
 
 module EZQ
-
-# FilePusher class pushes a file specified in the form bucket,key out to S3
-# using the supplied credentials and logging to the supplied logger. It is
-# intended to be used as a thread object.
-class FilePusher
-  def initialize(bucket_comma_filename,dry_run,credentials,logger)
-    bname,fname = bucket_comma_filename.split(',').map{|s| s.strip}
-    if dry_run
-      puts "Would be pushing '#{fname}' into bucket '#{bname}'"
-      return
-    end
-    logger.info "Pushing #{bucket_comma_filename}"
-    if File.exists?(fname)
-      begin
-        s3 = AWS::S3.new(credentials)
-        bucket = s3.buckets[bname]
-        obj = bucket.objects.create(fname,Pathname.new(fname))
-        AWS.config.http_handler.pool.empty!
-      rescue => e
-        logger.error "FilePusher: #{e}"
-        retry
-      end
-    else
-      logger.error "file #{fname} does not exist; can't push it to S3."
-      return nil
-    end
-    logger.info "Successfully pushed file #{fname} to S3."
-    return nil
-  end
-end
 
 # Job_Breaker takes a JSON structure containing separate tasks, and enqueues
 # each of the separate tasks as specified in the configuration. A *Job* is
@@ -110,9 +81,6 @@ class Job_Breaker
     @logger = logger
     
     # Set up AWS with the specified credentials
-    #~credentials = {}
-    #~credentials['access_key_id'] = config['access_key_id']
-    #~credentials['secret_access_key'] = config['secret_access_key']
     @credentials = credentials
     AWS.config(credentials)
     
@@ -164,15 +132,17 @@ class Job_Breaker
     IO.popen(@job_creator_command)  do |io| 
       while !io.eof?
         msg = io.gets
-        msg = unescape(msg)
+        msg = EZQ.unescape(msg)#unescape(msg)
         msg.sub!(/^"/,'') # Remove initial wrapping quote
         msg.sub!(/"$/,'') # Remove final wrapping quote
         if msg =~ /^push_file/
+          @logger.info "Push file"
           # Don't push the same file multiple times during a job.
           bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
           if !@already_pushed.include?(bucket_comma_filename)
-            push_threads << Thread.new(bucket_comma_filename, @dry_run, @credentials, @logger){ |b,d,c,l| FilePusher.new(b,d,c,l) }
+            push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
             @already_pushed << bucket_comma_filename
+            clean_threads(push_threads)
           end
         elsif msg =~ /^error_messages: /
           puts msg # Propagate error messages up to parent processor
@@ -187,6 +157,7 @@ class Job_Breaker
           @enqueued_tasks.push(msg)
         end
       end
+      @logger.info "Found EOF"
       io.close
       @exit_status =  $?.to_i
     end
@@ -198,7 +169,12 @@ class Job_Breaker
       end
     end
   end
-  
+
+
+  protected
+  def clean_threads(threads)
+    threads.delete_if{|t| t.status == false or t.status == nil}
+  end
   
   
   protected
@@ -225,23 +201,12 @@ class Job_Breaker
   protected
   # Does the true heavy-lifting of enqueueing a task
   def enqueue_task_impl(body,preamble)
-    if (body.bytesize + preamble.to_yaml.bytesize) > 256000  #256k limit minus assumed
-                                                     #metadata size of 6k
-                                                     #(256-6)*1024 = 256000
-      body,preamble = divert_body_to_s3(body,preamble)
-    end
-    msg = "#{preamble.to_yaml}...\n#{body}"
-    if @dry_run
-      puts "#Would be enqueuing this: #{msg}"
-      return
-    end
-    digest = Digest::MD5.hexdigest(msg)
-    sent = @queue.send_message(msg)
-    if digest == sent.md5
-      @logger.info "Enqueued msg #{sent.id} in queue '#{@task_queue_name}'"
-    else
-      @logger.error "Failed to enqueue msg:\n#{msg}\n-----------------------"
-    end
+    dig = EZQ.enqueue_message( body,
+                               preamble,
+                               @queue,
+                               false,
+                               'EZQOverflow.praxik' )
+    #@logger.error "Error enqueuing message" if dig.epmty?()
   end
 
 
@@ -254,63 +219,11 @@ class Job_Breaker
     if task_pa.kind_of?(Hash) && task_pa.has_key?('EZQ')
       pa = YAML.load(preamble)
       task_pa.deep_merge(pa)
-      #preamble = "#{task_pa.to_yaml}\n..."
       preamble = task_pa
     end
     return [task.sub(/-{3}\nEZQ.+?\.{3}\n/m,''),preamble]
-    #return "#{preamble}\n#{task.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')}"
   end
 
-  # This method is copied from EZQ::Processor
-  # Place message body in S3 and update the preamble accordingly
-  def divert_body_to_s3(body,preamble)
-    @logger.info 'Message is too big for SQS and is beig diverted to S3'
-    # Don't assume the existing preamble can be clobbered
-    new_preamble = preamble.clone
-    s3 = AWS::S3.new(@credentials)
-    bucket_name = 'EZQOverflow.praxik'
-    bucket = s3.buckets[bucket_name]
-    if !bucket
-      errm =  "The result message is too large for SQS and would be diverted " +
-              "to S3, but the specified result overflow bucket, "+
-              "#{bucket_name}, does not exist!"
-      @log.fatal errm
-      raise "Result overflow bucket #{bucket_name} does not exist!"
-    end
-    key = "overflow_body_#{SecureRandom.uuid}.txt"
-    obj = bucket.objects.create(key,body)
-    AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
-    s3_info = {'bucket'=>bucket_name,'key'=>key}
-    new_preamble['EZQ'] = {} if new_preamble['EZQ'] == nil
-    new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
-    body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
-    return [body,new_preamble]
-  end
-
-
-  protected
-  # Un-escapes an escaped string. Cribbed from
-  # http://stackoverflow.com/questions/8639642/whats-the-best-way-to-escape-and-unescape-strings
-  # 
-  def unescape(str)
-    # Escape all the things
-    str.gsub(/\\(?:([#{UNESCAPES.keys.join}])|u([\da-fA-F]{4}))|\\0?x([\da-fA-F]{2})/) {
-      if $1
-        if $1 == '\\' then '\\' else UNESCAPES[$1] end
-      elsif $2 # escape \u0000 unicode
-        ["#$2".hex].pack('U*')
-      elsif $3 # escape \0xff or \xff
-        [$3].pack('H2')
-      end
-    }
-  end
-
-  UNESCAPES = {
-    'a' => "\x07", 'b' => "\x08", 't' => "\x09",
-    'n' => "\x0a", 'v' => "\x0b", 'f' => "\x0c",
-    'r' => "\x0d", 'e' => "\x1b", "\\\\" => "\x5c",
-    "\"" => "\x22", "'" => "\x27"
-}
   
 end #class
 end #module
