@@ -346,13 +346,10 @@ module EZQ
     
     # Do we already have a current version of this file?
     return true if File.exists?(key) and (obj.etag() == EZQ.md5file(key).hexdigest)
-    
-    begin
-      File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
-    rescue
-      return false  
-    end
+    File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
     return true
+  rescue
+      return false  
   end
 
 
