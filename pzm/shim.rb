@@ -57,11 +57,12 @@ fld_data = Dir.pwd() + "/#{s3_2}"
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
 json_doc = JSON.parse(File.read(input_file))
-if !json_doc.key?('year') or !json_doc.key?('report_record_id' )
+
+if !json_doc.fetch('year',false) or !json_doc.fetch('report_record_id',false)
     errors = 'report_record_id or year keys not available in JSON message\n'
     log.info errors
     result_message = {}
-    result_message['report_record_id'] = ''
+    result_message['report_record_id'] = json_doc['report_record_id']
     result_message['worker_succeeded'] = false
     result_message['errors'] = errors
     result_message['tiff_raster'] = ''
