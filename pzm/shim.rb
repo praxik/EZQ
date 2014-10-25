@@ -46,7 +46,7 @@ s3_bucket = vars['s3_bucket']
 
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
 #raster_prefix = SecureRandom.uuid
-raster_prefix = File.dirname( "#{s3_1}", ".zip" )
+raster_prefix = File.basename( "#{s3_1}", ".zip" )
 #raster_root = s3_bucket + "/yields/yield_maps/#{raster_prefix}"
 raster_root = File.dirname( "#{s3_1}" ) + "/#{raster_prefix}"
 # roi.agsolver/web_development/yields/yield_maps/yield.zip
@@ -57,13 +57,13 @@ fld_data = Dir.pwd() + "/#{s3_2}"
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
 json_doc = JSON.parse(File.read(input_file))
-if !json_doc.key?('year') and !json_doc.key?('report_record_id' )
-    errors = 'report_record_id and year keys not available in JSON message'
+if !json_doc.key?('year') or !json_doc.key?('report_record_id' )
+    errors = 'report_record_id or year keys not available in JSON message\n'
     log.info errors
     result_message = {}
     result_message['report_record_id'] = ''
     result_message['worker_succeeded'] = false
-    result_message['errors'] = errors.join("\n")
+    result_message['errors'] = errors
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
     
