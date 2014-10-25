@@ -46,7 +46,8 @@ s3_bucket = vars['s3_bucket']
 report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
-raster_prefix = SecureRandom.uuid
+#raster_prefix = SecureRandom.uuid
+raster_prefix = File.dirname( "#{s3_1}", ".zip" )
 #raster_root = s3_bucket + "/yields/yield_maps/#{raster_prefix}"
 raster_root = File.dirname( "#{s3_1}" ) + "/#{raster_prefix}"
 # roi.agsolver/web_development/yields/yield_maps/yield.zip
