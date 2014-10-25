@@ -162,7 +162,12 @@ class Job_Breaker
       @exit_status =  $?.to_i
     end
     # Wait for the file pushes to finish
-    push_threads.each { |t| t.join }
+    begin
+      push_threads.each { |t| t.join }
+    rescue => e
+      @logger.error(e)
+      @exit_status = 54321
+    end
     if @repeat_message_type == 'collection'
       @repeat_message_n_times.times do
         @enqueued_tasks.each{|task| enqueue_task(task)}
