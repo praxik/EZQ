@@ -43,7 +43,6 @@ pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
 output_file = ARGV.shift
 worker_id = pid
 s3_bucket = vars['s3_bucket']
-report_record_id = JSON.parse(File.read(input_file))['report_record_id']
 
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
 #raster_prefix = SecureRandom.uuid
@@ -57,8 +56,11 @@ fld_data = Dir.pwd() + "/#{s3_2}"
 
 # The incoming message is a single JSON object containing the key-value pair
 # "report_record_id"
-report_record_id = JSON.parse(File.read(input_file))['report_record_id']
+json_doc = JSON.parse(File.read(input_file))
+report_record_id = json_doc['report_record_id']
+md_year = json_doc['year']
 log.info "Operating on report_record_id: #{report_record_id}"
+log.info "Machine data year: #{md_year}"
 
 # machine data path
 # field boundary path
@@ -68,7 +70,8 @@ command = "FieldOpsReader.exe " +
           " --in=#{yld_data}" +
           " --out=#{cmprocessor_root}" +
           " --field=#{fld_data}" +
-          " --raster=#{raster_root}"
+          " --raster=#{raster_root}" +
+          " --season=#{md_year}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so
