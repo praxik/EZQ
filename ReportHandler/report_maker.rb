@@ -38,7 +38,7 @@ class ReportMaker < EZQ::Processor
     #exit(0) if success
   #end
 
-
+  # This override is used when atomicity > 1
   def process_molecule(mol)
     success = super
     if success
@@ -49,6 +49,19 @@ class ReportMaker < EZQ::Processor
       exit(1)
     end
   end
+
+  # This override is used when atomicity == 1
+  def process_message(msg)
+    success = super
+    if success
+      AWS::SQS.new.queues.named(@settings['queue_to_poll']).delete
+      exit(0)
+    else
+      @logger.error("Process_message error")
+      exit(1)
+    end
+  end
+
 
 end
 
