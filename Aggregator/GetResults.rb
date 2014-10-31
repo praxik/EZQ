@@ -31,6 +31,8 @@ class RusleReport < EZQ::Processor
     @batch_mode = @agg_settings.fetch('batch_mode',false)
     job_statistics = @agg_settings.fetch('job_statistics','')
     @store_inputs = @agg_settings.fetch('store_inputs',false)
+    @tablename = @agg_settings['db_table']
+    set_backend_table(@tablename)
 
     store_job_stats(job_statistics,@job_id) if !job_statistics.empty?
 
@@ -221,15 +223,21 @@ class RusleReport < EZQ::Processor
   end
 
 
+
+  def set_backend_table(tablename)
+    socket_process_command({'set_table'=>tablename}.to_json())
+  end
+
+
   # TODO: clean this mess up. Break out functionality into smaller, digestible
   # pieces.
   def deal_with_report
     @logger.info 'deal_with_report'
     data_spec = DataSpecParser::get_data_spec('main.cxx')
-    tablename = @agg_settings['db_table']
+    #tablename = @agg_settings['db_table']
     dom_crit_id = 0
     
-    cpp_output = run_post_process(tablename)
+    cpp_output = run_post_process(@tablename)
     
     Dir.mkdir('report_data') unless Dir.exists?('report_data')
     geojsonfile = "report_data/#{@job_id}_#{@record_id}.geojson"

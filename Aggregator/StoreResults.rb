@@ -50,9 +50,14 @@ class Rusle2Aggregator < SingletonApp
   def handle_data_from_client(connection)
     data = {}
     return false if !get_json(connection,data)
-    #@log.info "Rec'd: #{data}"
     @log.info "Received data"
-    #puts "Rec'd: #{data}"
+    if data.size == 1 and data.fetch('set_table',false)
+      @tablename = data['set_table']
+      @log.info "Changing main storage table to #{@tablename}"
+      sql = "create table if not exists #{@tablename}( #{@fields} )"
+      @db.exec( sql )
+      return true
+    end
     return store_data(data)
   end
 
