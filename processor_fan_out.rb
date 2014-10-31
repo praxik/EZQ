@@ -29,6 +29,8 @@ begin
   end
   @rec_queue = userdata.fetch('receive_queue_name','')
   puts "Overriding receive queue setting with #{@rec_queue}" if !@rec_queue.empty?
+  @err_queue = userdata.fetch('error_queue_name','')
+  puts "Overriding error queue setting with #{}" if !@err_queue.empty?
 rescue
   puts 'Number of desired processes not found in userdata. Falling back to number in processor_fan_out.yml.'
   if !File.exists?('processor_fan_out.yml')
@@ -49,6 +51,7 @@ pids = []
 @num.times do |idx|
   command += " --log ./processor_" + "%02d" % idx + ".log"
   command += " --queue #{@rec_queue}" if !@rec_queue.empty?
+  command += " --error_queue #{err_queue}" if !@err_queue.empty?
   pids << spawn(command)
 end
 
