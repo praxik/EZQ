@@ -346,13 +346,15 @@ class Processor
        return
       end
     end
-    err_q = AWS::SQS.new.queues.named(@error_queue_name)
-    if !err_q.exists?
-      @logger.error "Unable to connect to error queue #{@error_queue_name}."
-      return
-    end
+    
+    #err_q = AWS::SQS.new.queues.named(@error_queue_name)
+    #if !err_q.exists?
+    #  @logger.error "Unable to connect to error queue #{@error_queue_name}."
+    #  return
+    #end
     err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
-    err_q.send_message( err_msg.to_yaml )
+    EZQ.enqueue_message(err_msg.to_yaml,{},error_queue_name,true)
+    #err_q.send_message( err_msg.to_yaml )
     raise msg if failout
   end
   
@@ -482,35 +484,6 @@ class Processor
       return false
     end
   end
-
-
-
-  protected
-  # Place message body in S3 and update the preamble accordingly
-  def divert_body_to_s3(body,preamble)
-    @logger.info "Oversized body is being diverted to S3"
-    # Don't assume the existing preamble can be clobbered
-    new_preamble = preamble.clone
-    s3 = AWS::S3.new
-    # How are we going to set the bucket name for this stuff?
-    bucket_name = @result_overflow_bucket
-    bucket = s3.buckets[bucket_name]
-    if !bucket
-      errm =  "The result message is too large for SQS and would be diverted " +
-              "to S3, but the specified result overflow bucket, "+
-              "#{bucket_name}, does not exist!"
-      @logger.fatal errm
-      send_error errm
-    end
-    key = "overflow_body_#{@id}.txt"
-    obj = bucket.objects.create(key,body)
-    AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
-    s3_info = {'bucket'=>bucket_name,'key'=>key}
-    new_preamble['EZQ'] = {} if new_preamble['EZQ'] == nil
-    new_preamble['EZQ']['get_s3_file_as_body'] = s3_info
-    body = "Message body was too big and was diverted to S3 as s3://#{bucket_name}/#{key}"
-    return [body,new_preamble]
-  end
   
   
   protected
@@ -588,10 +561,11 @@ class Processor
     files.each do |props|
       return false if !get_s3_file(props['bucket'],props['key'])
       if props.has_key?('decompress') and props['decompress'] == true
-        Zip.on_exists_proc = true # Don't bail out if extracted files already
-                                  # exist
+        Zip.on_exists_proc = true # Don't raise if extracted files already exist
         Zip::File.open(props['key']) do |zip_file|
-          zip_file.each { |entry| entry.extract(entry.name) }
+          # Don't actually overwrite an existing file, because doing so with
+          # multiple processes simultaneously -- it happens! -- causes crashes.
+          zip_file.each { |entry| entry.extract(entry.name) if !File.exists?(entry.name) }
         end
       end
     end
@@ -677,7 +651,7 @@ class Processor
     begin
       obj.delete if obj
     rescue
-      @logger.warning "Failed to delete file as body #{bucket_comma_file}"
+      @logger.warn "Failed to delete file as body #{bucket_comma_file}"
     end
     File.delete(key) if File.exists?(key)
     return nil
@@ -743,7 +717,7 @@ class Processor
     begin
       msg.visibility_timeout = timeout
     rescue
-      @logger.warning "Failed to reset timeout on msg #{msg.id}"
+      @logger.warn "Failed to reset timeout on msg #{msg.id}"
     end
   end
 
@@ -753,7 +727,7 @@ class Processor
     begin
       msg.delete
     rescue
-      @logger.warning "Failed to delete msg #{msg.id}"
+      @logger.warn "Failed to delete msg #{msg.id}"
     end
   end
 
@@ -920,7 +894,7 @@ class Processor
     @logger.info "Starting queue polling"
     if @smart_halt_when_idle_N_seconds > 0 && @instance
       @polling_options[:idle_timeout] = @smart_halt_when_idle_N_seconds
-      while (Time.now - @launch_time)/60%60 < 59 do
+      while ((Time.now - @launch_time) % 3600) < (3600-@smart_halt_when_idle_N_seconds) do
         poll_queue
       end
       halt_instance
@@ -950,6 +924,7 @@ if __FILE__ == $0
   creds_file = 'credentials.yml'
   severity = 'info'
   queue = nil
+  error_queue = nil
   log_file = STDOUT
   op = OptionParser.new do |opts|
     opts.banner = "Usage: processor.rb [options]"
@@ -971,6 +946,9 @@ if __FILE__ == $0
     end
     opts.on("-Q", "--queue [QUEUE_NAME]","Poll QUEUE_NAME for tasks rather than the receive_queue specified in the config file") do |q|
       queue = q
+    end
+    opts.on("-e", "--error_queue [QUEUE_NAME]","Report fatal errors to this queue rather than the error_queue specified in the config file") do |q|
+      error_queue = q
     end
   end
 
@@ -1016,6 +994,7 @@ if __FILE__ == $0
     end
 
     overrides = queue ? {"receive_queue_name"=>queue} : {}
+    overrides['error_queue_name'] = error_queue if error_queue
     EZQ::Processor.new(config_file,credentials,log,overrides).start
   # Handle Ctrl-C gracefully
   rescue Interrupt
