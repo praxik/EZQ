@@ -97,6 +97,7 @@ has_errors = false
 errors = []
 already_pushed = []
 push_threads = []
+results_tags = []
 begin
   IO.popen(command,:err=>[:child, :out]) do |io|
     while !io.eof?
@@ -124,6 +125,9 @@ begin
       elsif msg =~ /^error_message/
         errors << msg.gsub(/^error_message/,'')
         has_errors = true
+        puts msg
+      elsif msg =~ /^results_tag:/
+        results_tags << msg.gsub(/^results_tag:/,'')
         puts msg
       else
         puts msg
@@ -155,6 +159,11 @@ if exit_status.zero?
     result_message = {}
     result_message['report_record_id'] = report_record_id
     result_message['worker_succeeded'] = !has_errors
+
+    results_tags.each do |results|
+        tag,value = results.split(',').map{|s| s.strip}
+        result_message[tag] = value
+    end
 
     if has_errors
         result_message['errors'] = errors.join("\n")
