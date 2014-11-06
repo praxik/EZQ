@@ -25,6 +25,12 @@ end
 
 module EZQ
 
+  @log = nil
+
+  def self.set_logger(logger)
+    @log = logger
+  end
+
   # Returns a new array of size +size+ which contains the elements of +ary+
   # repeated cyclically.
   def self.cyclical_fill( ary,size )
@@ -59,6 +65,7 @@ module EZQ
                               preamble,
                               bucket_name = 'Overflow',
                               key = SecureRandom.uuid() )
+    @log.debug "EZQ::divert_body_to_s3" if @log
     bucket_name = 'EZQ.Overflow' if bucket_name == nil
     key = SecureRandom.uuid if key == nil
     new_preamble = preamble.clone
@@ -94,6 +101,7 @@ module EZQ
                           create_queue_if_needed = false,
                           bucket = nil,
                           key_ary = [] )
+    @log.debug "EZQ::enqueue_batch" if @log
     q = get_queue(queue,create_queue_if_needed)
 
     # Just to be safe; should never happen in practice.
@@ -105,12 +113,12 @@ module EZQ
       map_slice(3){|body,preamble,key| prepare_message_for_queue( body,preamble,bucket,key )}
     
     digests = msgs.map{|msg| Digest::MD5.hexdigest( msg )}
-
     mdfives = []
     msgs.each_slice(10){|batch| mdfives += q.batch_send( *batch ).map{|sent| sent.md5}}
     return digests if digests == mdfives
     # If any one message digest doesn't match, behave as though the whole
     # batch failed (because it probably did!)
+    @log.warn "EZQ::enqueue_batch: digests didn't match" if @log
     return ['']*body_ary.size
   end
 
@@ -163,7 +171,7 @@ module EZQ
   # @raise Raises exception if the queue could not be created when it didn't
   #        already exist and create_if_needed was true.
   def self.get_queue( queue,create_if_needed=false )
-
+    @log.debug "EZQ::get_queue" if @log
     # If it's an SQS::Queue already, treat it as such....
     if queue.respond_to?( :send_message )
       return queue if queue.exists?
@@ -198,6 +206,7 @@ module EZQ
   #                  together. Both will have been altered if the body had to
   #                  be diverted to S3.
   def self.prepare_message_for_queue( body,preamble,bucket=nil,key=nil )
+    @log.debug "EZQ::prepare_message_for_queue" if @log
     # 256k limit minus assumed metadata size of 6k:  (256-6)*1024 = 256000
     bc = body.clone
     if (body.bytesize + preamble.to_yaml.bytesize) > 256000   
@@ -231,7 +240,7 @@ module EZQ
   #                  Thread#join is called on this thread before existing your
   #                  application.
   def self.send_data_to_s3_async( data,bucket,key )
-    return Thread.new(data,bucket,key){ |d,b,k| DataPusher.new(d,b,k) }
+    return Thread.new(data,bucket,key){ |d,b,k| DataPusher.new(d,b,k,@log) }
   end
 
 
@@ -257,7 +266,7 @@ module EZQ
   #                  Thread#join is called on this thread before existing your
   #                  application.
   def self.send_file_to_s3_async( filename,bucket,key )
-    return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k) }
+    return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k,@log) }
   end
 
 
@@ -290,18 +299,24 @@ module EZQ
   # DataPusher class pushes specified data to S3. It is intended to be used
   # as a thread object.
   class DataPusher
-    def initialize( data,bucket_name,key )
+    def initialize( data,bucket_name,key,log=nil )
       @retries ||= 10
       s3 = EZQ.get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
-      return nil if obj.exists? and obj.etag() == Digest::MD5.hexdigest(data)
-      obj.write(data)
+      dig = Digest::MD5.hexdigest(data)
+      if obj.exists? and ((obj.etag() == dig) or (obj.metadata.to_h.fetch('md5','') == dig ))
+        log.debug "Remote file is up-to-date; skipping send." if log
+        return nil 
+      end
+      obj.write(data,{:metadata=>{:md5=>Digest::MD5.digest(data).hexdigest}})
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
     rescue => e
+      log.warn "EZQ::DataPusher: #{e}" if log
       retry if (@retries -= 1) > -1
+      log.error "EZQ::DataPusher: #{e}" if log
       raise e
     end
   end
@@ -311,7 +326,7 @@ module EZQ
   # FilePusher class pushes specified file to S3. It is intended to be used
   # as a thread object.
   class FilePusher
-    def initialize( filename,bucket_name,key )
+    def initialize( filename,bucket_name,key,log=nil )
       @retries ||= 10
       if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
@@ -320,12 +335,18 @@ module EZQ
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
-      return nil if obj.exists? and obj.etag() == EZQ.md5file(filename).hexdigest
-      obj.write(Pathname.new(filename))
+      file_dig = EZQ.md5file(filename).hexdigest
+      if obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
+        log.debug "Remote file is up-to-date; skipping send." if log
+        return nil 
+      end
+      obj.write(Pathname.new(filename),{:metadata=>{:md5=>EZQ.md5file(filename).hexdigest}})
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
     rescue => e
+      log.warn "EZQ::FilePusher: #{e}" if log
       retry if (@retries -= 1) > -1
+      log.error "EZQ::FilePusher: #{e}" if log
       raise e
     end
   end
@@ -339,13 +360,17 @@ module EZQ
   # @param [String] key The S3 key, which will also map directly to the local filename
   # @return [Bool] true if successful, false otherwise
   def self.get_s3_file(bucket,key)
+    @log.debug "EZQ::get_s3_file" if @log
     s3 = EZQ.get_s3()
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ]
     FileUtils.mkdir_p(File.dirname(key))
     
     # Do we already have a current version of this file?
-    return true if File.exists?(key) and (obj.etag() == EZQ.md5file(key).hexdigest)
+    if File.exists?(key) and (obj.etag() == EZQ.md5file(key).hexdigest)
+      @log.debug "EZQ::get_s3_file: local file is already current" if @log
+      return true 
+    end
     File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
     return true
   rescue
@@ -487,7 +512,9 @@ module EZQ
       result = block.call()
     rescue => e
       if retries > 0
-        sleep(a * base ** tries)
+        amt = a * base ** tries
+        @log.debug "Operation failed; sleeping #{amt}s then retrying" if @log
+        sleep(amt)
         retries -= 1
         retry
       else
@@ -525,7 +552,9 @@ module EZQ
       tries += 1
       result = block.call()
       if (!result or result < 1) and retries > 0
-        sleep(a * base ** tries)
+        amt = a * base ** tries
+        @log.debug "Operation failed; sleeping #{amt}s then retrying" if @log
+        sleep(amt)
         retries -= 1
         next
       else
