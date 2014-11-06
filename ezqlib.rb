@@ -43,10 +43,16 @@ module EZQ
 
   # Returns handle to S3.
   def self.get_s3()
-    # The retry here is an attempt to deal with this uninformative error:
+    # The backoff retry is an attempt to deal with this uninformative error:
     # `block in add_service': undefined method `global_endpoint?' for AWS::S3:
     #  Class (NoMethodError)
-    return @s3 ||= exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
+    @s3 ||= exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
+    
+    while !@s3.respond_to?(:buckets)
+      @log.warn "AWS::S3 isn't responding to 'buckets'. Again." if @log
+      @s3 = exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
+    end
+    return @s3
   end
 
 
