@@ -58,6 +58,13 @@ class SixK
   end
 
 ################################################################################
+  def self.launch(config='')
+    launch_or_spot('launch',config)
+  end
+  
+  def self.spot(config='')
+    launch_or_spot('spot',config)
+  end
 
   # Launch a new worker, pregrid, or reporthandler instance
   def self.launch_or_spot(action='launch',config='',argv=[])
@@ -166,9 +173,9 @@ class SixK
 
     case action
     when 'launch'
-      launch(name,type)
+      launch_impl(name,type)
     when 'spot'
-      spot(type)
+      spot_impl(type)
     end
 
     
@@ -176,7 +183,7 @@ class SixK
 
 
 ################################################################################
-  def self.launch(name,type)
+  def self.launch_impl(name,type)
     option_hash = { :image_id => @imgs[type],
                 :subnet => @vpc_subnet,
                 :security_groups => @security_groups,
@@ -200,7 +207,7 @@ class SixK
   end
 
 ################################################################################
-  def self.spot(type)
+  def self.spot_impl(type)
     ec2 = AWS::EC2.new
 
     puts ''

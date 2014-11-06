@@ -92,7 +92,8 @@ when 'help'
   else
     begin
       SixK.method(help_target).call(config)
-    rescue
+    rescue => e
+      warn e
       warn "No command named '#{help_target}'."
       puts ""
       puts op
