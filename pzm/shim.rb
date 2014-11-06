@@ -150,7 +150,17 @@ already_pushed.each do |bcf|
   bucket,key = bcf.split(',').map{|s| s.strip}
   #If we want to reference files via cwd
   #FileUtils.rm(File.basename(key))
-  FileUtils.rm(key)
+  begin
+    FileUtils.rm(key)
+  rescue
+    # This rescue clause is only necessary on Windows after a file larger
+    # than 16MB has been sent to S3. Somewhere in the multipart_upload process,
+    # a file descriptor is left open that prevents deleting the file. This is
+    # not an issue on Linux.
+    ObjectSpace.each_object(File) do |f|
+      f.close if f.path == key
+    end
+  end
 end
 
 # The message written here will be picked up by EZQ::Processor and placed into
