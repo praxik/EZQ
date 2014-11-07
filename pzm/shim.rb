@@ -190,15 +190,21 @@ if exit_status.zero?
         result_message[tag] = value
     end
 
+    result_message['tiff_raster'] = ''
+    result_message['json_raster'] = ''
     if has_errors
         result_message['errors'] = errors.join("\n")
-        result_message['tiff_raster'] = ''
-        result_message['json_raster'] = ''
     else
         bucket,key = already_pushed[0].split(',').map{|s| s.strip}
-        result_message['tiff_raster'] = key
+        if File.file?(key)
+            result_message['worker_succeeded'] = false
+            result_message['tiff_raster'] = key
+        end
         bucket,key = already_pushed[1].split(',').map{|s| s.strip}
-        result_message['json_raster'] = key
+        if File.file?(key)
+            result_message['worker_succeeded'] = false
+            result_message['json_raster'] = key
+        end
     end
 
     File.write(output_file,result_message.to_json)
