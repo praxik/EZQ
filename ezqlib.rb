@@ -393,8 +393,9 @@ module EZQ
       dig = Digest::MD5.new
       buf = ""
       dig.update(buf) while io.read(4096, buf)
-      return dig
+      dig
     end
+    return md5
   end
 
 
