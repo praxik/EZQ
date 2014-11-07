@@ -197,15 +197,9 @@ if exit_status.zero?
         result_message['errors'] = errors.join("\n")
     else
         bucket,key = already_pushed[0].split(',').map{|s| s.strip}
-        if not File.file?(key)
-            result_message['worker_succeeded'] = false
-            result_message['tiff_raster'] = key
-        end
+        result_message['tiff_raster'] = key
         bucket,key = already_pushed[1].split(',').map{|s| s.strip}
-        if not File.file?(key)
-            result_message['worker_succeeded'] = false
-            result_message['json_raster'] = key
-        end
+        result_message['json_raster'] = key
     end
 
     File.write(output_file,result_message.to_json)
