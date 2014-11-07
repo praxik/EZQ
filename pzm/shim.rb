@@ -75,6 +75,21 @@ end
 report_record_id = json_doc['report_record_id']
 md_year = json_doc['year']
 
+# Check field json field file
+begin
+    JSON.parse(File.read(fld_data))
+rescue Exception => e
+    result_message = {}
+    result_message['report_record_id'] = report_record_id
+    result_message['worker_succeeded'] = false
+    result_message['errors'] = 'The field boundary file is invalid\n'
+    result_message['tiff_raster'] = ''
+    result_message['json_raster'] = ''
+    
+    File.write(output_file,result_message.to_json)
+    exit(0)
+end
+
 log.info "Operating on report_record_id: #{report_record_id}"
 log.info "Machine data year: #{md_year}"
 
