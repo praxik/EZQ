@@ -175,6 +175,7 @@ already_pushed.each do |bcf|
     ObjectSpace.each_object(File) do |f|
       f.close if f.path == key
     end
+    retry
   end
 end
 
