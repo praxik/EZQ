@@ -316,7 +316,7 @@ module EZQ
         log.debug "Remote file is up-to-date; skipping send." if log
         return nil 
       end
-      obj.write(data,{:metadata=>{:md5=>Digest::MD5.digest(data).hexdigest}})
+      obj.write(data,{:metadata=>{:md5=>dig}})
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
     rescue => e
