@@ -353,7 +353,7 @@ class Processor
     #  return
     #end
     err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
-    EZQ.enqueue_message(err_msg.to_yaml,{},error_queue_name,true)
+    EZQ.enqueue_message(err_msg.to_yaml,{},@error_queue_name,true)
     #err_q.send_message( err_msg.to_yaml )
     raise msg if failout
   end
