@@ -347,14 +347,8 @@ class Processor
       end
     end
     
-    #err_q = AWS::SQS.new.queues.named(@error_queue_name)
-    #if !err_q.exists?
-    #  @logger.error "Unable to connect to error queue #{@error_queue_name}."
-    #  return
-    #end
     err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
     EZQ.enqueue_message(err_msg.to_yaml,{},@error_queue_name,true)
-    #err_q.send_message( err_msg.to_yaml )
     raise msg if failout
   end
   
@@ -559,7 +553,7 @@ class Processor
     return true if !preamble.has_key?('get_s3_files')
     files = preamble['get_s3_files']
     files.each do |props|
-      return false if !get_s3_file(props['bucket'],props['key'])
+      return false if !get_s3_file(props['bucket'],props['key'],msgbody)
       if props.has_key?('decompress') and props['decompress'] == true
         Zip.on_exists_proc = true # Don't raise if extracted files already exist
         Zip::File.open(props['key']) do |zip_file|
@@ -594,11 +588,20 @@ class Processor
 
   protected
   # Pulls a single file down from S3
-  def get_s3_file(bucket,key)
+  # Last parameter is so we can pass extra info that goes into an error message
+  # if the file can't be downloaded.
+  def get_s3_file(bucket,key,msgbody = 'no input given')
     @logger.info "Getting object #{key} from bucket #{bucket}"
     @s3_files << key
     if !EZQ.get_s3_file(bucket,key)
-      @logger.error "Unable to fetch #{key} from S3."
+      issue = "Unable to fetch #{key} from S3."
+      @logger.error(issue)
+      err_hash = {}
+      err_hash['issue'] = issue
+      err_hash['input'] = msgbody.byteslice(0..49999)
+      err_hash['pid'] = @pid
+      err_hash['instance'] = @instance_id if !@instance_id.empty?
+      send_error(err_hash.to_yaml,false)
       return false  
     end
     return true
