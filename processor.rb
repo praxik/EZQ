@@ -306,6 +306,7 @@ class Processor
       err_hash['stdout_stderr'] = output.join("\n").byteslice(0..99999) # limit to 100 kB
       err_hash['error_collection'] = collect_errors(input_filename,id).byteslice(0..99999) # limit to 100kB
       err_hash['command'] = commandline.byteslice(0..2999) # limit to 3kB
+      err_hash['msg_id'] = @id
       err_hash['input'] = @msg_contents.byteslice(0..49999) # limit to 50kB
       err_hash['pid'] = @pid
       err_hash['instance'] = @instance_id if !@instance_id.empty?
@@ -598,6 +599,7 @@ class Processor
       @logger.error(issue)
       err_hash = {}
       err_hash['issue'] = issue
+      err_hash['msg_id'] = @id
       err_hash['input'] = msgbody.byteslice(0..49999)
       err_hash['pid'] = @pid
       err_hash['instance'] = @instance_id if !@instance_id.empty?
