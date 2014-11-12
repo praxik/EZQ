@@ -27,6 +27,11 @@ class InstanceInfoCollection
     return nil
   end
 
+  def tag_all(tags = {})
+    @client.create_tags({:resources=>ids(),:tags=>tags})
+    return nil
+  end
+
   def get_ids
     return @instances.map{|i| i.instance_id}
   end
