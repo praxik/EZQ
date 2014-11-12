@@ -31,6 +31,22 @@ module EZQ
     @log = logger
   end
 
+  def self.get_local_ip
+    ip = ''
+    if RUBY_PLATFORM =~ /mswin|mingw/
+      cmd = 'FOR /f "tokens=1 delims=:" %d IN (\'ping %computername% -4 -n 1 ^| find /i "reply"\') DO FOR /F "tokens=3 delims= " %g IN ("%d") DO echo %g'
+    else
+      cmd = 'ifconfig eth0 | sed -n "2s/[^:]*:[ \t]*\([^ ]*\) .*/\1/p"'
+    end
+    IO.popen(cmd) do |io|
+      while !io.eof?
+        ip << io.gets
+      end
+      io.close
+    end
+    return ip.split().last()
+  end
+
   # Returns a new array of size +size+ which contains the elements of +ary+
   # repeated cyclically.
   def self.cyclical_fill( ary,size )
