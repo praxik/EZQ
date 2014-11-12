@@ -15,10 +15,8 @@
 
 ami_map:
   # Windows
-#  worker:         'ami-5c3a8b34'
   worker_ISA:     'ami-5c3a8b34'
   worker_r2_ISA:  'ami-5c3a8b34'
-#  worker_ISU:     'ami-5c3a8b34'
   server_worker_ISU:  'ami-5c3a8b34'
   server_worker_IN:   'ami-5c3a8b34'
   worker_mmp_dev:     'ami-5c3a8b34'
@@ -32,8 +30,9 @@ ami_map:
   # Linux
   reporthandler:  'ami-f4419c9c'
   aggregator:     'ami-f4419c9c'
-  aggregator_r2:  'ami-f4419c9c'
+  aggregator_r2:  'ami-2e44c546' #'ami-f4419c9c'
   errorhandler:   'ami-f4419c9c'
+  builder:        'ami-f4419c9c'
   
 spot_subnets:
   - subnet-b2f1ff9a # spot-1
@@ -64,9 +63,7 @@ spot_subnets:
 security:
   base:
     vpc_id: 'vpc-e894b787'
-    vpc_subnet: 'subnet-fc94b793' # development-private
-    #vpc_subnet: 'subnet-0f9ebd60' # staging-private
-    
+    vpc_subnet: 'subnet-fc94b793' # development-private  
     
     # If you override this on a per-type basis, be aware that the *values* in
     # the array will not be merged. You must override the entire array.
@@ -78,29 +75,21 @@ security:
   worker_mmp_dev:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-fc94b793'
-    # If you override this on a per-type basis, be aware that the *values* in
-    # the array will not be merged. You must override the entire array.
     security_groups: ['dev-base','dev-kibitz-worker']
 
   worker_mmp_staging:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-fc94b793'
-    # If you override this on a per-type basis, be aware that the *values* in
-    # the array will not be merged. You must override the entire array.
     security_groups: ['dev-base','dev-kibitz-worker']
 
   worker_mmp_prod:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-cb9ebda4'
-    # If you override this on a per-type basis, be aware that the *values* in
-    # the array will not be merged. You must override the entire array.
     security_groups: ['production-worker']
 
   worker_pzm_md_dev:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-fc94b793'
-    # If you override this on a per-type basis, be aware that the *values* in
-    # the array will not be merged. You must override the entire array.
     security_groups: ['dev-base','dev-kibitz-worker']
 
 # The base settings get merged with any per-type settings. All available options
@@ -122,18 +111,12 @@ launch_settings:
   pregrid_IN:
     size: 't2.medium'
     
-#  worker:
-#    size: 'm1.medium'
-
   worker_ISA:
     size: 'm1.medium'
 
   worker_r2_ISA:
     size: 'r3.xlarge'
     #size: 'r3.4xlarge'
-
-#  worker_ISU:
-#    size: 'm1.medium'
     
   server_worker_ISU:
     size: 'm1.xlarge'
@@ -174,10 +157,16 @@ userdata:
     gdb_bucket: 6k_test.praxik
     man_bucket: 6k_test.praxik
     r2_man_bucket: 6k_test.praxik
-    
-    
-#  worker:
-#    deploy_key: arks/default/worker_x64.zip
+    # Turn on Loggly logging. To turn this off for a specific profile, set the
+    # value of this pair to '' in the override section for that profile.
+    loggly_token: 44cf8878-ce2a-44af-8a41-e6f529de35fc
+    # Log severity threshold for sending mesage to Loggly. You can override this
+    # in individual profiles. Valid values are unknown, fatal, error, warn, 
+    # info, and debug
+    loggly_severity: error
+    # App name used when sending messages to Loggly. You should override this 
+    # in each and every profile.
+    app_name: "nimbus_base.processor"
     
   worker_ISA:
     deploy_key: arks/default/server_worker_x64.zip
@@ -189,6 +178,7 @@ userdata:
     receive_queue_name: 6k_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
+    app_name: "worker_ISA.processor"
 
   worker_r2_ISA:
     deploy_key: arks/default/worker_r2p2d_x64.zip
@@ -198,39 +188,31 @@ userdata:
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
     receive_queue_name: 6k_task_r2
-
-#  worker_ISU:
-#    deploy_key: arks/default/worker_x64.zip
-#    number_of_processes: 1 
-#    gdb_key: iowammp.gdb.zip
-#    gdb_install_name: iowammp.gdb
-#    man_key: INL_Webster_weps.zip
-#    r2_man_key: INL_Webster_skels.zip
-#    receive_queue_name: purdue_task
+    app_name: "worker_r2_ISA.processor"
     
   server_worker_ISU:
     deploy_key: arks/default/server_worker_x64.zip
     number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: PT_York_weps.zip
-    r2_man_key: PT_York_skels.zip
+    man_key: MON_COB_weps.zip
+    r2_man_key: MON_COB_skels.zip
     receive_queue_name: purdue_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
-    
+    app_name: "server_worker_ISU.processor"
     
   server_worker_IN:
     deploy_key: arks/default/server_worker_x64.zip
     number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: IN_state_weps.zip
-    r2_man_key: IN_state_skels.zip
+    man_key: AgSolver_Ames_weps.zip
+    r2_man_key: AgSolver_Ames_skels.zip
     receive_queue_name: IN_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
-
+    app_name: "server_worker_IN.processor"
 
   worker_mmp_dev:
     deploy_key: arks/default/iowammp.zip
@@ -245,6 +227,7 @@ userdata:
     gs_db_username: postgres
     gs_db_password: agsolver_postgres
     s3_bucket: web_development
+    app_name: "worker_mmp_dev.processor"
 
   worker_mmp_staging:
     deploy_key: arks/default/iowammp.zip
@@ -259,6 +242,7 @@ userdata:
     gs_db_username: postgres
     gs_db_password: agsolver_postgres
     s3_bucket: staging
+    app_name: "worker_mmp_staging.processor"
 
   worker_mmp_prod:
     deploy_key: arks/default/iowammp_prod.zip
@@ -273,51 +257,60 @@ userdata:
     gs_db_username: postgres
     gs_db_password: agsolver_postgres
     s3_bucket: production
+    app_name: "worker_mmp_prod.processor"
 
   worker_pzm_md_dev:
     deploy_key: arks/default/md_worker.zip
     number_of_processes: 1
     s3_bucket: web_development
+    app_name: "worker_pzm_md_dev.processor"
 
   pregrid:
     deploy_key: arks/default/pregrid_x64.zip
  
   pregrid_ISA:
-    deploy_key: arks/default/pregrid_x64.zip
+    deploy_key: arks/default/pregrid_r2d2_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
     man_key: ISA_weps.zip
     r2_man_key: ISA_skels.zip
     receive_queue_name: 6k_job
+    app_name: "pregrid_ISA.processor"
 
   pregrid_ISU:
+    deploy_key: arks/default/pregrid_irrcapcl_sort.zip #pregrid_x64.zip
+    gdb_key: iowammp.gdb.zip
+    gdb_install_name: iowammp.gdb
+    man_key: MON_COB_weps.zip
+    r2_man_key: MON_COB_skels.zip
+    receive_queue_name: purdue_job
+    app_name: "pregrid_ISU.processor"
+    
+  pregrid_IN:
     deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: PT_York_weps.zip
-    r2_man_key: PT_York_skels.zip
-    receive_queue_name: purdue_job
-    
-    
-  pregrid_IN:
-    deploy_key: arks/default/pregrid_x64_IN.zip
-    gdb_key: iowammp.gdb.zip
-    gdb_install_name: iowammp.gdb
-    man_key: IN_state_weps.zip
-    r2_man_key: IN_state_skels.zip
+    man_key: AgSolver_Ames_weps.zip
+    r2_man_key: AgSolver_Ames_skels.zip
     receive_queue_name: IN_job
+    number_of_processes: 1
+    app_name: "pregrid_IN.processor"
 
   reporthandler:
     deploy_key: arks/default/reporthandler.zip
     receive_queue_name: 6k_report_gen
+    app_name: "reporthandler.processor"
 
   aggregator_r2:
     deploy_key: arks/default/aggregator_r2.zip
     receive_queue_name: 6k_aggregator_r2
+    app_name: "aggregator_r2.processor"
    
   aggregator:
     deploy_key: arks/default/aggregator.zip
     receive_queue_name: 6k_aggregator
+    app_name: "aggregator.processor"
 
   errorhandler:
     deploy_key: arks/default/errorhandler.zip
+    app_name: "errorhandler.processor"  
