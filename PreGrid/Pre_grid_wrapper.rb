@@ -8,7 +8,9 @@ require 'yaml'
 require 'securerandom'
 require 'aws-sdk'
 require 'json'
-require 'logger'
+#require 'logger'
+require_relative './ezqlib'
+require_relative './dual_log'
 
 class Pgw
 # Any cmdline args passed to Pre_grid_wrapper can be accessed in the command
@@ -339,9 +341,25 @@ end # class
 
 lf = File.new('Pre_grid_wrapper.log', 'a')
 lf.sync = true
-log = Logger.new(lf,5,1024*1024*20)
+#log = Logger.new(lf,5,1024*1024*20)
 $stderr = lf
-log.level = Logger::INFO
+#log.level = Logger::INFO
+
+userdata = YAML.load(File.read('userdata.yml'))
+loggly_level = userdata.fetch('loggly_level','error')
+loggly_token = userdata.fetch('loggly_token','')
+
+loggly_level = {'unknown'=>Logger::UNKNOWN,'fatal'=>Logger::FATAL,
+             'error'=>Logger::ERROR,'warn'=>Logger::WARN,
+             'info'=>Logger::INFO,'debug'=>Logger::DEBUG}[loggly_level]
+
+log = DualLogger.new({:progname=>"pregrid_wrapper",
+                      :ip=>EZQ.get_local_ip(),
+                      :filename=>lf,
+                      :local_level=>Logger::INFO,
+                      :loggly_token=>loggly_token,
+                      :loggly_level=>loggly_level,
+                      :pid=>Process.pid})
 
 creds = YAML.load(File.read('credentials.yml'))
 Pgw.new(log,creds).start()
