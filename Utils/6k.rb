@@ -51,6 +51,7 @@ op = OptionParser.new do |opts|
        stop           Stop running instance(s)
        terminate      Terminate running instance(s)
        list           List instances of type <type>
+       tag            Tag a subnet with name, type, and bill_to tags
 
     Examples of common tasks:
         6k help launch
@@ -118,6 +119,9 @@ when 'terminate'
 when 'list'
   setup_AWS
   SixK.list(config,argv)
+when 'tag'
+  setup_AWS
+  SixK.tag(config,argv)
 else
   warn "No command named '#{command}'."
   puts ""

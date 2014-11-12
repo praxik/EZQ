@@ -99,7 +99,7 @@ class SixK
       if action == 'launch'
         opts.on("-n","--name NAME",
                       "Name with which to tag the instance(s)",
-                      "  Default: \"6k_TYPE\"" ) do |n|
+                      "  Default: \"TYPE\"" ) do |n|
           cl_name = name
         end
       end
@@ -191,14 +191,23 @@ class SixK
                 :count => @count,
                 :user_data => @userdata.to_yaml }
 
+    if @count > 1
+      print "Enter billing tag to associate with these instances: "
+    else
+      print "Enter billing tag to associate with this instance: "
+    end
+    billing_tag = STDIN.gets.chomp
+    billing_tag = 'unknown' if billing_tag.empty?
+
     instances = Array(AWS::EC2.new.instances.create(option_hash))
 
     # Slap a Name and Type tag on each of these instances
-    name = "6k_#{type}" if name.empty?
+    name = "#{type}" if name.empty?
     ec2 = AWS::EC2.new
     instances.each do |inst|
       ec2.tags.create(inst, 'Name', :value => name)
-      ec2.tags.create(inst, 'Type', :value => "6k_#{type}")
+      ec2.tags.create(inst, 'Type', :value => "#{type}")
+      ec2.tags.create(inst, 'bill_to', :value => "#{billing_tag}")
     end
 
     # Print the id of each instance to stdout, allowing redirection into a file
@@ -405,7 +414,7 @@ class SixK
       end
       type = Array(type)
       type = @types if type == ['all']
-      type.map! {|e| "6k_#{e}"}
+      #type.map! {|e| "6k_#{e}"}
       # Get instances limited to those with a Type tag matching one of our
       # allowed tags. This prevents us from being able to accidentally
       # stop or terminate a non-6k instance. This protection only works if a 
@@ -493,7 +502,89 @@ class SixK
     
   end
 
+################################################################################
 
+  def self.tag(config='',argv=[])
+    self.load_config(config) if !config.empty?
+    args = Array(argv)
+
+    name = ''
+    type = ''
+    bill_to = ''
+
+    op = OptionParser.new do |opts|
+      opts.banner = <<-END.gsub(/^ {8}/, '')
+        Usage: 6k tag <IP_GLOB> [OPTIONS]
+          where IP_GLOB is a globbing expression representing an ip range
+          An IP_GLOB of 10.1.90.1 refers to the single ip 10.1.90.1
+          An IP_GLOB of 10.1.90.1? refers to the ips 10.1.90.1 and all ips
+            in the range 10.1.90.10 - 10.1.90.19
+          An IP_GLOB of 10.1.90.* refers to all ips between 10.1.90.1 and
+            10.1.90.254
+
+        If no OPTIONS are specified, you will be interactively prompted for
+        appropriate values.
+          
+
+        Options:
+        END
+      opts.on("-n","--name [NAME]",
+                    "Value for the 'Name' tag.") do |v|
+        name << v
+      end
+      opts.on("-t","--type",
+                    "Value for the 'Type' tag.") do |v|
+        type = v
+      end
+      opts.on("-b","--bill_to",
+                    "Value for the 'bill_to' tag.") do |v|
+        bill_to = v
+      end
+    end
+
+    # User issued 6k help list
+    if args.empty?
+      puts op
+      exit 0
+    end
+
+    begin op.parse! ARGV
+    rescue OptionParser::InvalidOption => e
+      puts e
+      puts op
+      exit 1
+    end
+
+    ip_glob = Array(args.shift)
+    if ipglob == nil || ipglob.empty?
+      warn "Error: You MUST specify an IP_GLOB"
+      puts op
+      exit 1
+    end
+
+    if name.empty?
+      print "Value for tag 'Name': "
+      name = STDIN.gets.chomp
+    end
+
+    if type.empty?
+      print "Value for tag 'Type': "
+      type = STDIN.gets.chomp
+    end
+
+    if bill_to.empty?
+      print "Value for tag 'bill_to': "
+      bill_to = STDIN.gets.chomp
+    end 
+
+    tags = [{:key=>'Name',:value=>name},
+            {:key=>'Type',:value=>type},
+            {:key=>'bill_to',:value=>bill_to}]
+
+    filters = [{:name=>'private-ip-address',:values=>ip_glob}]
+    Nimbus::InstanceInfoCollection.new.filter(filters).tag_all(tags)
+    
+  end
 
 ################################################################################
 
@@ -569,7 +660,7 @@ class SixK
     end
     type = @types if type == ['all']
     # Prepend '6K_' onto the list of types.
-    type.map! {|e| "6k_#{e}"}
+    #type.map! {|e| "6k_#{e}"}
 
     # The short status tags we'll use for display in a list
     status_replacements = { :pending => 'P',
@@ -647,7 +738,7 @@ class SixK
 
       ec2 = AWS::EC2.new
       inst = instances[conn_to-1]
-      i_type = inst.tags['Type'].gsub(/^6k_/,'')
+      i_type = inst.tags['Type']#.gsub(/^6k_/,'')
 
       flags = ssh_config['base']
       # Default to tunnel if windows, shell otherwise
