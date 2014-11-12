@@ -19,7 +19,7 @@ Dir.chdir(File.dirname(__FILE__))
 @rec_queue = ''
 @app_name = nil
 @loggly_token = nil
-@loggly_severity = nil
+@loggly_level = nil
 
 begin
   puts 'Looking for number of processors to run in userdata...'
@@ -35,7 +35,7 @@ begin
   @err_queue = userdata.fetch('error_queue_name','')
   puts "Overriding error queue setting with #{}" if !@err_queue.empty?
   @loggly_token = userdata.fetch('loggly_token',nil)
-  @loggly_severity = userdata.fetch('loggly_severity',nil)
+  @loggly_level = userdata.fetch('loggly_level',nil)
   @app_name = userdata.fetch('app_name',nil)
 rescue
   puts 'Number of desired processes not found in userdata. Falling back to number in processor_fan_out.yml.'
@@ -60,7 +60,7 @@ pids = []
   command += " --queue #{@rec_queue}" if !@rec_queue.empty?
   command += " --error_queue #{err_queue}" if !@err_queue.empty?
   command += " --token #{@loggly_token}" if @loggly_token
-  command += " --loggly_severity #{@loggly_severity}" if @loggly_severity
+  command += " --loggly_severity #{@loggly_level}" if @loggly_level
   command += " --app_name #{@app_name}" if @app_name
   pids << spawn(command)
 end

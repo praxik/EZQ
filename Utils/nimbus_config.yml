@@ -163,7 +163,7 @@ userdata:
     # Log severity threshold for sending mesage to Loggly. You can override this
     # in individual profiles. Valid values are unknown, fatal, error, warn, 
     # info, and debug
-    loggly_severity: error
+    loggly_level: error
     # App name used when sending messages to Loggly. You should override this 
     # in each and every profile.
     app_name: "nimbus_base.processor"
