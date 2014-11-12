@@ -16,7 +16,8 @@
 require 'json'
 require 'yaml'
 require_relative 'ezqlib'
-require 'logger'
+#require 'logger'
+require_relative 'dual_log'
 require 'fileutils'
 require 'securerandom'
 
@@ -25,8 +26,18 @@ begin
 # process_command: "ruby shim.rb $input_file $s3_1 $s3_2 $pid output_$id.txt"
 lf = File.new("md_shim_#{ARGV[3]}.log", 'a')
 lf.sync = true
-log = Logger.new(lf)
-log.level = Logger::DEBUG
+#log = Logger.new(lf)
+#log.level = Logger::DEBUG
+
+userdata = YAML.load(File.read('userdata.yml'))
+loggly_token = userdata.fetch('loggly_token','')
+log = DualLogger.new({:progname=>"md_shim_#{ARGV[3]}",
+                      :ip=>EZQ.get_local_ip(),
+                      :filename=>lf,
+                      :local_level=>Logger::DEBUG,
+                      :loggly_token=>loggly_token,
+                      :loggly_level=>Logger::ERROR,
+                      :pid=>Process.pid})
 
 log.info 'Setting up AWS'
 AWS.config(YAML.load(File.read('credentials.yml')))
