@@ -9,6 +9,7 @@ require 'digest/md5'
 require 'deep_merge'
 require 'securerandom'
 require_relative './ezqlib'
+require_relative './dual_log'
 
 module EZQ
 
@@ -290,12 +291,22 @@ if __FILE__ == $0
   
   begin
     puts "EZQ.Job_Breaker started.\n\n" unless quiet
-    log = Logger.new(log_file,5,1024*1024*20)
+    #log = Logger.new(log_file,5,1024*1024*20)
+    level = Logger::INFO
     if quiet && log_file == STDOUT
-      log.level = Logger::UNKNOWN
-    else
-      log.level = Logger::INFO
+      level = Logger::UNKNOWN
     end
+
+    userdata = YAML.load(File.read('userdata.yml'))
+    loggly_token = userdata.fetch('loggly_token','')
+
+    log = DualLogger.new({:progname=>"job_breaker",
+                          :ip=>EZQ.get_local_ip(),
+                          :filename=>log_file,
+                          :local_level=>level,
+                          :loggly_token=>loggly_token,
+                          :loggly_level=>Logger::ERROR,
+                          :pid=>Process.pid})
     
     log.info "Parsing configuration file #{config_file}"
     config_file = File.join(File.dirname(__FILE__),config_file)
