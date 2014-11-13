@@ -148,6 +148,10 @@ launch_settings:
     
   reporthandler:
     size: 'm3.medium'
+    
+  errorhandler:
+    size: 't1.micro'
+    bill_to: 'EZQ-6k_dev'
 
 # The information in this section is used to populate the userdata on
 # an instance prior to launch. The base section is merged with all launch types.
