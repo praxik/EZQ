@@ -50,6 +50,7 @@ class SixK
     end
     @size = launch_settings['size']
     @count = launch_settings['count'].to_i
+    @bill_to_tag = launch_settings.fetch('bill_to','')
 
     @userdata = @config['userdata']['base']
     if @config['userdata'].has_key?(type)
@@ -191,13 +192,16 @@ class SixK
                 :count => @count,
                 :user_data => @userdata.to_yaml }
 
-    if @count > 1
-      print "Enter billing tag to associate with these instances: "
-    else
-      print "Enter billing tag to associate with this instance: "
+    billing_tag = @bill_to_tag
+    if billing_tag.empty?
+      if @count > 1
+        print "Enter bill_to tag for these instances: "
+      else
+        print "Enter bill_to tag for this instance: "
+      end
+      billing_tag = STDIN.gets.chomp
+      billing_tag = 'unknown' if billing_tag.empty?
     end
-    billing_tag = STDIN.gets.chomp
-    billing_tag = 'unknown' if billing_tag.empty?
 
     instances = Array(AWS::EC2.new.instances.create(option_hash))
 
@@ -562,25 +566,27 @@ class SixK
       exit 1
     end
 
+
     if name.empty?
-      print "Value for tag 'Name': "
+      print "Value for tag 'Name' (press Enter to skip): "
       name = STDIN.gets.chomp
     end
 
     if type.empty?
-      print "Value for tag 'Type': "
+      print "Value for tag 'Type' (press Enter to skip): "
       type = STDIN.gets.chomp
     end
 
     if bill_to.empty?
-      print "Value for tag 'bill_to': "
+      print "Value for tag 'bill_to' (press Enter to skip): "
       bill_to = STDIN.gets.chomp
     end 
 
-    tags = [{:key=>'Name',:value=>name},
-            {:key=>'Type',:value=>type},
-            {:key=>'bill_to',:value=>bill_to}]
-
+    tags = []
+    tags << {:key=>'Name',:value=>name} if !name.empty?
+    tags << {:key=>'Type',:value=>type} if !type.empty?
+    tags << {:key=>'bill_to',:value=>bill_to} if !bill_to.empty?
+            
     filters = [{:name=>'private-ip-address',:values=>ip_glob}]
     Nimbus::InstanceInfoCollection.new.filter(filters).tag_all(tags)
     

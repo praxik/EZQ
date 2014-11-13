@@ -126,15 +126,19 @@ launch_settings:
 
   worker_mmp_dev:
     size: 't2.medium'
+    bill_to: 'MMP360'
 
   worker_mmp_staging:
     size: 't2.medium'
+    bill_to: 'MMP360'
 
   worker_mmp_prod:
     size: 't2.medium'
+    bill_to: 'MMP360'
 
   worker_pzm_md_dev:
     size: 't2.medium'
+    bill_to: 'PZM'
 
   aggregator_r2:
     size: 'm3.2xlarge'
