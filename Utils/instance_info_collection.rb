@@ -1,5 +1,5 @@
 require 'aws-sdk'
-require './instance'
+require_relative './instance'
 
 module Nimbus
 
