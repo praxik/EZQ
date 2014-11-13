@@ -205,13 +205,27 @@ class SixK
 
     instances = Array(AWS::EC2.new.instances.create(option_hash))
 
-    # Slap a Name and Type tag on each of these instances
+    # Slap a Name, Type, and bill_to tag on each of these instances
     name = "#{type}" if name.empty?
     ec2 = AWS::EC2.new
     instances.each do |inst|
       ec2.tags.create(inst, 'Name', :value => name)
-      ec2.tags.create(inst, 'Type', :value => "#{type}")
-      ec2.tags.create(inst, 'bill_to', :value => "#{billing_tag}")
+      ec2.tags.create(inst, 'Type', :value => type)
+      ec2.tags.create(inst, 'bill_to', :value => billing_tag)
+    end
+
+    puts "Waiting before looking for block devices to tag..."
+    # Tag the EBS volumes too -- We can't do this in the block above because
+    #  the EBS volumes are not attached right away.
+    sleep 20
+    puts "Tagging block devices..."
+    instances.each do |inst|
+      inst.block_devices.each do |dev|
+        if dev.has_key?(:ebs)
+          vid = dev[:ebs][:volume_id]
+          ec2.tags.create(ec2.volumes[vid],'bill_to',:value=>billing_tag)
+        end
+      end
     end
 
     # Print the id of each instance to stdout, allowing redirection into a file
@@ -536,11 +550,11 @@ class SixK
                     "Value for the 'Name' tag.") do |v|
         name << v
       end
-      opts.on("-t","--type",
+      opts.on("-t","--type [TYPE]",
                     "Value for the 'Type' tag.") do |v|
         type = v
       end
-      opts.on("-b","--bill_to",
+      opts.on("-b","--bill_to [BILL_TO]",
                     "Value for the 'bill_to' tag.") do |v|
         bill_to = v
       end
@@ -560,7 +574,7 @@ class SixK
     end
 
     ip_glob = Array(args.shift)
-    if ipglob == nil || ipglob.empty?
+    if ip_glob == nil || ip_glob.empty?
       warn "Error: You MUST specify an IP_GLOB"
       puts op
       exit 1
@@ -588,7 +602,25 @@ class SixK
     tags << {:key=>'bill_to',:value=>bill_to} if !bill_to.empty?
             
     filters = [{:name=>'private-ip-address',:values=>ip_glob}]
-    Nimbus::InstanceInfoCollection.new.filter(filters).tag_all(tags)
+    instances = Nimbus::InstanceInfoCollection.new.filter(filters)
+    instances.tag_all(tags)
+
+    # Set bill_to tag on all EBS volumes associated with all instances
+    # in this ip_glob too.
+    ebs_vols = []
+    instances.each do |inst|
+      inst.block_device_mapping.each do |dev|
+        if ebs = dev.fetch(:ebs,false)
+          ebs_vols << ebs[:volume_id]
+        end
+      end
+    end
+
+    if ebs_vols.size > 0 and !bill_to.empty?
+      client = AWS::EC2::Client.new
+      tags = [{:key=>'bill_to',:value=>bill_to}]
+      client.create_tags({:resources=>ebs_vols,:tags=>tags})
+    end
     
   end
 
