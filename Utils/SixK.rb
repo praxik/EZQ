@@ -626,7 +626,64 @@ class SixK
 
 ################################################################################
 
+  def self.sync_billing(config='',argv=[])
+    self.load_config(config) if !config.empty?
+    args = Array(argv)
 
+    # User issued 6k help sync_billing
+    if args.empty?
+     usage = <<-END.gsub(/^ {8}/, '')
+        Reads the bill_to tag from each instance in the IP_GLOB and sets the
+        same tag on all EBS resources attached to that instance.
+        
+        Usage: 6k sync_billing <IP_GLOB>
+          where IP_GLOB is a globbing expression representing an ip range
+          An IP_GLOB of 10.1.90.1 refers to the single ip 10.1.90.1
+          An IP_GLOB of 10.1.90.* refers to all ips between 10.1.90.1 and
+            10.1.90.254
+            
+        END
+      puts usage
+      exit 0
+    end
+
+    ip_glob = Array(args.shift)
+    if ip_glob == nil || ip_glob.empty?
+      warn "Error: You MUST specify an IP_GLOB"
+      puts op
+      exit 1
+    end
+
+            
+    filters = [{:name=>'private-ip-address',:values=>ip_glob}]
+    instances = Nimbus::InstanceInfoCollection.new.filter(filters)
+    
+
+    client = AWS::EC2::Client.new
+    
+    instances.each do |inst|
+      ebs_vols = []
+      bill_to = inst.tags.fetch('bill_to','')
+      puts "Skipping instance #{inst.instance_id} (#{inst.private_ip_address})" if bill_to.empty?
+      next if bill_to.empty?
+      puts ""
+      puts "Instance #{inst.instance_id} (#{inst.private_ip_address}):"
+      inst.block_device_mapping.each do |dev|
+        if ebs = dev.fetch(:ebs,false)
+          ebs_vols << ebs[:volume_id]
+          puts "\tTagging #{ebs[:volume_id]} with bill_to: #{bill_to}"
+        end
+      end
+      puts ""
+      if ebs_vols.size > 0
+        tags = [{:key=>'bill_to',:value=>bill_to}]
+        client.create_tags({:resources=>ebs_vols,:tags=>tags})
+      end
+    end
+    
+  end
+
+################################################################################
 
   def self.list(config='',argv=[])
 

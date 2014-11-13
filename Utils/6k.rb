@@ -52,6 +52,8 @@ op = OptionParser.new do |opts|
        terminate      Terminate running instance(s)
        list           List instances of type <type>
        tag            Tag a subnet with name, type, and bill_to tags
+       sync_billing   Apply bill_to tags from instances in a subnet to each of
+                      their EBS resources
 
     Examples of common tasks:
         6k help launch
@@ -122,6 +124,9 @@ when 'list'
 when 'tag'
   setup_AWS
   SixK.tag(config,argv)
+when 'sync_billing'
+  setup_AWS
+  SixK.sync_billing(config,argv)
 else
   warn "No command named '#{command}'."
   puts ""
