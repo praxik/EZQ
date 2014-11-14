@@ -186,11 +186,16 @@ class SixK
 ################################################################################
   def self.launch_impl(name,type)
     option_hash = { :image_id => @imgs[type],
-                :subnet => @vpc_subnet,
-                :security_groups => @security_groups,
-                :instance_type => @size,
-                :count => @count,
-                :user_data => @userdata.to_yaml }
+                    :subnet => @vpc_subnet,
+                    :security_groups => @security_groups,
+                    :instance_type => @size,
+                    :count => @count,
+                    :user_data => @userdata.to_yaml,
+                    :block_device_mappings=>[{
+                      :device_name=>'/dev/sdb',
+                      :virtual_name=>'ephemeral0'
+                    }]
+                  }
 
     billing_tag = @bill_to_tag
     if billing_tag.empty?
