@@ -23,6 +23,7 @@ ami_map:
   worker_mmp_staging: 'ami-5c3a8b34'
   worker_mmp_prod:    'ami-5c3a8b34'
   worker_pzm_md_dev:  'ami-5c3a8b34'
+  worker_pzm_md_prod: 'ami-5c3a8b34'
   pregrid:        'ami-5c3a8b34'
   pregrid_ISA:    'ami-5c3a8b34'
   pregrid_ISU:    'ami-5c3a8b34'
@@ -92,6 +93,13 @@ security:
     vpc_subnet: 'subnet-fc94b793'
     security_groups: ['dev-base','dev-kibitz-worker']
 
+  worker_pzm_md_prod:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-cb9ebda4'
+    # If you override this on a per-type basis, be aware that the *values* in
+    # the array will not be merged. You must override the entire array.
+    security_groups: ['production-worker']
+
 # The base settings get merged with any per-type settings. All available options
 # appear in the base section.
 launch_settings:
@@ -139,6 +147,9 @@ launch_settings:
   worker_pzm_md_dev:
     size: 't2.medium'
     bill_to: 'PZM'
+
+  worker_pzm_md_prod:
+    size: 't2.medium'
 
   aggregator_r2:
     size: 'm3.2xlarge'
@@ -272,6 +283,11 @@ userdata:
     number_of_processes: 1
     s3_bucket: web_development
     app_name: "worker_pzm_md_dev.processor"
+
+  worker_pzm_md_prod:
+    deploy_key: arks/default/md_worker_prod.zip
+    number_of_processes: 1
+    s3_bucket: production
 
   pregrid:
     deploy_key: arks/default/pregrid_x64.zip
