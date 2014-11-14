@@ -27,11 +27,17 @@ module EZQ
 
   @log = nil
 
+  # Sets the logger for ezqlib calls. Pass in something that reponds like
+  # Ruby's builtin Logger class and you're good to go.
+  # @param [Logger-like] logger The Logger to use. Must respond to Logger
+  #   methods and Logger level constants, but need not be derived from Logger.
   def self.set_logger(logger)
     @log = logger
   end
 
-  def self.get_local_ip
+  # Returns the local ip of the machine using only standard builtin OS calls.
+  # Restricted to Windows and Unix-like OSes.
+  def self.get_local_ip()
     ip = ''
     if RUBY_PLATFORM =~ /mswin|mingw/
       cmd = 'FOR /f "tokens=1 delims=:" %d IN (\'ping %computername% -4 -n 1 ^| find /i "reply"\') DO FOR /F "tokens=3 delims= " %g IN ("%d") DO echo %g'
