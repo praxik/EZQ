@@ -27,7 +27,7 @@ class LogglyWrapper < Logger
     @pid = opts.fetch(:pid,0)
 
     loggly_token = opts.fetch(:loggly_token,'')
-    if !loggly_token.empty?
+    if loggly_token and !loggly_token.empty?
       @loggly = Logglier.new("http://logs-01.loggly.com/inputs/#{loggly_token}/tag/#{@progname}/",:format => :json,:threaded => true)
       @loggly.level = opts.fetch(:loggly_level,Logger::ERROR)
     else
@@ -135,7 +135,7 @@ class DualLogger < MultiLogger
       local.level = opts.fetch(:local_level,Logger::INFO)
     end
 
-    loggly = LogglyWrapper.new(opts)
+    loggly = LogglyWrapper.new(opts) if opts.fetch(:loggly_token,false)
 
     logs = []
     logs << local if local
