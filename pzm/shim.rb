@@ -71,7 +71,7 @@ json_doc = JSON.parse(File.read(input_file))
 
 if !json_doc.fetch('year',false) or !json_doc.fetch('report_record_id',false)
     errors = 'report_record_id or year keys not available in JSON message\n'
-    log.info errors
+    log.error errors
     result_message = {}
     result_message['report_record_id'] = json_doc['report_record_id']
     result_message['worker_succeeded'] = false
@@ -96,13 +96,14 @@ rescue Exception => e
     result_message['errors'] = 'The field boundary file is invalid\n'
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
+    log.error 'The field boundary file is invalid\n'
     
     File.write(output_file,result_message.to_json)
     exit(0)
 end
 
-log.any "Operating on report_record_id: #{report_record_id}"
-log.any "Machine data year: #{md_year}"
+log.unknown "Operating on report_record_id: #{report_record_id}"
+log.unknown "Machine data year: #{md_year}"
 
 # machine data path
 # field boundary path
@@ -217,7 +218,7 @@ if exit_status.zero?
     File.write(output_file,result_message.to_json)
 end
 
-log.any 'Done.'
+log.unknown 'Done.'
 exit(exit_status)
 
 rescue => e
