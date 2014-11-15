@@ -101,8 +101,8 @@ rescue Exception => e
     exit(0)
 end
 
-log.info "Operating on report_record_id: #{report_record_id}"
-log.info "Machine data year: #{md_year}"
+log.any "Operating on report_record_id: #{report_record_id}"
+log.any "Machine data year: #{md_year}"
 
 # machine data path
 # field boundary path
@@ -150,6 +150,7 @@ begin
         end
       elsif msg =~ /^error_message/
         errors << msg.gsub(/^error_message/,'')
+        log.error msg.gsub(/^error_message/,'')
         has_errors = true
         puts msg
       elsif msg =~ /^results_tag:/
@@ -216,7 +217,7 @@ if exit_status.zero?
     File.write(output_file,result_message.to_json)
 end
 
-log.info 'Done.'
+log.any 'Done.'
 exit(exit_status)
 
 rescue => e
