@@ -150,6 +150,7 @@ launch_settings:
 
   worker_pzm_md_prod:
     size: 't2.medium'
+    bill_to: 'PZM'
 
   aggregator_r2:
     size: 'm3.2xlarge'
