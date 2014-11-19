@@ -20,4 +20,12 @@ EZQ:
  - bucket: roi.agsolver
    key: web_development/yields/yield_maps/Fredericks_Voight_North.geojson
 ...
-{ "report_record_id": "28-1404419496","year": 2011}
+{
+    ”report_record_id": "28-1404419496",
+    "year": 2011,
+    "xul": 251915.257101989,
+    "yul": 2258190.56162872,
+    "width": 91,
+    "height": 71,
+    "srid": 102039
+}

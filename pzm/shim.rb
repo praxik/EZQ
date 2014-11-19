@@ -83,8 +83,14 @@ if !json_doc.fetch('year',false) or !json_doc.fetch('report_record_id',false)
     exit(0)
 end
 
+#parse through the json file
 report_record_id = json_doc['report_record_id']
 md_year = json_doc['year']
+xul = json_doc['xul']
+yul = json_doc['yul']
+width = json_doc['width']
+height = json_doc['height']
+srid = json_doc['srid']
 
 # Check field json field file
 begin
@@ -108,13 +114,17 @@ log.unknown "Machine data year: #{md_year}"
 # machine data path
 # field boundary path
 # root output path for cmprocessor
-
 command = "FieldOpsReader.exe " +
           " --in=#{yld_data}" +
           " --out=#{cmprocessor_root}" +
           " --field=#{fld_data}" +
           " --raster=#{raster_root}" +
-          " --season=#{md_year}"
+          " --season=#{md_year}" +
+          " --xul=#{xul}" +
+          " --yul=#{yul}" +
+          " --width=#{width}" +
+          " --height=#{height}" +
+          " --srid=#{srid}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so
