@@ -26,9 +26,11 @@ class LogglyWrapper < Logger
     @ip = opts.fetch(:ip,'not_set')
     @pid = opts.fetch(:pid,0)
 
+    trash_log = File.open(File::NULL, "w")
+
     loggly_token = opts.fetch(:loggly_token,'')
     if loggly_token and !loggly_token.empty?
-      @loggly = Logglier.new("http://logs-01.loggly.com/inputs/#{loggly_token}/tag/#{@progname}/",:format => :json,:threaded => true)
+      @loggly = Logglier.new("http://logs-01.loggly.com/inputs/#{loggly_token}/tag/#{@progname}/",:format => :json,:threaded => true,:failsafe=> trash_log)
       @loggly.level = opts.fetch(:loggly_level,Logger::ERROR)
     else
       return nil
