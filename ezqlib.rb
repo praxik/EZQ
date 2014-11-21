@@ -593,6 +593,33 @@ module EZQ
     return result
   end
 
+
+  # Runs an external command. Returns an array containing a success flag in the
+  # first position, and an array of strings containing all stdout and stderr
+  # output in the second position. The success flag can be true, false, or nil.
+  # True indicates the external command ran and exited with exit_status = 0.
+  # False indicates the command ran and exited with exist_status != 0.
+  # Nil indicates an exception was raised in Ruby when attempting to run the
+  # command. In this case, the output array in the second position will
+  # contain the text of the exception.
+  def self.exec_cmd(cmd)
+    success = false
+    output = []
+    begin
+      IO.popen(cmd,:err=>[:child, :out]) do |io|
+        while !io.eof?
+          output << io.gets
+        end
+        io.close
+        success =  $?.to_i.zero?
+      end
+    rescue => e
+      success = nil # mimic behavior of Kernel#system
+      output << e
+    end
+    return [success,output]
+  end
+
 end
 
 
