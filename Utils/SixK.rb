@@ -304,7 +304,12 @@ class SixK
                 :subnet_id => sn_id,
                 :security_group_ids => sgids,
                 :instance_type => @size,
-                :user_data => Base64.encode64(@userdata.to_yaml) }
+                :user_data => Base64.encode64(@userdata.to_yaml),
+                :block_device_mappings=>[{
+                      :device_name=>'/dev/sdb',
+                      :virtual_name=>'ephemeral0'
+                }]
+              }
 
       av = ec2.subnets[sn_id].available_ip_address_count
       num_instances = (count >= av) ? av : count
@@ -684,6 +689,34 @@ class SixK
         tags = [{:key=>'bill_to',:value=>bill_to}]
         client.create_tags({:resources=>ebs_vols,:tags=>tags})
       end
+    end
+    
+  end
+
+################################################################################
+
+  def self.sync_snapshot_tags(config='',argv=[])
+    self.load_config(config) if !config.empty?
+    args = Array(argv)
+
+    client = AWS::EC2::Client.new
+    ec2 = AWS::EC2.new
+    amis = ec2.images.with_owner('self')
+    amis.each do |ami|
+      bill_to = ami.tags.to_h.fetch('bill_to',false)
+      if !bill_to
+        puts "Skipping #{ami.name}\n"
+        next
+      end
+      puts "#{ami.name}:"
+      snaps = []
+      ami.block_device_mappings.each do |dev,props|
+        puts "\tTagging #{props[:snapshot_id]} with bill_to: #{bill_to}"
+        snaps << props[:snapshot_id]
+      end
+      puts ''
+      tags = [{:key=>'bill_to',:value=>bill_to}]
+      client.create_tags({:resources=>snaps,:tags=>tags})
     end
     
   end

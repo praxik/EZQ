@@ -127,6 +127,9 @@ when 'tag'
 when 'sync_billing'
   setup_AWS
   SixK.sync_billing(config,argv)
+when 'sync_snapshot_tags'
+  setup_AWS
+  SixK.sync_snapshot_tags(config,argv)
 else
   warn "No command named '#{command}'."
   puts ""
