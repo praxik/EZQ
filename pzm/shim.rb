@@ -86,11 +86,6 @@ end
 #parse through the json file
 report_record_id = json_doc['report_record_id']
 md_year = json_doc['year']
-xul = json_doc['xul']
-yul = json_doc['yul']
-width = json_doc['width']
-height = json_doc['height']
-srid = json_doc['srid']
 
 # Check field json field file
 begin
@@ -119,12 +114,7 @@ command = "FieldOpsReader.exe " +
           " --out=#{cmprocessor_root}" +
           " --field=#{fld_data}" +
           " --raster=#{raster_root}" +
-          " --season=#{md_year}" +
-          " --xul=#{xul}" +
-          " --yul=#{yul}" +
-          " --width=#{width}" +
-          " --height=#{height}" +
-          " --srid=#{srid}"
+          " --season=#{md_year}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so
