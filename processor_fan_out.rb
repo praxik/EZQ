@@ -33,7 +33,7 @@ begin
   @rec_queue = userdata.fetch('receive_queue_name','')
   puts "Overriding receive queue setting with #{@rec_queue}" if !@rec_queue.empty?
   @err_queue = userdata.fetch('error_queue_name','')
-  puts "Overriding error queue setting with #{}" if !@err_queue.empty?
+  puts "Overriding error queue setting with #{@err_queue}" if !@err_queue.empty?
   @loggly_token = userdata.fetch('loggly_token',nil)
   @loggly_level = userdata.fetch('loggly_level',nil)
   @app_name = userdata.fetch('app_name',nil)
@@ -58,7 +58,7 @@ pids = []
   command += " --log ./processor_" + "%02d" % idx + ".log"
   command += " --log_severity info"
   command += " --queue #{@rec_queue}" if !@rec_queue.empty?
-  command += " --error_queue #{err_queue}" if !@err_queue.empty?
+  command += " --error_queue #{@err_queue}" if !@err_queue.empty?
   command += " --token #{@loggly_token}" if @loggly_token
   command += " --loggly_severity #{@loggly_level}" if @loggly_level
   command += " --app_name #{@app_name}" if @app_name
