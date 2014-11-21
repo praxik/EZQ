@@ -1,0 +1,53 @@
+<%= File.read('boilerplate_top.html') %>
+
+<div class="container">
+	<div class="row">
+		<div class="col-xs-12">
+			<h1><%= d[:name] %>: <%= d[:scenario_name] %></h1>
+			<p><%= d[:acres] %> acres</p>
+			<table class="table table-bordered">
+				<thead>
+					<tr>
+						<th>Parameter</th>
+						<th>Value</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>Profit</td>
+						<td class="success">$<%= d['profit_per_acre'] %>/acre</td>
+					</tr>
+					<tr>
+						<td>ROI</td>
+						<td><%= d['roi'] > %</td>
+					</tr>
+					<tr>
+						<td>Total Field Expenses</td>
+						<td class="danger">$<%= d['total_field_expenses'] ></td>
+					</tr>
+					<tr>
+						<td>Total Field Revenue</td>
+						<td>$<%= d['total_field_revenue'] ></td>
+					</tr>
+					<tr>
+						<td>Total Field Profit</td>
+						<td class="success">$<%= d['total_field_profit'] ></td>
+					</tr>
+				</tbody>
+			</table>
+			<h2><%= d['year'] > Profit Map</h2>
+			<img src="./reports_files/overall_profit_map.png" class="img-responsive" alt="As Applied Planting Map">
+
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-6">
+			<img src="./reports_files/overall_profit_hist.png" class="img-responsive" alt="Chart">
+		</div>
+		<div class="col-xs-6">
+			<img src="./reports_files/overall_profit_pie.png" class="img-responsive" alt="Chart">
+		</div>
+	</div>
+</div>
+
+<%= File.read('boilerplate_bottom.html') %>
