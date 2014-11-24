@@ -49,7 +49,7 @@ class Processor
   public
   # Create a processor based on a configuration hash
   #
-  # @param [Hash or String] configuration The configuration hash to use. The full list of 
+  # @param [Hash or String] configuration The configuration hash to use. The full list of
   #   configurable options is detailed in {file:Processor_Config_Details.md}.
   #   If configuration is a string, it will be interpreted as a file to open
   #   and parse as YAML.
@@ -63,7 +63,7 @@ class Processor
   #   configuration file shared by multiple processes and overriding a small
   #   number of values for each instance.
   def initialize(configuration,credentials,logger = nil,overrides={})
-    
+
     if !logger
       logger = Logger.new(STDOUT)
       logger.level = Logger::INFO
@@ -80,7 +80,7 @@ class Processor
     end
     # Override config with values in overrides
     config.merge!(overrides)
-    
+
     # Set up AWS with the specified credentials
     AWS.config(credentials)
 
@@ -91,10 +91,10 @@ class Processor
     # populate each of our manually-created ivars from set_defaults with
     # the value specified in the config.
     config.each { |k,v| make_var("@#{k}",v) }
-    
+
     # Grab the receive_queue
     init_receive_queue()
-    
+
     # Get the result queue, if one was specified
     if @result_step == 'post_to_result_queue'
       init_result_queue()
@@ -114,7 +114,7 @@ class Processor
   protected
   def set_defaults
     @pid = Process.pid
-   
+
     # Create instance variables with sensible defaults
     @s3_files = []
     @s3_outs = []
@@ -184,10 +184,10 @@ class Processor
       send_error(m,true)
     end
   end
-  
-  
+
+
   protected
-  # Call into AWS to get the result queue and put it into the variable 
+  # Call into AWS to get the result queue and put it into the variable
   # +@result_queue+. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def init_result_queue
@@ -204,9 +204,9 @@ class Processor
     end
     return nil
   end
-  
-  
-  
+
+
+
   protected
   # Parse a configuration file as yaml
   def parse_config_file(filename)
@@ -228,9 +228,9 @@ class Processor
     end
     return config
   end
-  
-  
-  
+
+
+
   protected
   # Decompresses the file and stores the result in a file with the same name.
   def decompress_file(filename)
@@ -245,9 +245,9 @@ class Processor
     File.delete(filename)
     File.rename(filename + '.uc', filename)
   end
-  
-  
-  
+
+
+
   protected
   # Compresses the file and stores the result in filename.gz
   def compress_file(filename)
@@ -279,8 +279,8 @@ class Processor
     @logger.debug "Expanded string: '#{strc}'"
     return strc
   end
-  
-  
+
+
   protected
   # Save the entire message in case processors need access to meta information
   # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
@@ -294,21 +294,21 @@ class Processor
     tmp['sent_at'] = msg.sent_at
     tmp['receive_count'] = msg.receive_count
     tmp['first_received_at'] = msg.first_received_at
-    File.open( "#{id}.message", 'w' ) { |output| output << tmp.to_yaml }  
+    File.open( "#{id}.message", 'w' ) { |output| output << tmp.to_yaml }
   end
-  
-  
+
+
   protected
   # Runs the process_command on a job with id, on a given message and input file
   # @param [AWS::SQS::ReceivedMessage] msg The message associated with this run
-  # @param [String] input_filename String that will replace the $input_file 
+  # @param [String] input_filename String that will replace the $input_file
   # token in process_command
   # @param [String] id Unique id associated with the current message
   def run_process_command(input_filename,id,log_command=true)
     commandline = expand_vars(@process_command,input_filename,id)
     @logger.info "Running command '#{commandline}'" if log_command
     @logger.info 'Running process_command' if !log_command
-    
+
     success = false
     output = []
     tries = @retry_on_failure ? @retries.to_i + 1 : 1
@@ -316,7 +316,7 @@ class Processor
       success, output = exec_cmd_thread(commandline)
       break if success
     end
-    
+
     @logger.fatal "Command does not exist!" if success == nil
     @logger.error "Command '#{commandline}' failed with output: \n#{output.join("\n")}" if !success
     if !success
@@ -332,7 +332,7 @@ class Processor
       err_hash['instance'] = @instance_id if !@instance_id.empty?
       send_error(err_hash.to_yaml)
     end
-    
+
     return success
   end
 
@@ -350,7 +350,7 @@ class Processor
       break if thr.join(5)
       thr.kill if !@run
     end
-    
+
     return thr[:retval]
   end
 
@@ -367,28 +367,28 @@ class Processor
        return
       end
     end
-    
+
     err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
     EZQ.enqueue_message(err_msg.to_yaml,{},@error_queue_name,true)
     raise msg if failout
   end
-  
-  
+
+
   protected
   # Resets to the default configuration specified in the config file parsed at
   # startup, unless the default value has been permanently changed
   def reset_configuration
     @var_hash.each {|k,v| instance_variable_set(k,v) }
   end
-  
-  
+
+
   protected
   # Parse a message body to override settings for this one message. Some
   # settings cannot be overridden:
   # * 'receive_queue_name'
   # * 'polling_options'
   # * 'smart_halt_when_idle_N_seconds'
-  # Other overrides are permanent, since there is no logical interpretation of 
+  # Other overrides are permanent, since there is no logical interpretation of
   # "only for this message":
   # * 'halt_instance_on_timeout'
   # * 'halt_type'
@@ -420,7 +420,7 @@ class Processor
   # @param [String] input_filename Name of input file for this job
   # @param [String] id ID of this job
   def cleanup(input_filename,id)
-    @logger.info "Performing default cleanup for id #{id}"      
+    @logger.info "Performing default cleanup for id #{id}"
     @file_as_body = nil
     File.delete("output_#{id}.txt.gz") if File.exists?("output_#{id}.txt.gz")
     File.delete("output_#{id}.tar.gz") if File.exists?("output_#{id}.tar.gz")
@@ -477,8 +477,8 @@ class Processor
       return false
     end
   end
-  
-  
+
+
   protected
   # Post a message to result_queue
   def post_to_result_queue
@@ -499,8 +499,8 @@ class Processor
       return false
     end
   end
-  
-  
+
+
   protected
   # Pull the contents of the output file into the result message.
   def make_raw_result(preamble)
@@ -531,7 +531,7 @@ class Processor
     end
     return body
   end
-  
+
 
 
   protected
@@ -550,8 +550,8 @@ class Processor
       end
     end
   end
-  
-  
+
+
   protected
   # Strips out the message preamble containing explicit EZQ directives
   def strip_directives(msg)
@@ -570,7 +570,7 @@ class Processor
     return true if !preamble
 
     return false if !get_s3_file_as_body(preamble)
-    
+
     return true if !preamble.has_key?('get_s3_files')
     files = preamble['get_s3_files']
     files.each do |props|
@@ -584,7 +584,7 @@ class Processor
         end
       end
     end
-    
+
     return true
   end
 
@@ -624,7 +624,7 @@ class Processor
       err_hash['pid'] = @pid
       err_hash['instance'] = @instance_id if !@instance_id.empty?
       send_error(err_hash.to_yaml,false)
-      return false  
+      return false
     end
     return true
   end
@@ -681,7 +681,7 @@ class Processor
     File.delete(key) if File.exists?(key)
     return nil
   end
-  
+
   protected
   # Do the actual processing of a single message
   def process_message(msg)
@@ -690,11 +690,11 @@ class Processor
       set_visibility(msg,10)
       return false
     end
-    
+
     @logger.unknown "-----------------Received message #{msg.id}-------------------------"
     @input_filename = msg.id + '.in'
     @id = msg.id
-    
+
     override_configuration(msg.body)
     if !fetch_s3(msg.body)
       cleanup(@input_filename,@id)
@@ -770,7 +770,7 @@ class Processor
       mol.each{|msg| set_visibility(msg,10)}
       return false
     end
-    
+
     @logger.unknown "-------------------Received molecule of #{mol.size} messages-----------------------"
     @id = mol[0].id  # Use id of first message as the id for the entire op
     @input_filename = @id + '.in'
@@ -819,7 +819,7 @@ class Processor
     # them. Since save_message uses @msg_contents for the body, this is kind
     # of okay.
     save_message(msg,id) if @store_message
-    
+
     success = run_process_command(@input_filename,@id)
     if success
       # Do result_step before deleting the message in case result_step fails.
@@ -835,7 +835,7 @@ class Processor
         mol.each{|msg| set_visibility(msg,10)}
       end
     end
-    
+
     # Cleanup even if processing otherwise failed.
     cleanup(@input_filename,@id)
     return success
@@ -924,7 +924,7 @@ class Processor
 
   public
   # Start the main processing loop which requests messages from the queue,
-  # pre-processes them according to queue type, passes that information to the 
+  # pre-processes them according to queue type, passes that information to the
   # chosen processing command, calls the result_step, and then cleans up.
   def start
     @logger.info "Starting queue polling"
@@ -937,21 +937,21 @@ class Processor
     else
       poll_queue
       if @halt_on_timeout && @instance
-        halt_instance 
+        halt_instance
       end
     end
   end
-  
-    
-  
-  
+
+
+
+
 end # class
 end # module
 
 
 
 ################################################################################
-# Run this bit if this file is being run directly as an executable rather than 
+# Run this bit if this file is being run directly as an executable rather than
 # being imported as a module.
 if __FILE__ == $0
   require 'optparse'
@@ -1044,7 +1044,7 @@ if __FILE__ == $0
     if debug_port
       log.unknown "Pry-remote port: #{debug_port}"
       require 'pry-remote'
-      Thread.new{binding.remote_pry}
+      Thread.new{binding.remote_pry('localhost',debug_port.to_i)}
     end
 
     if !File.exists?(creds_file)
@@ -1069,6 +1069,3 @@ if __FILE__ == $0
   end
 end
 ################################################################################
-
-
-
