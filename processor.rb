@@ -11,6 +11,7 @@ require 'uri'
 require 'digest/md5'
 require 'fileutils'
 require 'zip'
+require 'socket'
 
 require './x_queue'
 require_relative './ezqlib'
@@ -24,6 +25,18 @@ module EZQ
 # +process_command+ specified in the configuration. Processor can then take
 # results from this processing and optionally post them to a +result_queue+.
 class Processor
+
+  protected
+  def open_exit_port(port)
+    Thread.new do
+      server = TCPServer.new(port)
+      while @run do
+        client = server.accept
+        @run = false if client.gets == 'TERMINATE'
+        client.close
+      end
+    end
+  end
 
   protected
   # Set up a hash containing default values of everything we pulled from a
@@ -50,6 +63,7 @@ class Processor
   #   configuration file shared by multiple processes and overriding a small
   #   number of values for each instance.
   def initialize(configuration,credentials,logger = nil,overrides={})
+    
     if !logger
       logger = Logger.new(STDOUT)
       logger.level = Logger::INFO
@@ -87,6 +101,13 @@ class Processor
     end
 
     set_instance_details()
+
+    @run = true
+    # Setup to get graceful exit signal
+    # For *nix:
+    Signal.trap('SIGTERM'){@run = false}
+    # For Windows:
+    open_exit_port(config.fetch('exit_port',8642)) if RUBY_PLATFORM =~ /mswin|mingw/
   end
 
 
@@ -287,19 +308,17 @@ class Processor
     commandline = expand_vars(@process_command,input_filename,id)
     @logger.info "Running command '#{commandline}'" if log_command
     @logger.info 'Running process_command' if !log_command
+    
     success = false
     output = []
-    success, output = exec_cmd(commandline)
+    tries = @retry_on_failure ? @retries.to_i + 1 : 1
+    tries.times do
+      success, output = exec_cmd_thread(commandline)
+      break if success
+    end
+    
     @logger.fatal "Command does not exist!" if success == nil
     @logger.error "Command '#{commandline}' failed with output: \n#{output.join("\n")}" if !success
-    if @retry_on_failure && !success
-      num = @retries.to_i
-      num.times do
-        @logger.warn "Command '#{commandline}' failed; retrying"
-        success, output = exec_cmd(commandline)
-        break if success
-      end
-    end
     if !success
       err_hash = {}
       # Everything in here that could potentially be large has to be forcibly
@@ -313,28 +332,28 @@ class Processor
       err_hash['instance'] = @instance_id if !@instance_id.empty?
       send_error(err_hash.to_yaml)
     end
+    
     return success
   end
 
 
   protected
-  def exec_cmd(cmd)
-    success = false
-    output = []
-    begin
-      IO.popen(cmd,:err=>[:child, :out]) do |io|
-        while !io.eof?
-          output << io.gets
-        end
-        io.close
-        success =  $?.to_i.zero?
-      end
-    rescue => e
-      success = nil # mimic behavior of Kernel#system
-      output << e
+  # Runs EZQ.exec_cmd in a separate thread, allowing us to check the @run flag
+  # at intervals and abort if a graceful exit has been requested.
+  def exec_cmd_thread(cmd)
+    thr = Thread.new do
+      Thread.current[:retval] = [false,'Process_command killed in graceful exit']
+      Thread.current[:retval] = EZQ.exec_cmd(cmd)
     end
-    return [success,output]
+
+    loop do
+      break if thr.join(5)
+      thr.kill if !@run
+    end
+    
+    return thr[:retval]
   end
+
 
   protected
   # Sends an error message to the named error queue
@@ -822,7 +841,7 @@ class Processor
     end
     @in_queue.poll_no_delete(@polling_options) do |msg|
       msgary = Array(msg)
-      msgary.each {|item| process_message(item)}
+      msgary.each {|item| process_message(item); exit if !@run}
     end
     return nil
   end
@@ -832,7 +851,7 @@ class Processor
   def poll_queue_atom(a)
     opts = atom_opts(a)
     msgs = []
-    while true
+    while @run
       msgs += Array(@in_queue.receive_message(opts))
       if msgs.size < a
         n = a - msgs.size
@@ -935,6 +954,8 @@ if __FILE__ == $0
   loggly_token = nil
   loggly_severity = 'info'
   app_name = 'EZQ::Processor'
+  exit_port = '8642'
+  debug_port = nil
   op = OptionParser.new do |opts|
     opts.banner = "Usage: processor.rb [options]"
 
@@ -967,6 +988,12 @@ if __FILE__ == $0
     end
     opts.on("-e", "--error_queue [QUEUE_NAME]","Report fatal errors to this queue rather than the error_queue specified in the config file") do |q|
       error_queue = q
+    end
+    opts.on("-p", "--exit_port [PORT]","On MSWindows, open a socket on PORT to listen for 'TERMINATE' message for graceful exit") do |p|
+      exit_port = p
+    end
+    opts.on("-d", "--debug [PORT]","Starts a pry-remote server on the selected port. WARNING: This can be a gaping security hole if your port access rules are not sane.") do |p|
+      debug_port = p
     end
   end
 
@@ -1002,21 +1029,27 @@ if __FILE__ == $0
                           :loggly_token=>loggly_token,
                           :loggly_level=>s_map[loggly_severity],
                           :pid=>Process.pid})
-    
+
+    if debug_port
+      log.unknown "Pry-remote port: #{debug_port}"
+      require 'pry-remote'
+      Thread.new{binding.remote_pry}
+    end
 
     if !File.exists?(creds_file)
-      warn "Credentials file '#{creds_file}' does not exist! Aborting."
+      log.fatal "Credentials file '#{creds_file}' does not exist! Aborting."
       exit 1
     end
 
     credentials = YAML.load(File.read(creds_file))
     if !credentials.kind_of?(Hash)
-      warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
+      log.fatal "Credentials file '#{creds_file}' is not properly formatted! Aborting."
       exit 1
     end
 
     overrides = queue ? {"receive_queue_name"=>queue} : {}
     overrides['error_queue_name'] = error_queue if error_queue
+    overrides['exit_port'] = exit_port
     EZQ::Processor.new(config_file,credentials,log,overrides).start
   # Handle Ctrl-C gracefully
   rescue Interrupt
