@@ -685,8 +685,13 @@ class Processor
   protected
   # Do the actual processing of a single message
   def process_message(msg)
-    @logger.unknown '------------------------------------------'
-    @logger.info "Received message #{msg.id}"
+    # Just re-vis the message if graceful exit was requested
+    if !@run
+      set_visibility(msg,10)
+      return false
+    end
+    
+    @logger.unknown "-----------------Received message #{msg.id}-------------------------"
     @input_filename = msg.id + '.in'
     @id = msg.id
     
@@ -760,8 +765,13 @@ class Processor
   protected
   # Do the actual processing of a message molecule
   def process_molecule(mol)
-    @logger.unknown '------------------------------------------'
-    @logger.info "Received molecule of #{mol.size} messages."
+    # Just re-vis the molecule if graceful exit was requested
+    if !@run
+      mol.each{|msg| set_visibility(msg,10)}
+      return false
+    end
+    
+    @logger.unknown "-------------------Received molecule of #{mol.size} messages-----------------------"
     @id = mol[0].id  # Use id of first message as the id for the entire op
     @input_filename = @id + '.in'
 
@@ -841,7 +851,8 @@ class Processor
     end
     @in_queue.poll_no_delete(@polling_options) do |msg|
       msgary = Array(msg)
-      msgary.each {|item| process_message(item); exit if !@run}
+      msgary.each {|item| process_message(item)}
+      exit if !@run
     end
     return nil
   end
