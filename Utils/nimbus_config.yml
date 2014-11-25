@@ -11,23 +11,23 @@
 # Map type labels to specific AMIs. New types can be added by adding a
 # new label and AMI in this section
 
-# 'ami-5c3a8b34' is 30gb windows base
+# 'ami-3862ff50' is 30gb windows base
 
 ami_map:
   # Windows
-  worker_ISA:     'ami-5c3a8b34'
-  worker_r2_ISA:  'ami-5c3a8b34'
-  server_worker_ISU:  'ami-5c3a8b34'
-  server_worker_IN:   'ami-5c3a8b34'
-  worker_mmp_dev:     'ami-5c3a8b34'
-  worker_mmp_staging: 'ami-5c3a8b34'
-  worker_mmp_prod:    'ami-5c3a8b34'
-  worker_pzm_md_dev:  'ami-5c3a8b34'
-  worker_pzm_md_prod: 'ami-5c3a8b34'
-  pregrid:        'ami-5c3a8b34'
-  pregrid_ISA:    'ami-5c3a8b34'
-  pregrid_ISU:    'ami-5c3a8b34'
-  pregrid_IN:     'ami-5c3a8b34'
+  worker_ISA:     'ami-3862ff50'
+  worker_r2_ISA:  'ami-3862ff50'
+  server_worker_ISU:  'ami-3862ff50'
+  server_worker_IN:   'ami-3862ff50'
+  worker_mmp_dev:     'ami-3862ff50'
+  worker_mmp_staging: 'ami-3862ff50'
+  worker_mmp_prod:    'ami-3862ff50'
+  worker_pzm_md_dev:  'ami-3862ff50'
+  worker_pzm_md_prod: 'ami-3862ff50'
+  pregrid:        'ami-3862ff50'
+  pregrid_ISA:    'ami-3862ff50'
+  pregrid_ISU:    'ami-3862ff50'
+  pregrid_IN:     'ami-3862ff50'
   # Linux
   reporthandler:  'ami-f4419c9c'
   aggregator:     'ami-f4419c9c'
@@ -127,10 +127,10 @@ launch_settings:
     #size: 'r3.4xlarge'
     
   server_worker_ISU:
-    size: 'm1.xlarge'
+    size: 'm1.medium'
     
   server_worker_IN:
-    size: 'm1.xlarge'
+    size: 'm1.medium'
 
   worker_mmp_dev:
     size: 't2.medium'
@@ -150,7 +150,6 @@ launch_settings:
 
   worker_pzm_md_prod:
     size: 't2.medium'
-    bill_to: 'PZM'
 
   aggregator_r2:
     size: 'm3.2xlarge'
@@ -193,12 +192,13 @@ userdata:
     number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: ISA_weps.zip
-    r2_man_key: ISA_skels.zip
+    man_key: MON_COB_weps.zip
+    r2_man_key: MON_COB_skels.zip
     receive_queue_name: 6k_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
     app_name: "worker_ISA.processor"
+    error_queue_name: 6k_error
 
   worker_r2_ISA:
     deploy_key: arks/default/worker_r2p2d_x64.zip
@@ -209,6 +209,7 @@ userdata:
     r2_man_key: ISA_skels.zip
     receive_queue_name: 6k_task_r2
     app_name: "worker_r2_ISA.processor"
+    error_queue_name: 6k_error
     
   server_worker_ISU:
     deploy_key: arks/default/server_worker_x64.zip
@@ -221,18 +222,20 @@ userdata:
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
     app_name: "server_worker_ISU.processor"
+    error_queue_name: purdue_error
     
   server_worker_IN:
     deploy_key: arks/default/server_worker_x64.zip
     number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: AgSolver_Ames_weps.zip
-    r2_man_key: AgSolver_Ames_skels.zip
+    man_key: MON_COB_weps.zip
+    r2_man_key: MON_COB_skels.zip
     receive_queue_name: IN_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
     app_name: "server_worker_IN.processor"
+    error_queue_name: IN_error
 
   worker_mmp_dev:
     deploy_key: arks/default/iowammp.zip
@@ -248,6 +251,7 @@ userdata:
     gs_db_password: agsolver_postgres
     s3_bucket: web_development
     app_name: "worker_mmp_dev.processor"
+    use_instance_store: false
 
   worker_mmp_staging:
     deploy_key: arks/default/iowammp.zip
@@ -263,6 +267,7 @@ userdata:
     gs_db_password: agsolver_postgres
     s3_bucket: staging
     app_name: "worker_mmp_staging.processor"
+    use_instance_store: false
 
   worker_mmp_prod:
     deploy_key: arks/default/iowammp_prod.zip
@@ -278,29 +283,33 @@ userdata:
     gs_db_password: agsolver_postgres
     s3_bucket: production
     app_name: "worker_mmp_prod.processor"
+    use_instance_store: false
 
   worker_pzm_md_dev:
     deploy_key: arks/default/md_worker.zip
     number_of_processes: 1
     s3_bucket: web_development
     app_name: "worker_pzm_md_dev.processor"
+    use_instance_store: false
 
   worker_pzm_md_prod:
     deploy_key: arks/default/md_worker_prod.zip
     number_of_processes: 1
     s3_bucket: production
+    use_instance_store: false
 
   pregrid:
     deploy_key: arks/default/pregrid_x64.zip
  
   pregrid_ISA:
-    deploy_key: arks/default/pregrid_r2d2_x64.zip
+    deploy_key: arks/default/pregrid_x64.zip #pregrid_r2d2_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: ISA_weps.zip
-    r2_man_key: ISA_skels.zip
+    man_key: MON_COB_weps.zip
+    r2_man_key: MON_COB_skels.zip
     receive_queue_name: 6k_job
     app_name: "pregrid_ISA.processor"
+    error_queue_name: 6k_error
 
   pregrid_ISU:
     deploy_key: arks/default/pregrid_irrcapcl_sort.zip #pregrid_x64.zip
@@ -310,16 +319,17 @@ userdata:
     r2_man_key: MON_COB_skels.zip
     receive_queue_name: purdue_job
     app_name: "pregrid_ISU.processor"
+    error_queue_name: purdue_error
     
   pregrid_IN:
     deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: AgSolver_Ames_weps.zip
-    r2_man_key: AgSolver_Ames_skels.zip
+    man_key: MON_COB_weps.zip
+    r2_man_key: MON_COB_skels.zip
     receive_queue_name: IN_job
-    number_of_processes: 1
     app_name: "pregrid_IN.processor"
+    error_queue_name: IN_error
 
   reporthandler:
     deploy_key: arks/default/reporthandler.zip
