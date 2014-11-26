@@ -12,6 +12,7 @@ require 'parallel'
 command = 'ruby processor.rb -c receive_queue_config.yml'
 Dir.chdir(File.dirname(__FILE__))
 
+userdata = ''
 begin
   userdata = YAML.load_file('userdata.yml')
 rescue
@@ -19,9 +20,10 @@ rescue
   exit(1)
 end
 
-num = userdata.fetch('number_of_processes',1) == 'auto' ?
-        Parallel.processor_count :
-        num.to_i
+num = userdata.fetch('number_of_processes',1)
+num = num == 'auto' ?
+      Parallel.processor_count :
+      num.to_i
 
 rec_queue = userdata.fetch('receive_queue_name','')
 puts "Overriding receive queue setting with #{rec_queue}" if !rec_queue.empty?
