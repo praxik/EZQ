@@ -5,7 +5,7 @@
 #               "id": 109,
 #               "get_yield_map_path": "/yields/yield_maps/000/000/109/original/Jellum_2013.zip"
 
-# Pull out the map_coords_as_geojson element for each MZ, and write each to 
+# Pull out the map_coords_as_geojson element for each MZ, and write each to
 # MZ_id.geojson (id tag in each MZ is an integer) and dump it in same dir
 # as full field geojson, which refd in top-level tag geojson_file
 # So, you'll have as many of these files as there are management zones.
@@ -40,6 +40,11 @@ require 'yaml'
 require 'set'
 require_relative '../ezqlib'
 #require_relative '../ReportHandler/remove_blank_pages'
+
+# Convert an Integer or Float to x.yy currency
+def curr(v)
+  return "%.2f" % v.to_f
+end
 
 # Gets all the files from S3 that we'll need based on refs in the input json.
 # @param [Hash] input The input hash containing appropriate file refs.
@@ -92,39 +97,50 @@ def make_maps(input)
   #       " --output=\"#{out_dir}/musym.png\"" +
   #       " --input=\"#{in_dir}/#{job_id}_#{record_id}.geojson\"" +
   #       " --autofit=exact")
-  
+
 end
 
 
 ################################################################################
 # each of these needs to return the name of the file it generated
 def make_yield_data(data)
-  d = data
+  d = data.clone
   d[:yield_map] = ''# This will reference a file output by qgis
 end
 
 def make_applied_fertilizer(data)
-  d = data
+  d = data.clone
 end
 
 def make_applied_planting(data)
-  d = data
+  d = data.clone
 end
 
 def make_yield_by_soil(data)
-  d = data
+  d = data.clone
 end
 
 def make_overall_profit(data)
-  d = data
+  d = data.clone
+  # !!!!! Some calculation?
+  d[:field_revenue] = 0
+  # !!!!! Some calculation?
+  d[:field_expenses] = 0
+  d[:field_profit] = d[:field_revenue] - d[:field_expenses]
+  d[:field_profit_per_acre] = d[:field_profit]/d[:field_area]
+  # !!!!! Some calculation?
+  d[:field_roi] = 0
 end
 
 def make_overall_revenue_and_expenses(data,scenario)
-  d = data
+  d = data.clone
 
-  new_bud = hash_budget(scenario['budget']['budget_items'],d[:field_area])
-
-  puts new_bud
+  d[:commodity_price]
+  d[:field_revenue]
+  d[:field_expenses]
+  d[:other_revenue]
+  d[:total_revenue]
+  d[:budget] = hash_budget(scenario['budget']['budget_items'],d[:field_area])
 end
 
 def make_zone_profit(data,zone)
@@ -132,24 +148,36 @@ def make_zone_profit(data,zone)
   mz = zone.clone
 
   d[:mz_name] = mz['name']
+  d[:mz_id] = mz['id']
   d[:mz_area] = mz['get_area_in_acres']
+
+  budget_items = zone['budget']['budget_items']
+  commodity_price = budget_items.select{|bi| bi['item_name'] == 'Commodity Price'}['amount']
+  # !!!!! Somehow this will come in from Doug
+  zone_yield = 0
+  d[:mz_revenue] = commodity_price * zone_yield
+    + budget_items.select{|bi| bi['item_name'] == 'Other Revenue'}['amount'] * d[:mz_area]
+
+  revenues = ['Commodity Price','Other Revenue']
+  d[:mz_expenses] = budget_items.select{|bi| !revenues.include?(bi['item_name'])}
+                    .map{|i| i['amount']}.reduce(:+)
+
+  d[:mz_profit] = d[:mz_revenue] - d[:mz_expenses]
+  d[:mz_profit_per_acre] = d[:mz_profit]/d[:mz_area]
+  # !!!!! Some calculation?
+  d[:mz_roi] = 0
+  d[:mz_year] = d[:scenario_budget]['name']
 end
 
 def make_revenue_and_expenses_with_zones(data,zone)
-  d = data
-  mz = zone
-  
+  d = data.clone
+  mz = zone.clone
+
   d[:mz_name] = mz['name']
   d[:mz_area] = mz['get_area_in_acres']
 
-  puts "m_r_a_e_w_z #{mz['name']}"
-  puts "acres: #{d[:mz_area]}"
-
   commodity_price = 0.00
-  new_bud = hash_budget(zone['budget']['budget_items'],d[:mz_area])
-
-  d[:mz_budget] = new_bud
-  #puts new_bud
+  d[:mz_budget] = hash_budget(zone['budget']['budget_items'],d[:mz_area])
 end
 ################################################################################
 
@@ -172,9 +200,10 @@ def set_vars(input)
   d[:field_area] = j['field_area']
   d[:scenario_name] = j['name']
   d[:scenario_budget] = j['budget']
+  #d[:year] = j['budget']['year'] # no such key. The year appears be scenario_name
 
   # do whatever to flatten budget info into required form
-  
+
   return d
 end
 

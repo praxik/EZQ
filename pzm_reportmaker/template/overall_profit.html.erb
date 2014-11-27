@@ -3,8 +3,8 @@
 <div class="container">
 	<div class="row">
 		<div class="col-xs-12">
-			<h1><%= d[:name] %>: <%= d[:scenario_name] %></h1>
-			<p><%= d[:acres] %> acres</p>
+			<h1><%= d[:field_name] %>: <%= d[:scenario_name] %></h1>
+			<p><%= d[:field_area] %> acres</p>
 			<table class="table table-bordered">
 				<thead>
 					<tr>
@@ -15,27 +15,27 @@
 				<tbody>
 					<tr>
 						<td>Profit</td>
-						<td class="success">$<%= d['profit_per_acre'] %>/acre</td>
+						<td class="success">$<%= curr(d[:field_profit_per_acre]) %>/acre</td>
 					</tr>
 					<tr>
 						<td>ROI</td>
-						<td><%= d['roi'] > %</td>
+						<td><%= d[:field_roi] %> %</td>
 					</tr>
 					<tr>
 						<td>Total Field Expenses</td>
-						<td class="danger">$<%= d['total_field_expenses'] ></td>
+						<td class="danger">$<%= curr(d[:field_expenses]) %></td>
 					</tr>
 					<tr>
 						<td>Total Field Revenue</td>
-						<td>$<%= d['total_field_revenue'] ></td>
+						<td>$<%= curr(d[:field_revenue]) %></td>
 					</tr>
 					<tr>
 						<td>Total Field Profit</td>
-						<td class="success">$<%= d['total_field_profit'] ></td>
+						<td class="success">$<%= curr(d[:field_profit]) %></td>
 					</tr>
 				</tbody>
 			</table>
-			<h2><%= d['year'] > Profit Map</h2>
+			<h2><%= d[:scenario_name] %> Profit Map</h2>
 			<img src="./reports_files/overall_profit_map.png" class="img-responsive" alt="As Applied Planting Map">
 
 		</div>

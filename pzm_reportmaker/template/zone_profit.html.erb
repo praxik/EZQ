@@ -3,7 +3,7 @@
 <div class="container">
 	<div class="row">
 		<div class="col-xs-12">
-			<h1>Field Name: Scenario Name: Zone Name</h1>
+			<h1><%=d[:field_name]%>: <%=d[:scenario_name]%>: <%=d[:mz_name]%></h1>
 			<table class="table table-bordered">
 				<thead>
 					<tr>
@@ -14,38 +14,38 @@
 				<tbody>
 					<tr>
 						<td>Profit</td>
-						<td class="success">$49.55/acre</td>
+						<td class="success">$<%=curr(d[:mz_profit_per_acre])%>/acre</td>
 					</tr>
 					<tr>
 						<td>ROI</td>
-						<td>8.50 %</td>
+						<td><%=d[:mz_roi]%> %</td>
 					</tr>
 					<tr>
 						<td>Total Field Expenses</td>
-						<td class="danger">$58,270.15</td>
+						<td class="danger">$<%=curr(d[:mz_expenses])%></td>
 					</tr>
 					<tr>
 						<td>Total Field Revenue</td>
-						<td>$63,679.89</td>
+						<td>$<%=curr(d[:mz_revenue])%></td>
 					</tr>
 					<tr>
 						<td>Total Field Profit</td>
-						<td class="success">$5,409.74</td>
+						<td class="success">$<%=cur(d[:mz_profit])%></td>
 					</tr>
 				</tbody>
 			</table>
-			<h2>2013 Zone 1 Profit Map</h2>
-			<p>15 acres</p>
-			<img src="./reports_files/zone_profit_map.png" class="img-responsive" alt="Zone Profit Map">
+			<h2><%=d[:mz_year]%> Profit Map</h2>
+			<p><%=d[:mz_area]%> acres</p>
+			<img src="./reports_files/zone_<%=d[:mz_id]%>_profit_map.png" class="img-responsive" alt="Zone Profit Map">
 
 		</div>
 	</div>
 	<div class="row">
 		<div class="col-xs-6">
-			<img src="./reports_files/zone_profit_hist.png" class="img-responsive" alt="Chart">
+			<img src="./reports_files/zone_<%=d[:mz_id]%>_profit_hist.png" class="img-responsive" alt="Chart">
 		</div>
 		<div class="col-xs-6">
-			<img src="./reports_files/zone_profit_pie.png" class="img-responsive" alt="Chart">
+			<img src="./reports_files/zone_<%=d[:mz_id]%>_profit_pie.png" class="img-responsive" alt="Chart">
 		</div>
 	</div>
 </div>
