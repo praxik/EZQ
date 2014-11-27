@@ -12,15 +12,6 @@ def print_with_lines(ary)
   ary.each_slice(2){|a,b| puts bg_green(a); puts b if b}
 end
 
-#prefix = !ARGV.empty? ? ARGV.shift : ''
-@prefixes = []
-while !ARGV.empty?
-  @prefixes << ARGV.shift
-end
-@prefixes = [''] if @prefixes.empty?
-
-AWS.config(YAML.load_file('credentials.yml'))
-
 def run_this_thang
   # The client interface performs better than twice as fast as using
   # aws-sdk's higher-level interface. This becomes important when there are many
@@ -52,8 +43,19 @@ def run_this_thang
   print_with_lines(info)
 end
 
-run_this_thang()
-timers = Timers::Group.new
-timers.every(60){run_this_thang()}
+begin
+  @prefixes = []
+  while !ARGV.empty?
+    @prefixes << ARGV.shift
+  end
+  @prefixes = [''] if @prefixes.empty?
 
-loop {timers.wait}
+  AWS.config(YAML.load_file('credentials.yml'))
+
+  run_this_thang()
+  timers = Timers::Group.new
+  timers.every(60){run_this_thang()}
+
+  loop {timers.wait}
+rescue Interrupt
+end
