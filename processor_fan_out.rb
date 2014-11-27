@@ -51,4 +51,4 @@ num.times do |idx|
   pids << spawn(command)
 end
 
-pids.each{|pid| Process.detach(pid)}
+pids.each{|pid| Process.wait(pid)}
