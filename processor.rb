@@ -347,7 +347,7 @@ module EZQ
     # at intervals and abort if a graceful exit has been requested.
     def exec_cmd_thread(cmd)
       thr = Thread.new do
-        Thread.current[:retval] = [false,'Process_command killed in graceful exit']
+        Thread.current[:retval] = [false,['Process_command killed in graceful exit']]
         Thread.current[:retval] = EZQ.exec_cmd(cmd)
       end
 
