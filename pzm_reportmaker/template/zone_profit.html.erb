@@ -12,6 +12,14 @@
 					</tr>
 				</thead>
 				<tbody>
+				  <tr>
+				    <td>Field Acreage</td>
+				    <td><%= curr(d[:mz_area]) %>ac</td>
+				  </tr>
+				  <tr>
+				    <td>Average Yield</td>
+				    <td><%= curr(d[:mz_avg_yield]) %>bu/ac</td>
+				  </tr>
 					<tr>
 						<td>Profit</td>
 						<td class="success">$<%=curr(d[:mz_profit_per_acre])%>/acre</td>

@@ -35,16 +35,24 @@
 #    processing would also allow us to spawn multiple instnaces of the python
 #    script that does the qgis work.
 
-require 'json'
-require 'yaml'
-require 'set'
-require_relative '../ezqlib'
-#require_relative '../ReportHandler/remove_blank_pages'
+
+
+def get_reqs
+  require 'json'
+  require 'yaml'
+  require 'set'
+  require '../ezqlib'
+  #require_relative '../ReportHandler/remove_blank_pages'
+end
+
+
 
 # Convert an Integer or Float to x.yy currency
 def curr(v)
   return "%.2f" % v.to_f
 end
+
+
 
 # Gets all the files from S3 that we'll need based on refs in the input json.
 # @param [Hash] input The input hash containing appropriate file refs.
@@ -60,6 +68,7 @@ def get_files(input)
   successes = keys.to_a.map{|key| EZQ.get_s3_file(bucket,key)}
   return successes.reduce(:&)
 end
+
 
 
 # Pulls map coords for each management zone from input and writes each
@@ -79,11 +88,13 @@ def write_mz_coords(input)
 end
 
 
+
 # Run the binary that processes the input json and all the images.
 # @return [Bool or nil] true, false, or nil as per EZQ.exec_cmd
 def run_binary(input)
   return EZQ.exec_cmd("run_the_thing #{input.to_json.dump}")
 end
+
 
 
 def make_maps(input)
@@ -101,47 +112,80 @@ def make_maps(input)
 end
 
 
+
+def make_profit_histogram(xml_file)
+  # TODO: Re-work the hist.rb from SRC reporthandler to deal with this case.
+  # Even better, modify it with another layer so that the same core class can
+  # be re-used.
+  return EZQ.exec_cmd("ruby hist.rb #{xml_file}")
+end
+
+
+
+def make_expenses_pie_chart(budget_items,out_file)
+  sb = sort_budget(budget_items)
+          .delete_if{|it| ['Commodity Price','Other Revenue'].include?(it['item_name'])}
+  values = sb.map{|bi| bi['amount']}
+  labels = sb.map{|bi| bi['item_name']}
+  labels = labels.map{|t| t.gsub(/\//,"/\n")}
+  return EZQ.exec_cmd(['python', 'pie_chart.py',out_file,labels.to_s,values.to_s])
+end
+
+
 ################################################################################
 # each of these needs to return the name of the file it generated
+
 def make_yield_data(data)
   d = data.clone
   d[:yield_map] = ''# This will reference a file output by qgis
+  return generate_html('template/yield_data.html.erb',
+                       'report/yield_data.html')
 end
+
+
 
 def make_applied_fertilizer(data)
   d = data.clone
+  return generate_html('template/applied_fertilizer.html.erb',
+                       'report/applied_fertilizer.html')
 end
+
+
 
 def make_applied_planting(data)
   d = data.clone
+  return generate_html('template/applied_planting.html.erb',
+                       'report/applied_planting.html')
 end
+
+
 
 def make_yield_by_soil(data)
   d = data.clone
+  return generate_html('template/yield_by_soil.html.erb',
+                       'report/yield_by_soil.html')
 end
+
+
 
 def make_overall_profit(data)
   d = data.clone
-  # !!!!! Some calculation?
-  d[:field_revenue] = 0
-  # !!!!! Some calculation?
-  d[:field_expenses] = 0
+
+  # !!!!! Somehow this will come in from Doug
+  field_yield = 1
+  d[:field_revenue] = calculate_revenue(d[:scenario_budget],field_yield,d[:field_area])
+  d[:field_expenses] = calculate_expenses(d[:scenario_budget])
   d[:field_profit] = d[:field_revenue] - d[:field_expenses]
-  d[:field_profit_per_acre] = d[:field_profit]/d[:field_area]
+  d[:field_profit_per_acre] = d[:field_profit] / d[:field_area]
+
   # !!!!! Some calculation?
-  d[:field_roi] = 0
+  d[:field_roi] = 1
+
+  return generate_html('template/overall_profit.html.erb',
+                       'report/overall_profit.html')
 end
 
-def make_overall_revenue_and_expenses(data,scenario)
-  d = data.clone
 
-  d[:commodity_price]
-  d[:field_revenue]
-  d[:field_expenses]
-  d[:other_revenue]
-  d[:total_revenue]
-  d[:budget] = hash_budget(scenario['budget']['budget_items'],d[:field_area])
-end
 
 def make_zone_profit(data,zone)
   d = data.clone
@@ -151,23 +195,32 @@ def make_zone_profit(data,zone)
   d[:mz_id] = mz['id']
   d[:mz_area] = mz['get_area_in_acres']
 
-  budget_items = zone['budget']['budget_items']
-  commodity_price = budget_items.select{|bi| bi['item_name'] == 'Commodity Price'}['amount']
   # !!!!! Somehow this will come in from Doug
-  zone_yield = 0
-  d[:mz_revenue] = commodity_price * zone_yield
-    + budget_items.select{|bi| bi['item_name'] == 'Other Revenue'}['amount'] * d[:mz_area]
-
-  revenues = ['Commodity Price','Other Revenue']
-  d[:mz_expenses] = budget_items.select{|bi| !revenues.include?(bi['item_name'])}
-                    .map{|i| i['amount']}.reduce(:+)
-
+  zone_yield = 1
+  d[:mz_revenue] = calculate_revenue(zone['budget'],zone_yield,d[:mz_area])
+  d[:mz_expenses] = calculate_expenses(zone['budget'])
   d[:mz_profit] = d[:mz_revenue] - d[:mz_expenses]
-  d[:mz_profit_per_acre] = d[:mz_profit]/d[:mz_area]
+  d[:mz_profit_per_acre] = d[:mz_profit] / d[:mz_area]
+
   # !!!!! Some calculation?
-  d[:mz_roi] = 0
+  d[:mz_roi] = 1
+
   d[:mz_year] = d[:scenario_budget]['name']
+  return generate_html('template/zone_profit.html.erb',
+                       "report/zone_#{d[:mz_id]}_profit.html")
 end
+
+
+
+def make_overall_revenue_and_expenses(data)
+  d = data.clone
+
+  set_overall_expense_revenue_vars(d)
+  return generate_html('template/overall_profit.html.erb',
+                       'report/overall_profit.html')
+end
+
+
 
 def make_revenue_and_expenses_with_zones(data,zone)
   d = data.clone
@@ -176,22 +229,111 @@ def make_revenue_and_expenses_with_zones(data,zone)
   d[:mz_name] = mz['name']
   d[:mz_area] = mz['get_area_in_acres']
 
-  commodity_price = 0.00
-  d[:mz_budget] = hash_budget(zone['budget']['budget_items'],d[:mz_area])
+  # Originally we were doing a table with total field values next to zone values
+  # We're no longer doing that, so could replace this with something that just
+  # sets d[:commodity_price]. Leaving the full thing here for now in case we go
+  # back to the othe way.
+  set_overall_expense_revenue_vars(d)
+
+  # !!!!! Somehow this will come in from Doug
+  d[:mz_avg_yield] = 1
+  d[:mz_revenue] = d[:commodity_price] * d[:mz_avg_yield]
+  d[:mz_expenses] = calculate_expenses(zone)
+  d[:mz_other_revenue_per_acre] = zone['budget_items']
+          .select{|bi| bi['item_name'] == 'Other Revenue'}
+            ['amount']
+  d[:mz_revenue_per_acre] = d[:mz_revenue] / d[:mz_area]
+                              + d[:mz_other_revenue_per_acre]
+  d[:mz_expenses_per_acre] = d[:mz_expenses] / d[:mz_area]
+  d[:mz_profit_per_acre] = d[:mz_revenue_per_acre]
+                             - d[:mz_expenses_per_acre]
+  d[:mz_budget_exp] = sort_budget(zone['budget']['budget_items'])
+          .delete_if{|it| ['Commodity Price','Other Revenue'].include?(it['item_name'])}
+  return generate_html('template/revenue_and_expenses_with_zones.html.erb',
+                       'report/zone_#{d[:mz_id]}_revenue_and_expenses.html')
 end
 ################################################################################
 
-def hash_budget(budget_items,area)
-  new_bud = {}
-  return new_bud if !budget_items
-  budget_items.each do |bi|
-    bi['total'] = bi['amount'] * area if bi['unit_id'] == 1
-    commodity_price = bi['amount'] if bi['unit_id'] == 2
-    new_bud[bi['item_name']] = {:amount=>bi['total'],:itemized=>hash_budget(bi['sub_budget_items'],area)}
-    new_bud[bi['item_name']][:units] = bi['unit_id'] == 1 ? '$/ac' : '$/bu'
-  end
-  return new_bud
+
+
+def calculate_revenue(budget,yld,area)
+  items = budget['budget_items']
+  commodity_price = items.select{|bi| bi['item_name'] == 'Commodity Price'}['amount']
+  return commodity_price * yld
+    + items.select{|bi| bi['item_name'] == 'Other Revenue'}['amount'] * area
 end
+
+
+
+def calculate_expenses(budget)
+  revenues = ['Commodity Price','Other Revenue']
+  return budget['budget_items'].select{|bi| !revenues.include?(bi['item_name'])}
+                    .map{|i| i['amount']}.reduce(:+)
+end
+
+
+def set_overall_expense_revenue_vars(d)
+  d[:commodity_price] = d[:scenario_budget]['budget_items']
+              .select{|bi| bi['item_name'] == 'Commodity Price'}
+                ['amount']
+  # !!!!! Somehow this will come in from Doug
+  d[:field_avg_yield] = 1
+  d[:field_revenue] = d[:commodity_price] * d[:field_avg_yield]
+  d[:field_expenses] = calculate_expenses(d[:scenario_budget])
+  d[:other_revenue_per_acre] = d[:scenario_budget]['budget_items']
+          .select{|bi| bi['item_name'] == 'Other Revenue'}
+            ['amount']
+  d[:total_revenue_per_acre] = d[:field_revenue] / d[:field_area]
+                               + d[:other_revenue_per_acre]
+  d[:total_expenses_per_acre] = d[:field_expenses] / d[:field_area]
+  d[:total_profit_per_acre] = d[:total_revenue_per_acre]
+                              - d[:total_expenses_per_acre]
+  # We want a sorted budget that includes only expenditures
+  d[:budget_exp] = sort_budget(d[:scenario_budget]['budget_items'])
+          .delete_if{|it| ['Commodity Price','Other Revenue'].include?(it['item_name'])}
+  return nil
+end
+
+
+
+# Run erb to expand template in_file and write the html result to out_file
+# @return Returns the value passed in as parameter out_file
+def generate_html(in_file,out_file)
+  pwd = Dir.pwd()
+  # Changing into in_file's directory ensures that all relative
+  # paths mentioned in in_file work properly
+  Dir.chdir(File.dirname(in_file))
+  erbed = ERB.new(File.read(File.basename(in_file)))
+
+  Dir.chdir(pwd)
+  File.write(out_file,erbed.result)
+
+  return out_file
+end
+
+
+
+# def hash_budget(budget_items,area)
+#   new_bud = {}
+#   return new_bud if !budget_items
+#   # This needs to re-sort based on item_id. Might need to use array instead of hash.
+#   budget_items.each do |bi|
+#     bi['total'] = bi['amount'] * area if bi['unit_id'] == 1
+#     commodity_price = bi['amount'] if bi['unit_id'] == 2
+#     new_bud[bi['item_name']] = {:amount=>bi['total'],:itemized=>hash_budget(bi['sub_budget_items'],area)}
+#     new_bud[bi['item_name']][:units] = bi['unit_id'] == 1 ? '$/ac' : '$/bu'
+#   end
+#   return new_bud
+# end
+
+
+# Sort the budget items by item_id so they can be displayed in the correct order
+# with minimal fuss in the erb
+def sort_budget(budget_items)
+  return budget_items.sort_by{|it| it['item_id']}
+end
+
+
 
 def set_vars(input)
   j = input
@@ -208,7 +350,9 @@ def set_vars(input)
 end
 
 
-def test
+
+def run
+  get_reqs()
   AWS.config(YAML.load_file('../credentials.yml'))
   input = JSON.parse(File.read('field50pp.json'))
   #get_files(input)
@@ -255,6 +399,22 @@ def test
 
   # Send reports to S3 and send back message with location, or email, or
   # whatever happens here
+end
+
+
+
+
+def test
+  # This is just for development in LightTable, since somehow my path gets munged:
+  Dir.chdir('/home/penn/EZQ/pzm_reportmaker')
+
+  get_reqs()
+  input = JSON.parse(File.read('field50pp.json'))
+
+  #get_files(input)
+
+  #puts input['scenarios'][0]['budget']['budget_items']
+  #puts make_expenses_pie_chart(input['scenarios'][1]['budget']['budget_items'],'pie_test.png')
 end
 
 test

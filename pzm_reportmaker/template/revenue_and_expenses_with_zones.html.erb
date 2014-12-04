@@ -4,32 +4,28 @@
 	<div class="row">
 		<div class="col-xs-12">
 			<h1><%=d[:field_name]%>: <%=d[:scenario_name]%></h1>
-			<h2><%=d[:scenario_budget]['name']%> Revenue and Expenses with Management Zones</h2>
+			<h2><%=d[:scenario_budget]['name']%> Revenue and Expenses</h2>
 
 			<table class="table table-bordered">
 				<tbody>
 					<tr class="success">
 						<td><h3>Revenue</h3></td>
-						<td class="col-xs-1 text-center">Current</td>
-						<td class="col-xs-1 text-center">w/ zones</td>
+						<td class="col-xs-1"></td>
 						<td class="col-xs-1"></td>
 					</tr>
 					<tr class="success">
 						<td>Commodity Price</td>
-						<td class="text-right">8.30</td>
-						<td class="text-right">8.30</td>
+            <td class="text-right"><%= curr(d[:commodity_price]) %></td>
 						<td>$/bu</td>
 					</tr>
 					<tr class="success">
 						<td>Other Revenue</td>
-						<td class="text-right">12.00</td>
-						<td class="text-right">8.30</td>
+            <td class="text-right"><%= curr(d[:zone_other_revenue_per_acre]) %></td>
 						<td>$/acre</td>
 					</tr>
 					<tr class="success">
 						<td class="text-right"><strong>Total Revenue</strong></td>
-						<td class="text-right">852.00</td>
-						<td class="text-right">852.00</td>
+            <td class="text-right"><%= curr(d[:zone_revenue_per_acre]) %></td>
 						<td>$/acre</td>
 					</tr>
 				</tbody>
@@ -38,50 +34,21 @@
 				<tbody>
 					<tr>
 						<td><h3>Expenses</h3></td>
-						<td class="col-xs-1 text-center">Current</td>
-						<td class="col-xs-1 text-center">w/ zones</td>
+						<td class="col-xs-1"></td>
 						<td class="col-xs-1"></td>
 					</tr>
-					<tr>
-						<td>Equipment</td>
-						<td class="text-right">8.30</td>
-						<td class="text-right">8.30</td>
-						<td>$/acre</td>
-					</tr>
-					<tr>
-						<td>Seed</td>
-						<td class="text-right">103.00</td>
-						<td class="text-right">8.30</td>
-						<td>$/acre</td>
-					</tr>
-					<tr>
-						<td>Fertilizer</td>
-						<td class="text-right">103.00</td>
-						<td class="text-right">8.30</td>
-						<td>$/acre</td>
-					</tr>
-					<tr>
-						<td>Herbicide/Insecticide</td>
-						<td class="text-right">103.00</td>
-						<td class="text-right">8.30</td>
-						<td>$/acre</td>
-					</tr>
-					<tr>
-						<td>Insurance</td>
-						<td class="text-right">103.00</td>
-						<td class="text-right">8.30</td>
-						<td>$/acre</td>
-					</tr>
-					<tr>
-						<td>Seed</td>
-						<td class="text-right">103.00</td>
-						<td class="text-right">8.30</td>
-						<td>$/acre</td>
-					</tr>
+
+          <% d[:mz_budget_exp].each do |item| %>
+            <tr>
+              <td><%= item['item_name'] %></td>
+              <td class="text-right"><%= curr(item['amount']) %><</td>
+              <td>$/acre</td>
+            </tr>
+          <% end %>
+
 					<tr>
 						<td class="text-right"><strong>Total Expenses</strong></td>
-						<td class="text-right">212.00</td>
-						<td class="text-right">222.00</td>
+						<td class="text-right"><%= curr(d[:mz_expenses_per_acre]) %></td>
 						<td>$/acre</td>
 					</tr>
 				</tbody>
@@ -90,8 +57,7 @@
 				<tbody>
 					<tr class="success">
 						<td class="text-right"><strong>Total Profit</strong></td>
-						<td class="col-xs-1 text-right"><strong>56.00</strong></td>
-						<td class="col-xs-1 text-right"><strong>56.00</strong></td>
+						<td class="col-xs-1 text-right"><strong><%= curr(d[:mz_profit_per_acre]) %></strong></td>
 						<td class="col-xs-1"><strong>$/acre</strong></td>
 					</tr>
 				</tbody>

@@ -3,63 +3,46 @@
 <div class="container">
 	<div class="row">
 		<div class="col-xs-12">
-			<h1>Field Name: Scenario Name</h1>
+			<h1><%= d[:field_name] %>: <%= d[:scenario_name] %></h1>
 			<h2>Yield by Soil Type</h2>
 			<table class="table table-bordered table-striped">
 				<thead>
 					<tr>
 						<th>Map Unit Symbol</th>
-						<th>2011 CG yield (bu/ac)</th>
-						<th>2012 SB yield (bu/ac)</th>
-						<th>2013 CG yield (bu/ac)</th>
+<!-- Expects a hash in d[:yields] set up like this:
+  - :year : 2011
+    :crop : CG
+    :yields :
+      - :soil : 171B
+        :yield : 186
+      - :soil : 333B
+        :yield : 212
+  - :year : 2012
+    :crop : SB
+    :yields :
+      - :soil : 171B
+        :yield : 56
+      - :soil : 333B
+        :yield : 49
+-->
+            <% d[:yields].each do |yld_year| %>
+              <th><%= yld_year[:year] %> <%= yld_year[:crop] %> yield (bu/ac)</th>
+            <% end %>
 					</tr>
 				</thead>
 				<tbody>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
-					<tr>
-						<td>171B</td>
-						<td>186</td>
-						<td>42</td>
-						<td>155</td>
-					</tr>
+          <% d[:yields][0][:yields].each do |item| %>
+            <% soilname = item[:soil] %>
+            <tr>
+              <td>soilname</td>
+              <% d[:yields].each do |yld_year| %>
+                <td><%= yld_year[:yields].select{|yld| yld[:soil] == soilname}[:yield] %></td>
+              <% end %>
+            </tr>
+          <% end %>
 				</tbody>
 			</table>
-			
+
 		</div>
 	</div>
 </div>
