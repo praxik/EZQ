@@ -594,7 +594,16 @@ module EZQ
   end
 
 
-  # Runs an external command. Returns an array containing a success flag in the
+  # Runs an external command.
+  # @param [String,Array] cmd The command to run. If +cmd+ is a single string, 
+  #        it will be run via the default shell. If +cmd+ is an array with two
+  #        or more terms, the command will be run without passing through a
+  #        shell, with the first array entry referring to the program name, and
+  #        all other entries referring to commandline arguents to the program.
+  #        The array form is particularly useful for passing long strings to
+  #        an external program without escape the string(S) to accomodate 
+  #        the shell.
+  # @return Returns an array containing a success flag in the
   # first position, and an array of strings containing all stdout and stderr
   # output in the second position. The success flag can be true, false, or nil.
   # True indicates the external command ran and exited with exit_status = 0.
