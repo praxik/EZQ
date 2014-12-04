@@ -53,9 +53,14 @@ begin
   AWS.config(YAML.load_file('credentials.yml'))
 
   run_this_thang()
-  timers = Timers::Group.new
-  timers.every(60){run_this_thang()}
+  time_thread = Thread.new do
+    timers = Timers::Group.new
+    timers.every(60){run_this_thang()}
+    loop {timers.wait}
+  end
 
-  loop {timers.wait}
+  loop{gets;run_this_thang()}
+
+  time_thread.join()
 rescue Interrupt
 end
