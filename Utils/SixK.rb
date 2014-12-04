@@ -10,7 +10,7 @@ require './instance_info_collection'
 class SixK
 
   def initialize
-    
+
   end
 
 ################################################################################
@@ -53,6 +53,9 @@ class SixK
     @bill_to_tag = launch_settings.fetch('bill_to','')
 
     @userdata = @config['userdata']['base']
+    @userdata['tag_Name'] = type
+    @userdata['tag_Type'] = type
+    @userdata['tag_bill_to'] = @bill_to_tag
     if @config['userdata'].has_key?(type)
       @userdata.merge!(@config['userdata'][type])
     end
@@ -62,7 +65,7 @@ class SixK
   def self.launch(config='')
     launch_or_spot('launch',config)
   end
-  
+
   def self.spot(config='')
     launch_or_spot('spot',config)
   end
@@ -79,7 +82,7 @@ class SixK
     cl_size = ''
     cl_name = ''
     cl_manage = false
-    
+
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
         Usage: 6k [options] #{action} <type> [<args>]
@@ -179,7 +182,7 @@ class SixK
       spot_impl(type)
     end
 
-    
+
   end
 
 
@@ -256,7 +259,7 @@ class SixK
     subnets = subnet_indices.map{|i| @spot_subnets[i-1]}
 
     n_ips = subnets.reduce(0){|acc,s| acc += ec2.subnets[s].available_ip_address_count()}
-    
+
     #avail_ips = ec2.subnets[@vpc_subnet].available_ip_address_count()
 
     puts ''
@@ -324,7 +327,7 @@ class SixK
       ec2.client.request_spot_instances(options)
       sn_index += 1
     end
-    
+
   end
 
 
@@ -366,7 +369,7 @@ class SixK
 
     op = OptionParser.new do |opts|
       opts.banner = <<-END.gsub(/^ {8}/, '')
-        Usage: 6k [options] #{action}  [--ids ID1,ID2,...] [--idfile FILE] 
+        Usage: 6k [options] #{action}  [--ids ID1,ID2,...] [--idfile FILE]
                                      [--ips IP1,IP2,...] [--ipfile FILE]
                                      [--type TYPE] [--yes]
 
@@ -445,7 +448,7 @@ class SixK
       #type.map! {|e| "6k_#{e}"}
       # Get instances limited to those with a Type tag matching one of our
       # allowed tags. This prevents us from being able to accidentally
-      # stop or terminate a non-6k instance. This protection only works if a 
+      # stop or terminate a non-6k instance. This protection only works if a
       # type was sepcified, though!
       filters << {:name=>"tag:Type",:values=>type}
     end
@@ -489,7 +492,7 @@ class SixK
     end
 
     instances = Nimbus::InstanceInfoCollection.new.filter(filters)
-    
+
     # Really start|stop|terminate these?
     unless no_prompt
       verbed = ''
@@ -527,7 +530,7 @@ class SixK
     else
       warn 'Error: This branch of stopinate should never be called.'
     end
-    
+
   end
 
 ################################################################################
@@ -552,7 +555,7 @@ class SixK
 
         If no OPTIONS are specified, you will be interactively prompted for
         appropriate values.
-          
+
 
         Options:
         END
@@ -604,16 +607,20 @@ class SixK
     if bill_to.empty?
       print "Value for tag 'bill_to' (press Enter to skip): "
       bill_to = STDIN.gets.chomp
-    end 
+    end
 
     tags = []
     tags << {:key=>'Name',:value=>name} if !name.empty?
     tags << {:key=>'Type',:value=>type} if !type.empty?
     tags << {:key=>'bill_to',:value=>bill_to} if !bill_to.empty?
-            
+
     filters = [{:name=>'private-ip-address',:values=>ip_glob}]
+    print "Getting instances in ip glob..."
     instances = Nimbus::InstanceInfoCollection.new.filter(filters)
+    print "done.\nTagging #{instances.size} instances..."
     instances.tag_all(tags)
+
+    print "tagged.\n"
 
     # Set bill_to tag on all EBS volumes associated with all instances
     # in this ip_glob too.
@@ -626,12 +633,15 @@ class SixK
       end
     end
 
+    print "Tagging #{ebs_vols.size} EBS volumes..."
     if ebs_vols.size > 0 and !bill_to.empty?
       client = AWS::EC2::Client.new
       tags = [{:key=>'bill_to',:value=>bill_to}]
       client.create_tags({:resources=>ebs_vols,:tags=>tags})
     end
-    
+
+    print "tagged.\n"
+
   end
 
 ################################################################################
@@ -645,13 +655,13 @@ class SixK
      usage = <<-END.gsub(/^ {8}/, '')
         Reads the bill_to tag from each instance in the IP_GLOB and sets the
         same tag on all EBS resources attached to that instance.
-        
+
         Usage: 6k sync_billing <IP_GLOB>
           where IP_GLOB is a globbing expression representing an ip range
           An IP_GLOB of 10.1.90.1 refers to the single ip 10.1.90.1
           An IP_GLOB of 10.1.90.* refers to all ips between 10.1.90.1 and
             10.1.90.254
-            
+
         END
       puts usage
       exit 0
@@ -664,13 +674,13 @@ class SixK
       exit 1
     end
 
-            
+
     filters = [{:name=>'private-ip-address',:values=>ip_glob}]
     instances = Nimbus::InstanceInfoCollection.new.filter(filters)
-    
+
 
     client = AWS::EC2::Client.new
-    
+
     instances.each do |inst|
       ebs_vols = []
       bill_to = inst.tags.fetch('bill_to','')
@@ -690,7 +700,7 @@ class SixK
         client.create_tags({:resources=>ebs_vols,:tags=>tags})
       end
     end
-    
+
   end
 
 ################################################################################
@@ -718,7 +728,7 @@ class SixK
       tags = [{:key=>'bill_to',:value=>bill_to}]
       client.create_tags({:resources=>snaps,:tags=>tags})
     end
-    
+
   end
 
 ################################################################################
@@ -846,7 +856,7 @@ class SixK
     end
 
     connect(instances) if ssh_connect
-      
+
   end
 
 
@@ -887,7 +897,7 @@ class SixK
       h_ip = inst.private_ip_address()
       l_p = flags['local_tunnel_port']
       h_p = flags['host_tunnel_port']
-      
+
       case flags['action']
       when 'tunnel'
         puts "Setting up tunnel to #{h_ip} mapping port #{h_p} to local port #{l_p}"
@@ -899,7 +909,7 @@ class SixK
       system(ssh_cmd)
     end
   end
-  
+
 ################################################################################
 
 end
