@@ -121,10 +121,12 @@ command = "FieldOpsReader.exe " +
 # this script can exit with the same status.
 exit_status = 0
 has_errors = false
+has_warnings = false
 errors = []
 already_pushed = []
 push_threads = []
 results_tags = []
+warnings = []
 begin
   IO.popen(command,:err=>[:child, :out]) do |io|
     while !io.eof?
@@ -153,6 +155,11 @@ begin
         errors << msg.gsub(/^error_message/,'')
         log.error msg.gsub(/^error_message/,'')
         has_errors = true
+        puts msg
+      elsif msg =~ /^warning_message/
+        warnings << msg.gsub(/^warning_message/,'')
+        log.error msg.gsub(/^warning_message/,'')
+        has_warnings = true
         puts msg
       elsif msg =~ /^results_tag:/
         results_tags << msg.gsub(/^results_tag:/,'')
@@ -213,6 +220,10 @@ if exit_status.zero?
         result_message['tiff_raster'] = key
         bucket,key = already_pushed[1].split(',').map{|s| s.strip}
         result_message['json_raster'] = key
+    end
+
+    if has_warnings
+        result_message['warnings'] = warnings.join("\n")
     end
 
     File.write(output_file,result_message.to_json)
