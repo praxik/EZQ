@@ -11,6 +11,7 @@ def run():
   labels = eval(sys.argv[2])
   values = eval(sys.argv[3])
   plot(values,labels)
+  plt.savefig(fname,bbox_inches='tight')
   return
 
 
@@ -44,7 +45,7 @@ def plot(values,labels):
             'Expenses',
             fontdict={'fontsize':22}
             )
-  plt.savefig('pie_test.svg',bbox_inches='tight')
+  #plt.savefig('pie_test.svg',bbox_inches='tight')
   #plt.show()
   return
 
