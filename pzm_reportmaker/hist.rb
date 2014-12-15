@@ -1,11 +1,9 @@
 require 'nokogiri'
 
 input_file = ARGV.shift
+output_file = ARGV.shift
 
-job_id, rec_id, year_id, cb = input_file.split('_')
-year_id = "cbaverage" if year_id =~ /cbaverage/
-#doc = Nokogiri::XML(open('test.tif.aux.xml'))
-doc = Nokogiri::XML(open("json/#{input_file}"))
+doc = Nokogiri::XML(open(input_file))
 hist = doc.search('Histograms').first.at_xpath('HistItem')
 
 #hist.at_xpath('HistMin').to_s
@@ -40,6 +38,7 @@ colors = colors.map do |hex|
   hex.scan(/../).map{|hp| hp.to_i(16)/255.0} << alpha
 end
 
-fname = "report_data/budget_hist_#{year_id}.svg"
-command = "DISPLAY=:0 python histplot.py #{fname} \"#{rebinned_hist.keys.to_s}\" \"#{rebinned_hist.values.to_s}\" \"#{colors.to_s}\""
+
+# DISPLAY=:0
+command = "python histplot.py #{output_file} \"#{rebinned_hist.keys.to_s}\" \"#{rebinned_hist.values.to_s}\" \"#{colors.to_s}\""
 system(command)
