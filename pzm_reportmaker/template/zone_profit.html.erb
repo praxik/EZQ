@@ -26,7 +26,7 @@
 					</tr>
 					<tr>
 						<td>ROI</td>
-						<td><%=d[:mz_roi]%> %</td>
+						<td><%=curr(d[:mz_roi])%> %</td>
 					</tr>
 					<tr>
 						<td>Total Field Expenses</td>
@@ -38,22 +38,22 @@
 					</tr>
 					<tr>
 						<td>Total Field Profit</td>
-						<td class="success">$<%=cur(d[:mz_profit])%></td>
+						<td class="success">$<%=curr(d[:mz_profit])%></td>
 					</tr>
 				</tbody>
 			</table>
 			<h2><%=d[:mz_year]%> Profit Map</h2>
-			<p><%=d[:mz_area]%> acres</p>
-			<img src="./reports_files/zone_<%=d[:mz_id]%>_profit_map.png" class="img-responsive" alt="Zone Profit Map">
+            <p><%= curr(d[:mz_area])%> acres</p>
+            <img src="./<%= d[:mz_profit_map] %>" class="img-responsive" alt="Zone Profit Map">
 
 		</div>
 	</div>
 	<div class="row">
 		<div class="col-xs-6">
-			<img src="./reports_files/zone_<%=d[:mz_id]%>_profit_hist.png" class="img-responsive" alt="Chart">
+            <img src="./<%= d[:mz_histogram] %>" class="img-responsive" alt="Chart">
 		</div>
 		<div class="col-xs-6">
-			<img src="./reports_files/zone_<%=d[:mz_id]%>_profit_pie.png" class="img-responsive" alt="Chart">
+			<img src="./<%= d[:mz_pie_chart] %>" class="img-responsive" alt="Chart">
 		</div>
 	</div>
 </div>

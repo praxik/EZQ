@@ -41,9 +41,18 @@
           <% d[:budget_exp].each do |item| %>
             <tr>
               <td><%= item['item_name'] %></td>
-              <td class="text-right"><%= curr(item['amount']) %><</td>
+              <td class="text-right"><%= curr(item['amount']) %></td>
               <td>$/acre</td>
             </tr>
+              <% if item['sub_budget_items'].size > 0 %>
+                <% item['sub_budget_items'].each do |sbi| %>
+                  <tr>
+                    <td class="small">&nbsp;&nbsp;&nbsp;&nbsp;- <%= sbi['item_name'] %></td>
+                    <td class="text-right"><%= curr(sbi['amount']) %></td>
+                    <td>$/acre</td>
+                  </tr>
+                <% end %>
+              <% end %>
           <% end %>
 
 					<tr>

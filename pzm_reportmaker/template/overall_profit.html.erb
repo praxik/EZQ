@@ -26,7 +26,7 @@
 					</tr>
 					<tr>
 						<td>ROI</td>
-						<td><%= d[:field_roi] %> %</td>
+						<td><%= curr(d[:field_roi]) %> %</td>
 					</tr>
 					<tr>
 						<td>Total Field Expenses</td>
@@ -43,16 +43,16 @@
 				</tbody>
 			</table>
 			<h2><%= d[:scenario_name] %> Profit Map</h2>
-			<img src="./reports_files/overall_profit_map.png" class="img-responsive" alt="As Applied Planting Map">
+                <img src="./reports_files/overall_profit_map_<%= d[:scenario_id] %>.png" class="img-responsive" alt="As Applied Planting Map">
 
 		</div>
 	</div>
 	<div class="row">
 		<div class="col-xs-6">
-			<img src="./reports_files/overall_profit_hist.png" class="img-responsive" alt="Chart">
+			<img src="./reports_files/overall_profit_hist_<%= d[:scenario_id] %>.svg" class="img-responsive" alt="Chart">
 		</div>
 		<div class="col-xs-6">
-			<img src="./reports_files/overall_profit_pie.png" class="img-responsive" alt="Chart">
+			<img src="./reports_files/overall_expenses_pie_<%= d[:scenario_id] %>.svg" class="img-responsive" alt="Chart">
 		</div>
 	</div>
 </div>
