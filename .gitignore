@@ -3,3 +3,4 @@ build-64-bit
 install-64-bit
 build-32-bit
 install-32-bit
+*.log
