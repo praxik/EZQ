@@ -967,6 +967,7 @@ if __FILE__ == $0
   creds_file = 'credentials.yml'
   severity = 'info'
   queue = nil
+  result_queue = nil
   error_queue = nil
   log_file = STDOUT
   loggly_token = nil
@@ -1006,6 +1007,9 @@ if __FILE__ == $0
     end
     opts.on("-e", "--error_queue [QUEUE_NAME]","Report fatal errors to this queue rather than the error_queue specified in the config file") do |q|
       error_queue = q
+    end
+    opts.on("-R", "--result_queue [QUEUE_NAME]","Send results to QUEUE_NAME rather than the queue specified in the config file") do |q|
+      result_queue = q
     end
     opts.on("-p", "--exit_port [PORT]","On MSWindows, open a socket on PORT to listen for 'TERMINATE' message for graceful exit") do |p|
       exit_port = p
@@ -1069,6 +1073,7 @@ if __FILE__ == $0
 
     overrides = queue ? {"receive_queue_name"=>queue} : {}
     overrides['error_queue_name'] = error_queue if error_queue
+    overrides['result_queue_name'] = result_queue if result_queue
     overrides['exit_port'] = exit_port
     EZQ::Processor.new(config_file,credentials,log,overrides).start
     # Handle Ctrl-C gracefully

@@ -28,6 +28,7 @@ num = num == 'auto' ?
 rec_queue = userdata.fetch('receive_queue_name','')
 puts "Overriding receive queue setting with #{rec_queue}" if !rec_queue.empty?
 err_queue = userdata.fetch('error_queue_name','')
+res_queue = userdata.fetch('result_queue_name','')
 loggly_token = userdata.fetch('loggly_token',nil)
 loggly_level = userdata.fetch('loggly_level',nil)
 app_name = userdata.fetch('app_name',nil)
@@ -43,6 +44,7 @@ num.times do |idx|
   command += " --log_severity info"
   command += " --queue #{rec_queue}" if !rec_queue.empty?
   command += " --error_queue #{err_queue}" if !err_queue.empty?
+  command += " --result_queue #{res_queue}" if !res_queue.empty?
   command += " --token #{loggly_token}" if loggly_token
   command += " --loggly_severity #{loggly_level}" if loggly_level
   command += " --app_name #{app_name}" if app_name
