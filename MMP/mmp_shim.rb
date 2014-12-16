@@ -16,19 +16,28 @@
 require 'json'
 require 'yaml'
 require_relative 'ezqlib'
-require 'logger'
+#require 'logger'
+require_relative 'dual_log'
 require 'fileutils'
 
 lf = File.new("mmp_shim_#{ARGV[1]}.log", 'a')
 lf.sync = true
-log = Logger.new(lf)
-log.level = Logger::DEBUG
+#log = Logger.new(lf)
+#log.level = Logger::DEBUG
 
 log.info 'Setting up AWS'
 AWS.config(YAML.load(File.read('credentials.yml')))
 
 log.info 'Retrieving userdata'
 vars = YAML.load(File.read('userdata.yml'))
+loggly_token = vars.fetch('loggly_token','')
+log = DualLogger.new({:progname=>"mmp_shim_#{ARGV[1]}",
+                      :ip=>EZQ.get_local_ip(),
+                      :filename=>lf,
+                      :local_level=>Logger::DEBUG,
+                      :loggly_token=>loggly_token,
+                      :loggly_level=>Logger::ERROR,
+                      :pid=>Process.pid})
 
 db_ip = vars['db_ip']
 db_port = vars['db_port']
