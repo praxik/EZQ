@@ -36,7 +36,7 @@ log = DualLogger.new({:progname=>"mmp_shim_#{ARGV[1]}",
                       :filename=>lf,
                       :local_level=>Logger::DEBUG,
                       :loggly_token=>loggly_token,
-                      :loggly_level=>Logger::ERROR,
+                      :loggly_level=>Logger::INFO,
                       :pid=>Process.pid})
 
 db_ip = vars['db_ip']
