@@ -44,8 +44,14 @@
 			</table>
 			<h2><%=d[:mz_year]%> Profit Map</h2>
             <p><%= curr(d[:mz_area])%> acres</p>
-            <img src="./<%= d[:mz_profit_map] %>" class="img-responsive" alt="Zone Profit Map">
-
+            <div class="row">
+                <div class="budget-frame">
+                  <img src="./<%= d[:mz_profit_map] %>" class="budget-map" alt="Zone Profit Map">
+                </div>
+                <div class="budget-legend-frame">
+                  <img src="./profit_legend.png" class="budget-legend">
+                </div>
+            </div>
 		</div>
 	</div>
 	<div class="row">
