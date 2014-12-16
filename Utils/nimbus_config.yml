@@ -306,12 +306,31 @@ userdata:
     error_queue_name: "roi_error_web_development"
     result_queue_name: "roi_results_web_development"
 
+  worker_pzm_md_dev_long:
+    deploy_key: arks/default/md_worker.zip
+    number_of_processes: 1
+    s3_bucket: web_development
+    app_name: "worker_pzm_md_dev.processor"
+    use_instance_store: false
+    receive_queue_name: "roi_long_job_web_development"
+    error_queue_name: "roi_error_web_development"
+    result_queue_name: "roi_results_web_development"
+
   worker_pzm_md_prod:
     deploy_key: arks/default/md_worker_prod.zip
     number_of_processes: 1
     s3_bucket: production
     use_instance_store: false
     receive_queue_name: "roi_job_production"
+    error_queue_name: "roi_error_production"
+    result_queue_name: "roi_results_production"
+
+  worker_pzm_md_prod_long:
+    deploy_key: arks/default/md_worker_prod.zip
+    number_of_processes: 1
+    s3_bucket: production
+    use_instance_store: false
+    receive_queue_name: "roi_long_job_production"
     error_queue_name: "roi_error_production"
     result_queue_name: "roi_results_production"
 
