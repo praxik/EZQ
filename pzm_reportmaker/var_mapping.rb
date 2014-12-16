@@ -17,6 +17,7 @@ def get_reqs
   require 'set'
   require 'pdfkit'
   require 'erb'
+  require 'logger'
   require '../ezqlib'
   #require_relative '../ReportHandler/remove_blank_pages'
 end
@@ -38,6 +39,7 @@ end
 # @param [Hash] input The input hash containing appropriate file refs.
 # @return [Bool] true if all file gets succeeded; false otherwise
 def get_files(input)
+  @log.info "get_files"
   bucket = 'roi.agsolver'
   keys = Set.new()
   keys << input['geojson_file']
@@ -72,6 +74,7 @@ end
 # Run the binary that processes the input json and all the images.
 # @return [Bool or nil] true, false, or nil as per EZQ.exec_cmd
 def run_binary(input)
+  @log.info "run_binary"
   return EZQ.exec_cmd("run_the_thing #{input.to_json.dump}")
 end
 
@@ -103,9 +106,11 @@ end
 
 
 def make_maps(input)
+  @log.info "make_maps"
   in_dir = 'img_in'
   out_dir = 'report_images'
   images = []
+  do_once = true
 
   # A bunch of calls to the agmap script will go here.
   get_cids(input).each do |cid|
@@ -116,8 +121,16 @@ def make_maps(input)
           " --maptype=budget" +
           " --output=\"#{out_name}\"" +
           " --input=\"#{tiff}\"" +
-          " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"" #+
-          #" --width=2000 --height=2000 --autofit=true"
+          " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+          " --width=2000 --height=2000 --autofit=true"
+    if do_once
+      cmd = cmd +
+            " --legendtype=profit" +
+            " --legendformat=png" +
+            " --legendfile=report/profit_legend.png"
+      do_once = false
+    end
+
     images << out_name if EZQ.exec_cmd(cmd)
   end
   return images
@@ -126,9 +139,7 @@ end
 
 
 def make_profit_histograms(input)
-  # TODO: Re-work the hist.rb from SRC reporthandler to deal with this case.
-  # Even better, modify it with another layer so the same core class can
-  # be re-used.
+  @log.info "make_profit_histograms"
   histograms = []
 
   get_cids(input).each do |cid|
@@ -143,6 +154,7 @@ end
 
 
 def make_expenses_pie_chart(budget_items,out_file)
+  @log.debug "make_expenses_pie_chart"
   sb = budget_items
   values = sb.map{|bi| bi['amount']}
   labels = sb.map{|bi| bi['item_name']}
@@ -202,6 +214,16 @@ def make_overall_profit(data)
 
   d[:field_roi] = d[:field_profit] / d[:field_expenses]
 
+  # Image paths
+  cid = "#{d[:scenario_id]}"
+  d[:field_profit_map] = "profit_map_#{cid}.png"
+  d[:field_histogram] = "profit_hist_#{cid}.svg"
+  d[:field_pie_chart] = "expenses_pie_#{cid}.svg"
+
+  set_overall_expense_revenue_vars(d)
+
+  make_expenses_pie_chart(d[:budget_exp],"report/#{d[:field_pie_chart]}")
+
   return make_pdf(generate_html(d,'template/overall_profit.html.erb',
                        "report/#{d[:scenario_id]}_overall_profit.html"))
 end
@@ -234,8 +256,7 @@ def make_overall_revenue_and_expenses(data)
   d = data.clone
 
   set_overall_expense_revenue_vars(d)
-  # !! What for directory for pie chart?
-  make_expenses_pie_chart(d[:budget_exp],"report/overall_expenses_pie_#{d[:scenario_id]}.svg")
+
   return make_pdf(generate_html(d,'template/overall_revenue_and_expenses.html.erb',
                                   "report/#{d[:scenario_id]}_overall_revenue_and_expenses.html"))
 end
@@ -248,7 +269,7 @@ def make_revenue_and_expenses_with_zones(data,zone)
 
   do_zone_calcs!(d,mz)
 
-  if true
+  if false
     puts "Zone yield (bu/ac) #{d[:mz_avg_yield]}"
     puts "Zone area (ac) #{d[:mz_area]}"
     puts "Zone profit ($/ac) #{d[:mz_profit_per_acre]}"
@@ -303,8 +324,10 @@ end
 
 
 def calculate_expenses_per_acre(budget)
-  return budget['budget_items'].select{|bi| bi['expense'] == true}
+  expenses = budget['budget_items'].select{|bi| bi['expense'] == true}
                     .map{|i| i['amount']}.reduce(:+)
+  expenses = 1.0 if !expenses or expenses == 0.0
+  return expenses
 end
 
 
@@ -332,7 +355,7 @@ end
 # Run erb to expand template in_file and write the html result to out_file
 # @return Returns the value passed in as parameter out_file
 def generate_html(d,in_file,out_file)
-  puts "Generating #{out_file}"
+  @log.info "Generating #{out_file}"
   out_file = File.absolute_path(out_file)
   pwd = Dir.pwd()
   # Changing into in_file's directory ensures that all relative
@@ -417,7 +440,7 @@ def run
   AWS.config(YAML.load_file('../credentials.yml'))
   input = JSON.parse(File.read('70.json'))
   get_files(input)
-  run_binary(input)
+  yield_data = JSON.parse(run_binary(input))
   make_maps(input)
   make_profit_histograms(input)
 
@@ -431,6 +454,7 @@ def run
     scenario['field_name'] = input['name']
     scenario['field_area'] = input['get_area_in_acres']
     d = set_vars(scenario)
+    d[:yield_data] = yield_data
 
     pdfs = []
     # Make report sections for this scenario
@@ -471,12 +495,15 @@ def test
 
   get_reqs()
 
+  @log = Logger.new(STDOUT)
+  @log.level = Logger::INFO
+
   Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test')
 
   AWS.config(YAML.load_file('credentials.yml'))
-  input = JSON.parse(File.read('70.json'))
-  make_maps(input)
-  make_profit_histograms(input)
+  input = JSON.parse(File.read('72.json'))
+  #make_maps(input)
+  #make_profit_histograms(input)
 
   #get_files(input)
   #write_mz_coords(input)
