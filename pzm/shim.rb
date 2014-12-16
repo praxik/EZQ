@@ -36,7 +36,7 @@ log = DualLogger.new({:progname=>"md_shim_#{ARGV[3]}",
                       :filename=>lf,
                       :local_level=>Logger::DEBUG,
                       :loggly_token=>loggly_token,
-                      :loggly_level=>Logger::ERROR,
+                      :loggly_level=>Logger::INFO,
                       :pid=>Process.pid})
 
 log.info 'Setting up AWS'
@@ -78,7 +78,7 @@ if !json_doc.fetch('year',false) or !json_doc.fetch('report_record_id',false)
     result_message['errors'] = errors
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
-    
+
     File.write(output_file,result_message.to_json)
     exit(0)
 end
@@ -98,7 +98,7 @@ rescue Exception => e
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
     log.error 'The field boundary file is invalid\n'
-    
+
     File.write(output_file,result_message.to_json)
     exit(0)
 end

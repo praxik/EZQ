@@ -151,7 +151,7 @@ launch_settings:
   worker_pzm_md_prod:
     size: 't2.medium'
     bill_to: 'PZM'
-    count: 3
+    count: 1
 
   aggregator_r2:
     size: 'm3.2xlarge'
@@ -254,6 +254,9 @@ userdata:
     s3_bucket: web_development
     app_name: "worker_mmp_dev.processor"
     use_instance_store: false
+    receive_queue_name: "mmp360_job_web_development"
+    error_queue_name: "mmp360_error_web_development"
+    result_queue_name: "mmp360_results_web_development"
 
   worker_mmp_staging:
     deploy_key: arks/default/iowammp.zip
@@ -270,6 +273,9 @@ userdata:
     s3_bucket: staging
     app_name: "worker_mmp_staging.processor"
     use_instance_store: false
+    receive_queue_name: "mmp360_job_staging"
+    error_queue_name: "mmp360_error_staging"
+    result_queue_name: "mmp360_results_staging"
 
   worker_mmp_prod:
     deploy_key: arks/default/iowammp_prod.zip
@@ -286,6 +292,9 @@ userdata:
     s3_bucket: production
     app_name: "worker_mmp_prod.processor"
     use_instance_store: false
+    receive_queue_name: "mmp360_job_production"
+    error_queue_name: "mmp360_error_production"
+    result_queue_name: "mmp360_results_production"
 
   worker_pzm_md_dev:
     deploy_key: arks/default/md_worker.zip
@@ -293,12 +302,18 @@ userdata:
     s3_bucket: web_development
     app_name: "worker_pzm_md_dev.processor"
     use_instance_store: false
+    receive_queue_name: "roi_job_web_development"
+    error_queue_name: "roi_error_web_development"
+    result_queue_name: "roi_results_web_development"
 
   worker_pzm_md_prod:
     deploy_key: arks/default/md_worker_prod.zip
     number_of_processes: 1
     s3_bucket: production
     use_instance_store: false
+    receive_queue_name: "roi_job_production"
+    error_queue_name: "roi_error_production"
+    result_queue_name: "roi_results_production"
 
   pregrid:
     deploy_key: arks/default/pregrid_x64.zip
