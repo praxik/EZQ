@@ -280,6 +280,7 @@ module EZQ
       @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
       strc.gsub!('$id',id)
       strc.gsub!('$pid',@pid.to_s)
+      strc.gsub!('$timeout',@msg_timeout.to_s) if @msg_timeout
       strc.gsub!('$msg_contents',@msg_contents.dump) #Have to escape msg conts!
       @logger.debug "Expanded string: '#{strc}'"
       return strc
@@ -701,6 +702,7 @@ module EZQ
       @logger.unknown "-----------------Received message #{msg.id}-------------------------"
       @input_filename = msg.id + '.in'
       @id = msg.id
+      @msg_timeout = msg.visibility_timeout
 
       override_configuration(msg.body)
       if !fetch_s3(msg.body)
@@ -781,6 +783,7 @@ module EZQ
       @logger.unknown "-------------------Received molecule of #{mol.size} messages-----------------------"
       @id = mol[0].id  # Use id of first message as the id for the entire op
       @input_filename = @id + '.in'
+      @msg_timeout = mol[0].visibility_timeout
 
       preambles = mol.map{|msg| EZQ.extract_preamble(msg.body)}
       # @file_as_body will be nil if one wasn't specified or if there were errors
