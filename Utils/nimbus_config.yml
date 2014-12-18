@@ -23,7 +23,9 @@ ami_map:
   worker_mmp_staging: 'ami-3862ff50'
   worker_mmp_prod:    'ami-3862ff50'
   worker_pzm_md_dev:  'ami-3862ff50'
+  worker_pzm_md_dev_long:  'ami-3862ff50'
   worker_pzm_md_prod: 'ami-3862ff50'
+  worker_pzm_md_prod_long: 'ami-3862ff50'
   pregrid:        'ami-3862ff50'
   pregrid_ISA:    'ami-3862ff50'
   pregrid_ISU:    'ami-3862ff50'
@@ -93,7 +95,19 @@ security:
     vpc_subnet: 'subnet-fc94b793'
     security_groups: ['dev-base','dev-kibitz-worker']
 
+  worker_pzm_md_dev_long:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-fc94b793'
+    security_groups: ['dev-base','dev-kibitz-worker']
+
   worker_pzm_md_prod:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-cb9ebda4'
+    # If you override this on a per-type basis, be aware that the *values* in
+    # the array will not be merged. You must override the entire array.
+    security_groups: ['production-worker']
+
+  worker_pzm_md_prod_long:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-cb9ebda4'
     # If you override this on a per-type basis, be aware that the *values* in
@@ -148,7 +162,16 @@ launch_settings:
     size: 't2.medium'
     bill_to: 'PZM'
 
+  worker_pzm_md_dev_long:
+    size: 't2.medium'
+    bill_to: 'PZM'
+
   worker_pzm_md_prod:
+    size: 't2.medium'
+    bill_to: 'PZM'
+    count: 1
+
+  worker_pzm_md_prod_long:
     size: 't2.medium'
     bill_to: 'PZM'
     count: 1
