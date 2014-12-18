@@ -72,10 +72,26 @@ end
 
 
 # Run the binary that processes the input json and all the images.
-# @return [Bool or nil] true, false, or nil as per EZQ.exec_cmd
 def run_binary(input)
   @log.info "run_binary"
-  return EZQ.exec_cmd("run_the_thing #{input.to_json.dump}")
+  f = "in.json"
+  File.unlink(f) if File.exists?(f)
+  File.write(f,input.to_json)
+  yields = nil
+  success,output = EZQ.exec_cmd("LD_LIBRARY_PATH=. SAGA_MLB=./saga ./6k_pzm_report -p #{f} -o cb_images/")
+  if success and output.size > 0
+    # Convert array of strings that looks like ["junk\n",
+    #                                           "pzm: 132: 234.3\n",
+    #                                           "more junk\n",
+    #                                           "stuff\n",
+    #                                           "pzm: 144: 45.323\n"]
+    # into a hash that looks like: {132 => 234.3, 144 => 45.323}
+    yields = output.select{|t| t =~ /^pzm/}
+    yields = yields.map{|t| t.chomp.gsub('pzm: ','').split(': ')}
+    yields = yields.map{|a| [a[0].to_i,a[1].to_f]}.to_h
+  end
+  # Returning either a hash or nil
+  return yields
 end
 
 
@@ -204,9 +220,7 @@ end
 def make_overall_profit(data)
   d = data.clone
 
-  # !!!!! Somehow this will come in from Doug
-  field_yield = 1
-  d[:field_revenue] = calculate_total_revenue(d[:scenario_budget],field_yield,d[:field_area])
+  d[:field_revenue] = calculate_total_revenue(d[:scenario_budget],d[:field_avg_yield],d[:field_area])
   d[:field_expenses_per_acre] = calculate_expenses_per_acre(d[:scenario_budget])
   d[:field_expenses] = d[:field_expenses_per_acre] * d[:field_area]
   d[:field_profit] = d[:field_revenue] - d[:field_expenses]
@@ -317,7 +331,7 @@ end
 def calculate_total_revenue(budget,yld,area)
   items = budget['budget_items']
   commodity_price = items.select{|bi| bi['item_name'] == 'Commodity Price'}[0]['amount']
-  return commodity_price * yld +
+  return commodity_price * yld * area +
     items.select{|bi| bi['item_name'] == 'Other Revenue'}.first.fetch('amount',0) * area
 end
 
@@ -332,14 +346,11 @@ end
 
 
 def set_overall_expense_revenue_vars(d)
-  d[:commodity_price] = d[:scenario_budget]['budget_items']
-              .select{|bi| bi['item_name'] == 'Commodity Price'}[0]['amount']
-  # !!!!! Somehow this will come in from Doug
-  d[:field_avg_yield] = 1
-  d[:field_revenue] = d[:commodity_price] * d[:field_avg_yield]
+  d[:commodity_price] = d[:scenario_budget]['budget_items'].select{|bi| bi['item_name'] == 'Commodity Price'}[0]['amount']
+  d[:field_revenue_per_acre] = d[:commodity_price] * d[:field_avg_yield]
   d[:total_expenses_per_acre] = calculate_expenses_per_acre(d[:scenario_budget])
   d[:other_revenue_per_acre] = d[:scenario_budget]['budget_items'].select{|bi| bi['item_name'] == 'Other Revenue'}.first.fetch('amount',0)
-  d[:total_revenue_per_acre] = d[:field_revenue] +
+  d[:total_revenue_per_acre] = d[:field_revenue_per_acre] +
                                 d[:other_revenue_per_acre]
   d[:field_expenses] = d[:total_expenses_per_acre] * d[:field_area]
   d[:total_profit_per_acre] = d[:total_revenue_per_acre] -
@@ -437,10 +448,13 @@ end
 
 def run
   get_reqs()
+  @log = Logger.new(STDOUT)
+  @log.level = Logger::INFO
+
   AWS.config(YAML.load_file('../credentials.yml'))
   input = JSON.parse(File.read('70.json'))
   get_files(input)
-  yield_data = JSON.parse(run_binary(input))
+  yield_data = run_binary(input)
   make_maps(input)
   make_profit_histograms(input)
 
@@ -454,7 +468,7 @@ def run
     scenario['field_name'] = input['name']
     scenario['field_area'] = input['get_area_in_acres']
     d = set_vars(scenario)
-    d[:yield_data] = yield_data
+    d[:field_avg_yield] = yield_data[scenario['id']]
 
     pdfs = []
     # Make report sections for this scenario
@@ -498,15 +512,14 @@ def test
   @log = Logger.new(STDOUT)
   @log.level = Logger::INFO
 
-  Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test')
+  Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test2')
 
   AWS.config(YAML.load_file('credentials.yml'))
-  input = JSON.parse(File.read('72.json'))
+  input = JSON.parse(File.read('70.json'))
+  #get_files(input)
+  yield_data = run_binary(input)
   #make_maps(input)
   #make_profit_histograms(input)
-
-  #get_files(input)
-  #write_mz_coords(input)
 
   reports = []
   scenario_ids = []
@@ -518,6 +531,7 @@ def test
     scenario['field_name'] = input['name']
     scenario['field_area'] = input['get_area_in_acres']
     d = set_vars(scenario)
+    d[:field_avg_yield] = yield_data[scenario['id']]
 
     pdfs = []
     pdfs << make_overall_profit(d)
