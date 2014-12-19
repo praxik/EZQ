@@ -241,8 +241,8 @@ userdata:
     number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: MON_COB_weps.zip
-    r2_man_key: MON_COB_skels.zip
+    man_key: ISU_heaton__weps.zip
+    r2_man_key: ISU_heaton__skels.zip
     receive_queue_name: purdue_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
@@ -371,11 +371,11 @@ userdata:
     error_queue_name: 6k_error
 
   pregrid_ISU:
-    deploy_key: arks/default/pregrid_irrcapcl_sort.zip #pregrid_x64.zip
+    deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: MON_COB_weps.zip
-    r2_man_key: MON_COB_skels.zip
+    man_key: ISU_heaton__weps.zip
+    r2_man_key: ISU_heaton__skels.zip
     receive_queue_name: purdue_job
     app_name: "pregrid_ISU.processor"
     error_queue_name: purdue_error
