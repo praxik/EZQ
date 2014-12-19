@@ -79,6 +79,7 @@ def run_binary(input)
   File.write(f,input.to_json)
   yields = nil
   success,output = EZQ.exec_cmd("LD_LIBRARY_PATH=. SAGA_MLB=./saga ./6k_pzm_report -p #{f} -o cb_images/")
+  @log.error output if !success
   if success and output.size > 0
     # Convert array of strings that looks like ["junk\n",
     #                                           "pzm: 132: 234.3\n",
@@ -147,8 +148,23 @@ def make_maps(input)
       do_once = false
     end
 
-    images << out_name if EZQ.exec_cmd(cmd)
+    @log.info "\t#{out_name}"
+    images << out_name if EZQ.exec_cmd(cmd).first
   end
+
+
+  boundary_file = input['geojson_file']
+  out_name = "report/aerial.png"
+  cmd = "python agmap.py" +
+        " --maptype=aerial" +
+        " --output=\"#{out_name}\"" +
+        " --input=\"#{boundary_file}\"" +
+        " --qmlfile=\"template/QMLFiles/bnd_redblack_name.qml\"" +
+        " --width=2000 --height=2000 --autofit=false"
+  @log.info "\t#{out_name}"
+  puts EZQ.exec_cmd(cmd)
+  images << out_name if EZQ.exec_cmd(cmd).first
+
   return images
 end
 
@@ -515,11 +531,11 @@ def test
   Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test2')
 
   AWS.config(YAML.load_file('credentials.yml'))
-  input = JSON.parse(File.read('70.json'))
-  #get_files(input)
+  input = JSON.parse(File.read('72.json'))
+  get_files(input)
   yield_data = run_binary(input)
-  #make_maps(input)
-  #make_profit_histograms(input)
+  make_maps(input)
+  make_profit_histograms(input)
 
   reports = []
   scenario_ids = []
