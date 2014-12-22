@@ -51,10 +51,12 @@ s3_2 = ARGV.shift # the field boundary file
 pid = ARGV.shift # Caller's pid. Doug indicated this would be needed to separate
                  # multiple processes on the same instance. Not sure where it
                  # will go in the command string.
+timeout = ARGV.shift #the sqs timeout setting
 output_file = ARGV.shift
 worker_id = pid
 s3_bucket = vars['s3_bucket']
-
+timeout += 1 #Add 1 minute to the timeout period to ensure that we run beyond
+             #the SQS queue timeout
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
 #raster_prefix = SecureRandom.uuid
 raster_prefix = File.basename( "#{s3_1}", ".zip" )
@@ -105,6 +107,7 @@ end
 
 log.unknown "Operating on report_record_id: #{report_record_id}"
 log.unknown "Machine data year: #{md_year}"
+log.info "Processor timeout: #{timeout}"
 
 # machine data path
 # field boundary path
@@ -114,7 +117,8 @@ command = "FieldOpsReader.exe " +
           " --out=#{cmprocessor_root}" +
           " --field=#{fld_data}" +
           " --raster=#{raster_root}" +
-          " --season=#{md_year}"
+          " --season=#{md_year}" +
+          " --timeout=#{timeout}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so
