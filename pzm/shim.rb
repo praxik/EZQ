@@ -55,7 +55,7 @@ timeout = ARGV.shift #the sqs timeout setting
 output_file = ARGV.shift
 worker_id = pid
 s3_bucket = vars['s3_bucket']
-timeout += 1 #Add 1 minute to the timeout period to ensure that we run beyond
+timeoutInt = timeout.to_i + 1 #Add 1 minute to the timeout period to ensure that we run beyond
              #the SQS queue timeout
 cmprocessor_root = s3_bucket + "/yields/yield_maps/cmprocessor"
 #raster_prefix = SecureRandom.uuid
@@ -107,7 +107,7 @@ end
 
 log.unknown "Operating on report_record_id: #{report_record_id}"
 log.unknown "Machine data year: #{md_year}"
-log.info "Processor timeout: #{timeout}"
+log.info "Processor timeout: #{timeoutInt}"
 
 # machine data path
 # field boundary path
@@ -118,7 +118,7 @@ command = "FieldOpsReader.exe " +
           " --field=#{fld_data}" +
           " --raster=#{raster_root}" +
           " --season=#{md_year}" +
-          " --timeout=#{timeout}"
+          " --timeout=#{timeoutInt}"
 
 # Run the command we just set up, pushing its stdout and stderr back up the
 # chain to the calling process. We also capture the command's exit status so
