@@ -79,22 +79,37 @@ end
 
 
 
-def reproject_yield_raster(input)
-  @log.info "reproject_yield_raster"
-
+# Returns a hash in which each key is an input yield raster and the
+# associated value is the desired name of the reprojected raster.
+# @param [Hash] input Ruby hash containing the full JSON sent by web app
+def get_yield_raster_hash(input)
+  hash = {}
   input['scenarios'].each do |scenario|
     raster_in = scenario['get_tiff_raster_path']
     raster_out = "report/#{scenario['id']}_yield.tiff"
-    cmd = "gdalwarp -r cubicspline -t_srs EPSG:3857 \"#{raster_in}\" \"#{raster_out}\""
-    @log.debug cmd
-    EZQ.exec_cmd(cmd)
+    hash[raster_in] = raster_out
   end
+  return hash
 end
 
 
 
-def reproject_boundaries(input)
-  @log.info "reproject_boundaries"
+# Reprojects raster_in to EPSG:3857 and saves as raster_out
+# @param [String] raster_in Path to input raster
+# @param [String] raster_out Path to output raster
+def reproject_yield_raster(raster_in,raster_out)
+  @log.info "reproject_yield_raster #{raster_in} to #{raster_out}"
+  cmd = "gdalwarp -r cubicspline -t_srs EPSG:3857 \"#{raster_in}\" \"#{raster_out}\""
+  @log.debug cmd
+  EZQ.exec_cmd(cmd)
+end
+
+
+
+# Returns a hash containing a cid as the key and map coords as the value.
+# One entry in the hash has the key "field", which refers to the
+# whole-field coordinates.
+def get_boundary_hash(input)
   coords = {}
   coords['field'] = input['map_coords_as_geojson']
   input['scenarios'].each do |scenario|
@@ -102,13 +117,39 @@ def reproject_boundaries(input)
       coords["#{scenario['id']}_#{mz['id']}"] = mz['map_coords_as_geojson']
     end
   end
-  coords.each do |id,c|
-    in_name = "report/#{id}.geojson"
-    out_name = "report/#{id}_3857.geojson"
-    File.write(in_name,c)
-    cmd = "ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" #{out_name} #{in_name}"
-    EZQ.exec_cmd(cmd)
+  return coords
+end
+
+
+
+# Reprojects a hash of geojson boundaries to EPSG:3857 and stores in a file.
+# Side-effects only; no useful return value.
+# @param [String] out_name Path to file that should hold the reprojected bounds
+# @param [String] coords GeoJSON string of coordinates to reproject
+# @return nil
+def reproject_boundaries(out_name,coords)
+  @log.info "reproject_boundaries: #{out_name}"
+  in_name = "#{out_name}.tmp.geojson"
+  File.write(in_name,coords)
+  cmd = "ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" #{out_name} #{in_name}"
+  EZQ.exec_cmd(cmd)
+  return nil
+end
+
+
+
+def collect_coords(master,pieces_array,collected_name)
+  # Convert field boundary to shapefile
+  EZQ.exec_cmd("ogr2ogr -f \"ESRI Shapefile\" #{master}.shp #{master}")
+
+  # Append each zone boundary to the field shapefile.
+  pieces_array.each do |f|
+    EZQ.exec_cmd("ogr2ogr -update -append -f \"ESRI Shapefile\" #{master}.shp #{f}")
   end
+
+  # Convert the shapefile back to geojson.
+  EZQ.exec_cmd("ogr2ogr -f \"GeoJSON\" #{collected_name} #{master}.shp")
+
   return nil
 end
 
@@ -155,7 +196,7 @@ def make_profit_maps(input)
           " --input=\"#{tiff}\"" +
           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
           " --width=2000 --height=2000 --autofit=true" +
-          " --overlayinput=report/field_3857.geojson --overlayfillcolor=255,0,0,255"
+          " --overlayinput=report/field_3857_2.geojson --overlayfillcolor=255,0,0,255"
 
     if make_legend
       cmd = cmd +
@@ -182,7 +223,7 @@ end
 
 def make_yield_map(input)
   images = []
-  boundary_file = 'report/field_3857.geojson'
+  boundary_file = 'report/field_3857_2.geojson'
 
   input['scenarios'].each do |scenario|
     out_name = "report/#{scenario['id']}_yield.png"
@@ -510,63 +551,6 @@ end
 
 
 
-def run
-  get_reqs()
-  @log = Logger.new(STDOUT)
-  @log.level = Logger::INFO
-
-  AWS.config(YAML.load_file('../credentials.yml'))
-  input = JSON.parse(File.read('70.json'))
-  get_files(input)
-  yield_data = run_binary(input)
-  make_profit_maps(input)
-  make_profit_histograms(input)
-  make_aerial_map(input)
-
-  reports = []
-  scenario_ids = []
-  input['scenarios'].each do |scenario|
-    scenario_ids << scenario['id']
-
-    # Add the field name and area into the top level of each scenario since
-    # those values are needed for display in a few different places.
-    scenario['field_name'] = input['name']
-    scenario['field_area'] = input['get_area_in_acres']
-    d = set_vars(scenario)
-    d[:field_avg_yield] = yield_data[scenario['id']]
-
-    pdfs = []
-    # Make report sections for this scenario
-    pdfs << make_yield_data(d)
-    pdfs << make_applied_fertilizer(d)
-    pdfs << make_applied_planting(d)
-    #pdfs << make_yield_by_soil(d)
-    pdfs << make_overall_profit(d)
-    pdfs << make_overall_revenue_and_expenses(d,scenario)
-
-    scenario['management_zones'].each do |mz|
-      pdfs << make_zone_profit(d,mz)
-      pdfs << make_revenue_and_expenses_with_zones(d,mz)
-    end
-
-
-    report_name = ''  #  <~ Need to come up with naming scheme.
-
-    # Stitch the report pieces into one pdf
-    #system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
-
-    # Reject blank pages in the pdf. Set option :y to the same number as
-    # .logo{max-height} from main.css for now.
-    #RemoveBlankPages.remove(report_name,{:y=>100})
-    reports << report_name
-  end
-
-  # Send reports to S3 and send back message with location, or email, or
-  # whatever happens here
-end
-
-
-
 def test
   # This is just for development in LightTable, since somehow my path gets munged:
   Dir.chdir('/home/penn/EZQ/pzm_reportmaker')
@@ -581,10 +565,22 @@ def test
   AWS.config(YAML.load_file('credentials.yml'))
   input = JSON.parse(File.read('70.json'))
   #get_files(input)
+
   yield_data = run_binary(input)
-  #reproject_yield_raster(input)
-  #reproject_boundaries(input)
-  #make_yield_map(input)
+
+  # Reproject the yield rasters into 3857
+  get_yield_raster_hash(input).each{|r_in,r_out| reproject_yield_raster(r_in,r_out)}
+
+  # Reproject all boundaries into 3857
+  get_boundary_hash(input).each{|k,v| reproject_boundaries("report/#{k}_3857.geojson",v)}
+
+  # Form up a geojson containing the field boundaries as well as all the
+  # zone boundaries
+  collect_coords('report/field_3857.geojson',
+    get_boundary_hash(input).reject{|k,v| k == 'field'}.map{|k,v| "report/#{k}_3857.geojson"},
+    'report/field_3857_2.geojson')
+
+  make_yield_map(input)
   #make_profit_maps(input)
   #make_profit_histograms(input)
 
@@ -631,10 +627,6 @@ def test
   system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{reports.join(' ')}")
 
   #cleanup()
-
-
-  #puts input['scenarios'][0]['budget']['budget_items']
-  #puts make_expenses_pie_chart(input['scenarios'][1]['budget']['budget_items'],'pie_test.png')
 end
 
 test
