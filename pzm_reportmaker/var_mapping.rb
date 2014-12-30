@@ -534,6 +534,7 @@ end
 
 
 def cleanup()
+  @log.info "cleanup"
   #Delete contents of cb_images dir
   #FileUtils.rm_r('cb_images/*')
 
@@ -542,10 +543,9 @@ def cleanup()
 
   #Delete contents of report dir *except* for the finished reports
   Dir.chdir('report')
-  to_del = Dir.entries.reject{|f| f =~ /report\.pdf/}
-  to_del = to_del - ['.','..','header.html','isa-header-narrow.png']
-  #to_del.each{|f| File.unlink(f)}
-  puts to_del
+  to_del = Dir.entries(Dir.pwd).reject{|f| f =~ /final_report\.pdf/}
+  to_del = to_del - ['.','..','header.html','pzm-header.png']
+  to_del.each{|f| File.unlink(f)}
   Dir.chdir('..')
 end
 
@@ -569,18 +569,18 @@ def test
   yield_data = run_binary(input)
 
   # Reproject the yield rasters into 3857
-  get_yield_raster_hash(input).each{|r_in,r_out| reproject_yield_raster(r_in,r_out)}
+  #get_yield_raster_hash(input).each{|r_in,r_out| reproject_yield_raster(r_in,r_out)}
 
   # Reproject all boundaries into 3857
-  get_boundary_hash(input).each{|k,v| reproject_boundaries("report/#{k}_3857.geojson",v)}
+  #get_boundary_hash(input).each{|k,v| reproject_boundaries("report/#{k}_3857.geojson",v)}
 
   # Form up a geojson containing the field boundaries as well as all the
   # zone boundaries
-  collect_coords('report/field_3857.geojson',
-    get_boundary_hash(input).reject{|k,v| k == 'field'}.map{|k,v| "report/#{k}_3857.geojson"},
-    'report/field_3857_2.geojson')
+#   collect_coords('report/field_3857.geojson',
+#     get_boundary_hash(input).reject{|k,v| k == 'field'}.map{|k,v| "report/#{k}_3857.geojson"},
+#     'report/field_3857_2.geojson')
 
-  make_yield_map(input)
+  #make_yield_map(input)
   #make_profit_maps(input)
   #make_profit_histograms(input)
 
@@ -616,7 +616,7 @@ def test
     system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
 
     # Reject blank pages in the pdf. Set option :y to the same number as
-    # .logo{max-height} from main.css for now.
+    # .logo{max-height} from main.css.
     @log.info "Remove blank pages"
     RemoveBlankPages.remove(report_name,{:y=>100})
     reports << report_name
