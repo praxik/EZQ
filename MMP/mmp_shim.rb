@@ -22,13 +22,8 @@ require 'fileutils'
 
 lf = File.new("mmp_shim_#{ARGV[1]}.log", 'a')
 lf.sync = true
-#log = Logger.new(lf)
-#log.level = Logger::DEBUG
 
-log.info 'Setting up AWS'
 AWS.config(YAML.load(File.read('credentials.yml')))
-
-log.info 'Retrieving userdata'
 vars = YAML.load(File.read('userdata.yml'))
 loggly_token = vars.fetch('loggly_token','')
 log = DualLogger.new({:progname=>"mmp_shim_#{ARGV[1]}",
