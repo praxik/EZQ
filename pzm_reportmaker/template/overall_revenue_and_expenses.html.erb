@@ -55,16 +55,17 @@
               <% end %>
           <% end %>
 
-					<tr>
+
+				</tbody>
+			</table>
+			<table class="table table-bordered dont-break">
+				<tbody>
+                    <tr>
 						<td class="text-right"><strong>Total Expenses</strong></td>
 						<td class="text-right"><%= curr(d[:total_expenses_per_acre]) %></td>
 						<td>$/acre</td>
 					</tr>
-				</tbody>
-			</table>
-			<table class="table table-bordered">
-				<tbody>
-					<tr class="success">
+					<tr class="<%= if d[:total_profit_per_acre] > 0 then "success" else "danger" end %>">
 						<td class="text-right"><strong>Total Profit</strong></td>
             <td class="col-xs-1 text-right"><strong><%= curr(d[:total_profit_per_acre]) %></strong></td>
 						<td class="col-xs-1"><strong>$/acre</strong></td>

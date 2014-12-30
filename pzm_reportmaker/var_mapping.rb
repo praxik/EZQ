@@ -19,7 +19,7 @@ def get_reqs
   require 'erb'
   require 'logger'
   require '../ezqlib'
-  #require_relative '../ReportHandler/remove_blank_pages'
+  require_relative './remove_blank_pages'
 end
 
 
@@ -53,24 +53,6 @@ end
 
 
 
-# Pulls map coords for each management zone from input and writes each
-# set to a file named MZ_[id].geojson.
-# @param [Hash] input The input hash containing management zones
-# @return [nil] Side effects only; always returns nil.
-def write_mz_coords(input)
-  path = File.dirname(input['geojson_file'])
-  input['scenarios'].each do |scenario|
-    scenario.fetch('management_zones',[]).each do |mz|
-      fname = "#{path}/MZ_#{mz['id']}.geojson"
-      coords = mz['map_coords_as_geojson']
-      File.write(fname,coords)
-    end
-  end
-  return nil
-end
-
-
-
 # Run the binary that processes the input json and all the images.
 def run_binary(input)
   @log.info "run_binary"
@@ -91,8 +73,43 @@ def run_binary(input)
     yields = yields.map{|t| t.chomp.gsub('pzm: ','').split(': ')}
     yields = yields.map{|a| [a[0].to_i,a[1].to_f]}.to_h
   end
-  # Returning either a hash or nil
+  # Return either a hash or nil
   return yields
+end
+
+
+
+def reproject_yield_raster(input)
+  @log.info "reproject_yield_raster"
+
+  input['scenarios'].each do |scenario|
+    raster_in = scenario['get_tiff_raster_path']
+    raster_out = "report/#{scenario['id']}_yield.tiff"
+    cmd = "gdalwarp -r cubicspline -t_srs EPSG:3857 \"#{raster_in}\" \"#{raster_out}\""
+    @log.debug cmd
+    EZQ.exec_cmd(cmd)
+  end
+end
+
+
+
+def reproject_boundaries(input)
+  @log.info "reproject_boundaries"
+  coords = {}
+  coords['field'] = input['map_coords_as_geojson']
+  input['scenarios'].each do |scenario|
+    scenario['management_zones'].each do |mz|
+      coords["#{scenario['id']}_#{mz['id']}"] = mz['map_coords_as_geojson']
+    end
+  end
+  coords.each do |id,c|
+    in_name = "report/#{id}.geojson"
+    out_name = "report/#{id}_3857.geojson"
+    File.write(in_name,c)
+    cmd = "ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" #{out_name} #{in_name}"
+    EZQ.exec_cmd(cmd)
+  end
+  return nil
 end
 
 
@@ -122,48 +139,65 @@ end
 
 
 
-def make_maps(input)
+def make_profit_maps(input)
   @log.info "make_maps"
-  in_dir = 'img_in'
-  out_dir = 'report_images'
   images = []
-  do_once = true
+  make_legend = true
 
   # A bunch of calls to the agmap script will go here.
   get_cids(input).each do |cid|
     out_name = "report/profit_map_#{cid}.png"
-    tiff = "cb_images/#{cid}_zone_cb.tif"
+    tiff = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif" : "cb_images/#{cid}_cb.tif"
     # Need to add DISPLAY=:0 back into this on AWS?
     cmd = "python agmap.py" +
           " --maptype=budget" +
           " --output=\"#{out_name}\"" +
           " --input=\"#{tiff}\"" +
           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-          " --width=2000 --height=2000 --autofit=true"
-    if do_once
+          " --width=2000 --height=2000 --autofit=true" +
+          " --overlayinput=report/field_3857.geojson --overlayfillcolor=255,0,0,255"
+
+    if make_legend
       cmd = cmd +
             " --legendtype=profit" +
             " --legendformat=png" +
             " --legendfile=report/profit_legend.png"
-      do_once = false
+      make_legend = false
     end
 
-    @log.info "\t#{out_name}"
-    images << out_name if EZQ.exec_cmd(cmd).first
+    @log.debug "\t#{out_name}"
+    @log.debug cmd
+    res = EZQ.exec_cmd(cmd)
+    if res.first
+      images << out_name
+    else
+      @log.error res
+    end
   end
 
+  return images
+end
 
-  boundary_file = input['geojson_file']
-  out_name = "report/aerial.png"
-  cmd = "python agmap.py" +
-        " --maptype=aerial" +
-        " --output=\"#{out_name}\"" +
-        " --input=\"#{boundary_file}\"" +
-        " --qmlfile=\"template/QMLFiles/bnd_redblack_name.qml\"" +
-        " --width=2000 --height=2000 --autofit=false"
-  @log.info "\t#{out_name}"
-  puts EZQ.exec_cmd(cmd)
-  images << out_name if EZQ.exec_cmd(cmd).first
+
+
+def make_yield_map(input)
+  images = []
+  boundary_file = 'report/field_3857.geojson'
+
+  input['scenarios'].each do |scenario|
+    out_name = "report/#{scenario['id']}_yield.png"
+    cmd =  "python agmap.py" +
+           " --maptype=aerial" +
+           " --output=\"#{out_name}\"" +
+           " --input=\"#{boundary_file}\"" +
+           " --inputdem=\"report/#{scenario['id']}_yield.tiff\"" +
+           " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+           " --width=2000 --height=2000 --autofit=false"
+    @log.info "Yield map: #{out_name}"
+    res = EZQ.exec_cmd(cmd)
+    images << out_name if res.first
+    @log.error res[1] if !res.first
+  end
 
   return images
 end
@@ -199,10 +233,8 @@ end
 # each of these needs to return the name of the file it generated
 
 def make_yield_data(data)
-  # Use dem mode of agmap and first raw raster refd in json to gen the image
-  # needed here.
   d = data.clone
-  #d[:yield_map] = ''# This will reference a file output by qgis
+  d[:yield_map] = "#{d[:scenario_id]}_yield.png"
   return make_pdf(generate_html(d,'template/yield_data.html.erb',
     "report/#{d[:scenario_id]}_yield_data.html"))
 end
@@ -399,12 +431,12 @@ end
 
 
 def make_pdf(html,header='header.html')
-  return html
+  #return html
+  @log.info "make_pdf"
+  header_in = header #File.absolute_path(header)
   pwd = Dir.pwd()
   Dir.chdir(File.dirname(html))
   html_in = File.basename(html)
-
-  header_in = File.basename(header)
 
   pdfkit = PDFKit.new(File.new("#{html_in}"),
                     :page_size => 'Letter',
@@ -420,7 +452,7 @@ def make_pdf(html,header='header.html')
   # Undo the chdir from above
   Dir.chdir(pwd)
   # return filename of generated pdf
-  return pdf_file
+  return "#{html}.pdf"
 end
 
 
@@ -455,9 +487,25 @@ def set_vars(input)
   d[:scenario_budget] = j['budget']
   #d[:year] = j['budget']['year'] # no such key. The year appears be scenario_name
 
-  # do whatever to flatten budget info into required form
-
   return d
+end
+
+
+
+def cleanup()
+  #Delete contents of cb_images dir
+  #FileUtils.rm_r('cb_images/*')
+
+  #Delete contents of web_development dir
+  #FileUtils.rm_r('web_development/*')
+
+  #Delete contents of report dir *except* for the finished reports
+  Dir.chdir('report')
+  to_del = Dir.entries.reject{|f| f =~ /report\.pdf/}
+  to_del = to_del - ['.','..','header.html','isa-header-narrow.png']
+  #to_del.each{|f| File.unlink(f)}
+  puts to_del
+  Dir.chdir('..')
 end
 
 
@@ -471,8 +519,9 @@ def run
   input = JSON.parse(File.read('70.json'))
   get_files(input)
   yield_data = run_binary(input)
-  make_maps(input)
+  make_profit_maps(input)
   make_profit_histograms(input)
+  make_aerial_map(input)
 
   reports = []
   scenario_ids = []
@@ -518,7 +567,6 @@ end
 
 
 
-
 def test
   # This is just for development in LightTable, since somehow my path gets munged:
   Dir.chdir('/home/penn/EZQ/pzm_reportmaker')
@@ -531,11 +579,14 @@ def test
   Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test2')
 
   AWS.config(YAML.load_file('credentials.yml'))
-  input = JSON.parse(File.read('72.json'))
-  get_files(input)
+  input = JSON.parse(File.read('70.json'))
+  #get_files(input)
   yield_data = run_binary(input)
-  make_maps(input)
-  make_profit_histograms(input)
+  #reproject_yield_raster(input)
+  #reproject_boundaries(input)
+  #make_yield_map(input)
+  #make_profit_maps(input)
+  #make_profit_histograms(input)
 
   reports = []
   scenario_ids = []
@@ -550,6 +601,10 @@ def test
     d[:field_avg_yield] = yield_data[scenario['id']]
 
     pdfs = []
+    pdfs << make_yield_data(d)
+    #pdfs << make_applied_fertilizer(d)
+    #pdfs << make_applied_planting(d)
+    #pdfs << make_yield_by_soil(d)
     pdfs << make_overall_profit(d)
     pdfs << make_overall_revenue_and_expenses(d)
 
@@ -558,17 +613,24 @@ def test
       pdfs << make_revenue_and_expenses_with_zones(d,mz)
     end
 
-
-    report_name = ''  #  <~ Need to come up with naming scheme.
+    # Might need to add a job id into this naming scheme?
+    report_name = "report/#{scenario['id']}_report.pdf"
 
     # Stitch the report pieces into one pdf
-    #system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
+    system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
 
     # Reject blank pages in the pdf. Set option :y to the same number as
     # .logo{max-height} from main.css for now.
-    #RemoveBlankPages.remove(report_name,{:y=>100})
+    @log.info "Remove blank pages"
+    RemoveBlankPages.remove(report_name,{:y=>100})
     reports << report_name
   end
+
+  # Stitch all the scenario reports into a single big report
+  report_name = "report/final_report"
+  system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{reports.join(' ')}")
+
+  #cleanup()
 
 
   #puts input['scenarios'][0]['budget']['budget_items']

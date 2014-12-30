@@ -1,39 +1,101 @@
-body{background-color:#fff;font-size:14px}.container{margin-bottom:5em}.row{margin-bottom:1em}@media print{.container{margin-bottom:0;page-break-after:always}}h2{margin-bottom:1em}table tbody tr td h3{margin-bottom:0;margin-top:0}.logo{max-height:100px}
+body{background-color:#fff;font-size:12px}
 
-.budget-frame {  
-  height: 500px;
-  width: 700px;
+h1{font-size: 18px;}
+
+h2{font-size: 16px; /*margin-bottom:1em*/}
+
+h3{font-size: 14px;}
+
+.container{margin-bottom:5em}
+
+.row{margin-bottom:0em}
+
+@media print{.container{margin-bottom:0;page-break-after:always}}
+
+table tbody tr td h3{margin-bottom:0;margin-top:0}
+
+.dont-break { page-break-inside: avoid; }
+
+.logo{max-height:100px}
+
+.budget-frame {
+  /*width: 650px;
+  height: 430px;*/
+  width: 650px;
+  height: 230px;
   position: relative;
+  /*background-color: #00f;*/
 }
 
 .budget-legend-frame {
-  height: 500px;
+  /*width: 100px;
+  height:430px;*/
   width: 100px;
+  height:230px;
   position: relative;
+  /*background-color: #f00;*/
+}
+
+.yield-frame {
+  width: 750px;
+  height: 720px;
+  position: relative;
+  /*background-color: #00f;*/
 }
 
 .budget-map {
-  max-height: 480px;
-  max-width: 680px;
+  /*max-width: 630px;
+  max-height: 430px;*/
+  max-width: 630px;
+  max-height: 230px;
   width: auto;
   height: auto;
-  position: absolute;  
-  top: 0;  
-  bottom: 0;  
-  left: 0;  
-  right: 0;  
-  margin: auto;  
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
 }
 
 .budget-legend {
-  max-height: 400px;
+  /*max-width: 140px;
+  max-height: 400px;*/
+  max-width: 140px;
+  max-height: 200px;
   width: auto;
   height: auto;
-  position: absolute;  
-  top: 0;  
-  bottom: 0;  
-  left: 0;  
-  right: 0;  
-  margin: auto;  
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+}
+
+.yield-map {
+  max-width: 730px;
+  max-height: 710px;
+  width: auto;
+  height: auto;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+}
+
+.hist-chart {
+  max-width: 250px;
+  max-height: 250px;
+  width: auto;
+  height: auto;
+  position: relative;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
 }
 

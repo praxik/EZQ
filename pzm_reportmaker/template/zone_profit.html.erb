@@ -4,64 +4,73 @@
 	<div class="row">
 		<div class="col-xs-12">
 			<h1><%=d[:field_name]%>: <%=d[:scenario_name]%>: <%=d[:mz_name]%></h1>
-			<table class="table table-bordered">
-				<thead>
-					<tr>
-						<th>Parameter</th>
-						<th>Value</th>
-					</tr>
-				</thead>
-				<tbody>
-				  <tr>
-				    <td>Field Acreage</td>
-				    <td><%= curr(d[:mz_area]) %>ac</td>
-				  </tr>
-				  <tr>
-				    <td>Average Yield</td>
-				    <td><%= curr(d[:mz_avg_yield]) %>bu/ac</td>
-				  </tr>
-					<tr>
-						<td>Profit</td>
-						<td class="success">$<%=curr(d[:mz_profit_per_acre])%>/acre</td>
-					</tr>
-					<tr>
-						<td>ROI</td>
-						<td><%=curr(d[:mz_roi])%> %</td>
-					</tr>
-					<tr>
-						<td>Total Field Expenses</td>
-						<td class="danger">$<%=curr(d[:mz_expenses])%></td>
-					</tr>
-					<tr>
-						<td>Total Field Revenue</td>
-						<td>$<%=curr(d[:mz_revenue])%></td>
-					</tr>
-					<tr>
-						<td>Total Field Profit</td>
-						<td class="success">$<%=curr(d[:mz_profit])%></td>
-					</tr>
-				</tbody>
-			</table>
-			<h2><%=d[:mz_year]%> Profit Map</h2>
-            <p><%= curr(d[:mz_area])%> acres</p>
             <div class="row">
-                <div class="budget-frame">
+                <div class="col-xs-8">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>Field Acreage</td>
+                            <td><%= curr(d[:mz_area]) %>ac</td>
+                          </tr>
+                          <tr>
+                            <td>Average Yield</td>
+                            <td><%= curr(d[:mz_avg_yield]) %>bu/ac</td>
+                          </tr>
+                            <tr>
+                                <td>Profit</td>
+                                <td class="success">$<%=curr(d[:mz_profit_per_acre])%>/acre</td>
+                            </tr>
+                            <tr>
+                                <td>ROI</td>
+                                <td><%=curr(d[:mz_roi])%> %</td>
+                            </tr>
+                            <tr>
+                                <td>Total Field Expenses</td>
+                                <td class="danger">$<%=curr(d[:mz_expenses])%></td>
+                            </tr>
+                            <tr>
+                                <td>Total Field Revenue</td>
+                                <td>$<%=curr(d[:mz_revenue])%></td>
+                            </tr>
+                            <tr>
+                                <td>Total Field Profit</td>
+                                <td class="<%= if d[:mz_profit] > 0 then "success" else "danger" end %>">$<%=curr(d[:mz_profit])%></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-xs-4">
+                    <img src="./<%= d[:mz_histogram] %>" class="hist-chart" alt="Chart">
+		        </div>
+            </div>
+			<!--<h2><%=d[:mz_year]%> Profit Map</h2>-->
+            <!--<p><%= curr(d[:mz_area])%> acres</p>-->
+            <div class="row">
+                <div class="budget-frame col-xs-10">
                   <img src="./<%= d[:mz_profit_map] %>" class="budget-map" alt="Zone Profit Map">
                 </div>
-                <div class="budget-legend-frame">
+                <div class="budget-legend-frame col-xs-2">
                   <img src="./profit_legend.png" class="budget-legend">
                 </div>
             </div>
 		</div>
 	</div>
+<!--
 	<div class="row">
 		<div class="col-xs-6">
-            <img src="./<%= d[:mz_histogram] %>" class="img-responsive" alt="Chart">
+            <img src="./<%= d[:mz_histogram] %>" class="hist-chart" alt="Chart">
 		</div>
 		<div class="col-xs-6">
-			<img src="./<%= d[:mz_pie_chart] %>" class="img-responsive" alt="Chart">
+			<img src="./<%= d[:mz_pie_chart] %>" class="hist-chart" alt="Chart">
 		</div>
 	</div>
+-->
 </div>
 
 <%= File.read('boilerplate_bottom.html') %>
