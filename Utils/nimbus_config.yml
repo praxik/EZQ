@@ -141,7 +141,7 @@ launch_settings:
     #size: 'r3.4xlarge'
 
   server_worker_ISU:
-    size: 'm1.medium'
+    size: 'm1.xlarge'
 
   server_worker_IN:
     size: 'm1.medium'
@@ -241,13 +241,14 @@ userdata:
     number_of_processes: auto
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: ISU_heaton__weps.zip
-    r2_man_key: ISU_heaton__skels.zip
+    man_key: ISU_heaton_weps.zip
+    r2_man_key: ISU_heaton_skels.zip
     receive_queue_name: purdue_task
     keep_alive_check_interval: 30
     server_worker_command: "6k_server_worker.exe --gdbname iowammp.gdb --workerid $pid"
     app_name: "server_worker_ISU.processor"
     error_queue_name: purdue_error
+    use_instance_store: false
 
   server_worker_IN:
     deploy_key: arks/default/server_worker_x64.zip
@@ -374,8 +375,8 @@ userdata:
     deploy_key: arks/default/pregrid_x64.zip
     gdb_key: iowammp.gdb.zip
     gdb_install_name: iowammp.gdb
-    man_key: ISU_heaton__weps.zip
-    r2_man_key: ISU_heaton__skels.zip
+    man_key: ISU_heaton_weps.zip
+    r2_man_key: ISU_heaton_skels.zip
     receive_queue_name: purdue_job
     app_name: "pregrid_ISU.processor"
     error_queue_name: purdue_error
