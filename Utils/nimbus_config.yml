@@ -280,7 +280,7 @@ userdata:
     use_instance_store: false
     receive_queue_name: "mmp360_job_web_development"
     error_queue_name: "mmp360_error_web_development"
-    result_queue_name: "mmp360_results_web_development"
+    result_queue_name: "mmp360_result_web_development"
 
   worker_mmp_staging:
     deploy_key: arks/default/iowammp.zip
@@ -299,7 +299,7 @@ userdata:
     use_instance_store: false
     receive_queue_name: "mmp360_job_staging"
     error_queue_name: "mmp360_error_staging"
-    result_queue_name: "mmp360_results_staging"
+    result_queue_name: "mmp360_result_staging"
 
   worker_mmp_prod:
     deploy_key: arks/default/iowammp_prod.zip
@@ -318,7 +318,7 @@ userdata:
     use_instance_store: false
     receive_queue_name: "mmp360_job_production"
     error_queue_name: "mmp360_error_production"
-    result_queue_name: "mmp360_results_production"
+    result_queue_name: "mmp360_result_production"
 
   worker_pzm_md_dev:
     deploy_key: arks/default/md_worker.zip
