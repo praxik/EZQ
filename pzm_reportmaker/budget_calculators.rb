@@ -7,19 +7,18 @@ def self.do_zone_calcs!(d,mz)
   d[:mz_name] = mz['name']
   d[:mz_id] = mz['id']
   d[:mz_area] = mz['get_area_in_acres']
-  d[:mz_commodity_price] = mz['budget']['budget_items'].select{|bi| bi['item_name'] == 'Commodity Price'}.first.fetch('amount',0)
+  d[:mz_commodity_price] = get_commodity_price(mz['budget']['budget_items'])
 
   #set_overall_expense_revenue_vars(d)
 
   d[:mz_avg_yield] = mz['get_target_zone_yield']
-  d[:mz_revenue] = d[:mz_commodity_price] * d[:mz_avg_yield] * d[:mz_area]
   d[:mz_expenses_per_acre] = calculate_expenses_per_acre(mz['budget'])
   d[:mz_expenses] = d[:mz_expenses_per_acre] * d[:mz_area]
-  d[:mz_other_revenue_per_acre] = mz['budget']['budget_items'].select{|bi| bi['item_name'] == 'Other Revenue'}.first.fetch('amount',0)
-  d[:mz_revenue_per_acre] = d[:mz_revenue] / d[:mz_area] +
-                              d[:mz_other_revenue_per_acre]
+  d[:mz_other_revenue_per_acre] = calculate_other_revenue_per_acre(mz['budget']['budget_items'])
+  d[:mz_revenue] = (d[:mz_commodity_price] * d[:mz_avg_yield] + d[:mz_other_revenue_per_acre]) * d[:mz_area]
+  d[:mz_revenue_per_acre] = d[:mz_revenue] / d[:mz_area]
   d[:mz_profit_per_acre] = d[:mz_revenue_per_acre] - d[:mz_expenses_per_acre]
-  d[:mz_profit] = d[:mz_profit_per_acre] * d[:mz_area]
+  d[:mz_profit] = d[:mz_revenue] - d[:mz_expenses]
   d[:mz_roi] = d[:mz_profit_per_acre] / d[:mz_expenses_per_acre] * 100
   d[:mz_year] = d[:scenario_budget]['name']
 
@@ -30,11 +29,18 @@ end
 
 
 
+  def self.calculate_other_revenue_per_acre(budget_items)
+  return budget_items.reduce(0) do|orev,bi|
+    orev += (!bi['expense'] && bi['unit_id'] == 1) ? bi['amount'] : 0
+  end
+end
+
+
 def self.calculate_total_revenue(budget,yld,area)
   items = budget['budget_items']
-  commodity_price = items.select{|bi| bi['item_name'] == 'Commodity Price'}[0]['amount']
-  return commodity_price * yld * area +
-    items.select{|bi| bi['item_name'] == 'Other Revenue'}.first.fetch('amount',0) * area
+  commodity_price = get_commodity_price(items)
+  other_rev = calculate_other_revenue_per_acre(items)
+  return area * ( commodity_price * yld + other_rev)
 end
 
 
@@ -44,6 +50,12 @@ def self.calculate_expenses_per_acre(budget)
                     .map{|i| i['amount']}.reduce(:+)
   expenses = 1.0 if !expenses or expenses == 0.0
   return expenses
+end
+
+
+
+def self.get_commodity_price(budget_items)
+  budget_items.select{|bi| bi['item_name'] == 'Commodity Price'}[0]['amount']
 end
 
 
@@ -82,15 +94,15 @@ def self.set_overall_expense_revenue_vars(d)
   field_area = d[:field_area]
   nz_area = field_area - zt_area
 
-  price = d[:scenario_budget]['budget_items'].select{|bi| bi['item_name'] == 'Commodity Price'}[0]['amount']
+  price = get_commodity_price(d[:scenario_budget]['budget_items'])
 
   # expenses
   fe = ( calculate_expenses_per_acre(d[:scenario_budget]) * nz_area**2 + zw_expenses ) / field_area
   fepa = fe / field_area
 
   # revenue
-  orpa = d[:scenario_budget]['budget_items'].select{|bi| bi['item_name'] == 'Other Revenue'}.first.fetch('amount',0)
-  yld = d[:field_avg_yield]
+  orpa = calculate_other_revenue_per_acre(d[:scenario_budget]['budget_items'])
+  yld = d[:field_yield] # Note this is field yield, *not* the weighted yield
   fr = ( (orpa + price * yld) * nz_area**2 + zw_revenue ) / field_area
   frpa = fr / field_area
 
@@ -108,6 +120,17 @@ def self.set_overall_expense_revenue_vars(d)
   d[:field_profit_per_acre] = frpa - fepa
 
   d[:field_roi] = 100.0 * fp / fe
+
+  if true
+    puts "Comm Price: #{price}"
+    puts "ORPA:     #{orpa}"
+    puts "Expenses: #{fe}"
+    puts "Revenue:  #{fr}"
+    puts "Profit:   #{fp}"
+    puts "PPA:      #{frpa-fepa}"
+    puts "Area:     #{field_area}"
+    puts "NZArea:   #{nz_area}"
+  end
 
   # We want a sorted budget that includes only expenses
   d[:budget_exp] = sort_budget(d[:scenario_budget]['budget_items'],'item_id')

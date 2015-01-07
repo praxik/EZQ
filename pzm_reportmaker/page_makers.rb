@@ -61,6 +61,7 @@ end
 def self.make_yield_data(data)
   d = data.clone
   d[:yield_map] = "#{d[:scenario_id]}_yield.png"
+  d[:yield_legend] = "#{d[:scenario_id]}_yield_legend.png"
   return make_pdf(generate_html(d,'template/yield_data.html.erb',
     "report/#{d[:scenario_id]}_yield_data.html"))
 end

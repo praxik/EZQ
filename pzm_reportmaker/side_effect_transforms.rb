@@ -8,7 +8,7 @@ module SeTransforms
 # Reprojects raster_in to EPSG:3857 and saves as raster_out
 # @param [String] raster_in Path to input raster
 # @param [String] raster_out Path to output raster
-def self.reproject_yield_raster(raster_in,raster_out)
+def self.reproject_raster(raster_in,raster_out)
   info_cmd = "gdalinfo \"#{raster_in}\" | grep NoData"
   no_data = EZQ.exec_cmd(info_cmd).flatten.last.split('=').last.strip
   cmd = "gdalwarp -r cubicspline" +
@@ -49,8 +49,25 @@ def self.collect_coords(master,pieces_array,collected_name)
     EZQ.exec_cmd("ogr2ogr -update -append -f \"ESRI Shapefile\" #{master}.shp #{f}")
   end
 
+  # Replace the prj file with one containing correct projection info
+  prj = <<-END.gsub(/^  /,'').split("\n").join()
+  PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",
+  SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],
+  AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],
+  UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],
+  AUTHORITY["EPSG","4326"]],PROJECTION["Mercator_1SP"],
+  PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],
+  PARAMETER["false_easting",0],PARAMETER["false_northing",0],
+  UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],
+  AXIS["Y",NORTH],EXTENSION["PROJ4","+proj=merc +a=6378137 +b=6378137
+   +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m
+   +nadgrids=@null +wktext  +no_defs"],AUTHORITY["EPSG","3857"]]
+  END
+  File.write("#{master}.prj",prj)
+
   # Convert the shapefile back to geojson.
-  EZQ.exec_cmd("ogr2ogr -f \"GeoJSON\" #{collected_name} #{master}.shp")
+  res = EZQ.exec_cmd("ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" #{collected_name} #{master}.shp")
+  @log.error(res.last) if !res.first && @log
 
   return nil
 end

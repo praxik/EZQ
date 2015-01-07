@@ -15,7 +15,7 @@
                         </thead>
                         <tbody>
                           <tr>
-                            <td>Field Acreage</td>
+                            <td>Zone Acreage</td>
                             <td><%= curr(d[:mz_area]) %>ac</td>
                           </tr>
                           <tr>
@@ -31,15 +31,15 @@
                                 <td><%=curr(d[:mz_roi])%> %</td>
                             </tr>
                             <tr>
-                                <td>Total Field Expenses</td>
+                                <td>Total Zone Expenses</td>
                                 <td class="danger">$<%=curr(d[:mz_expenses])%></td>
                             </tr>
                             <tr>
-                                <td>Total Field Revenue</td>
+                                <td>Total Zone Revenue</td>
                                 <td>$<%=curr(d[:mz_revenue])%></td>
                             </tr>
                             <tr>
-                                <td>Total Field Profit</td>
+                                <td>Total Zone Profit</td>
                                 <td class="<%= if d[:mz_profit] > 0 then "success" else "danger" end %>">$<%=curr(d[:mz_profit])%></td>
                             </tr>
                         </tbody>

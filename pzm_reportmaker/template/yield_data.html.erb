@@ -5,9 +5,14 @@
 		<div class="col-xs-12">
 			<h1><%= d[:field_name] %>: <%= d[:scenario_name] %></h1>
 			<h2><%= d[:scenario_name] %> Yield Data</h2>
-                <div class="yield-frame">
-                <img src="./<%= d[:yield_map] %>" class="yield-map" alt="Yield Data Map">
+            <div class="row">
+                <div class="yield-frame col-xs-10">
+                    <img src="./<%= d[:yield_map] %>" class="yield-map" alt="Yield Data Map">
                 </div>
+                <div class="yield-legend-frame col-xs-2">
+                    <img src="./<%= d[:yield_legend] %>" class="yield-legend">
+                </div>
+            </div>
 		</div>
 	</div>
 </div>
