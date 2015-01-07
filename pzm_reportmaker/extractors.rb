@@ -40,14 +40,15 @@ def self.run_binary(input)
   @log.error output if !success
   if success and output.size > 0
     # Convert array of strings that looks like ["junk\n",
-    #                                           "pzm: 132: 234.3\n",
+    #                                           "pzm: 132,234.3,192.8\n",
     #                                           "more junk\n",
     #                                           "stuff\n",
-    #                                           "pzm: 144: 45.323\n"]
-    # into a hash that looks like: {132 => 234.3, 144 => 45.323}
+    #                                           "pzm: 144,45.323,33.87\n"]
+    # into a hash that looks like: {132 => {:avg => 234.3, :nz => 192.8},
+    #                               144 => {:avg => 45.323, :nz => 33.87}}
     yields = output.select{|t| t =~ /^pzm/}
-    yields = yields.map{|t| t.chomp.gsub('pzm: ','').split(': ')}
-    yields = yields.map{|a| [a[0].to_i,a[1].to_f]}.to_h
+    yields = yields.map{|t| t.chomp.gsub('pzm: ','').split(',')}
+    yields = yields.map{|a| [a[0].to_i,[:avg,a[1].to_f,:nz,a[2]].to_h]}.to_h
   end
   # Return either a hash or nil
   return yields

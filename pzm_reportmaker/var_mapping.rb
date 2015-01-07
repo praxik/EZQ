@@ -169,7 +169,7 @@ def set_vars(input)
   d = {}
   d[:field_name] = j['field_name']
   d[:field_area] = j['field_area']
-  d[:field_yield] = j['field_yield_value']
+  d[:field_yield] = j['field_yield_value'] # We don't use this anymore.
   d[:scenario_name] = j['name']
   d[:scenario_id] = j['id']
   d[:scenario_budget] = j['budget']
@@ -279,7 +279,8 @@ def run
     scenario['field_name'] = input['name']
     scenario['field_area'] = input['get_area_in_acres']
     d = set_vars(scenario)
-    d[:field_avg_yield] = yield_data[scenario['id']]
+    d[:field_avg_yield] = yield_data[scenario['id'][:avg]]
+    d[:nz_yield] = yield_data[scenario['id'][:nz]]
 
     pdfs = []
     pdfs << PageMakers.make_yield_data(d)

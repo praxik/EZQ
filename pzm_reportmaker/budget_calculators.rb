@@ -102,7 +102,7 @@ def self.set_overall_expense_revenue_vars(d)
 
   # revenue
   orpa = calculate_other_revenue_per_acre(d[:scenario_budget]['budget_items'])
-  yld = d[:field_yield] # Note this is field yield, *not* the weighted yield
+  yld = d[:nz_yield] # Note this is field yield, *not* the weighted yield
   fr = ( (orpa + price * yld) * nz_area**2 + zw_revenue ) / field_area
   frpa = fr / field_area
 
