@@ -133,7 +133,7 @@ def make_yield_map(input)
            " --inputyield=\"report/#{scenario['id']}_yield.tiff\"" +
            " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
            " --width=2000 --height=2000 --autofit=false" +
-           " --margin=-9999" +
+           #" --margin=-9999" +
            " --legendtype=yield" +
            " --legendformat=png" +
            " --legendfile=report/#{scenario['id']}_yield_legend.png"
@@ -222,17 +222,17 @@ def run
   @log = Logger.new(STDOUT)
   @log.level = Logger::DEBUG
 
-  Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test5')
+  Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test6')
 
   @log.info "Preparing report dir"
   prep_report_dir()
 
   AWS.config(YAML.load_file('credentials.yml'))
-  input = JSON.parse(File.read('70.json'))
+  input = JSON.parse(File.read('47.json'))
 
   Extractors.set_logger(@log)
   @log.info "Getting files from S3"
-#   Extractors.get_files(input)
+  Extractors.get_files(input)
 
   @log.info "Running binary"
   yield_data = Extractors.run_binary(input)
@@ -279,8 +279,8 @@ def run
     scenario['field_name'] = input['name']
     scenario['field_area'] = input['get_area_in_acres']
     d = set_vars(scenario)
-    d[:field_avg_yield] = yield_data[scenario['id'][:avg]]
-    d[:nz_yield] = yield_data[scenario['id'][:nz]]
+    d[:field_avg_yield] = yield_data[scenario['id']][:avg]
+    d[:nz_yield] = yield_data[scenario['id']][:nz]
 
     pdfs = []
     pdfs << PageMakers.make_yield_data(d)

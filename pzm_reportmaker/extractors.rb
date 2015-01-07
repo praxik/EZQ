@@ -48,7 +48,7 @@ def self.run_binary(input)
     #                               144 => {:avg => 45.323, :nz => 33.87}}
     yields = output.select{|t| t =~ /^pzm/}
     yields = yields.map{|t| t.chomp.gsub('pzm: ','').split(',')}
-    yields = yields.map{|a| [a[0].to_i,[:avg,a[1].to_f,:nz,a[2]].to_h]}.to_h
+    yields = yields.map{|a| [a[0].to_i,[[:avg,a[1].to_f],[:nz,a[2].to_f]].to_h]}.to_h
   end
   # Return either a hash or nil
   return yields
