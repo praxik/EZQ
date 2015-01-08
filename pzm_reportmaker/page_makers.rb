@@ -55,6 +55,16 @@ def self.make_pdf(html,header='header.html')
   return "#{html}.pdf"
 end
 
+
+
+def self.make_number_overlay(num_pages)
+  erbed = ERB.new(File.read('template/numbers.tex.erb'))
+  File.write('report/page_numbers.tex',erbed.result(binding))
+  Dir.chdir('report')
+  puts EZQ.exec_cmd("pdflatex -interaction=batchmode page_numbers.tex 1>/dev/null")
+  Dir.chdir('..')
+end
+
 ################################################################################
 # each of these needs to return the name of the file it generated
 
