@@ -1,0 +1,7 @@
+\documentclass[12pt,letter]{article}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{multido}
+\usepackage[hmargin=.8cm,vmargin=1.5cm,nohead,nofoot]{geometry}
+\begin{document}
+\multido{}{<%= num_pages %>}{\vphantom{x}\newpage}
+\end{document}

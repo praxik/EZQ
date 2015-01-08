@@ -164,8 +164,8 @@ end
 
 
 
-def set_vars(input)
-  j = input
+def set_vars(scenario)
+  j = scenario
   d = {}
   d[:field_name] = j['field_name']
   d[:field_area] = j['field_area']
@@ -174,6 +174,7 @@ def set_vars(input)
   d[:scenario_id] = j['id']
   d[:scenario_budget] = j['budget']
   d[:zones] = j['management_zones']
+  d[:year] =  j.fetch('year',2040)
 
   return d
 end
@@ -191,7 +192,7 @@ def cleanup()
   #Delete contents of report dir *except* for the finished reports
   Dir.chdir('report')
   to_del = Dir.entries(Dir.pwd).reject{|f| f =~ /final_report\.pdf/}
-  to_del = to_del - ['.','..','header.html','pzm-header-10.png']
+  to_del = to_del - ['.','..','header.html','pzm-header-10.png','multido.sty','multido.tex']
   to_del.each{|f| File.unlink(f)}
   Dir.chdir('..')
 end
@@ -209,6 +210,8 @@ def prep_report_dir
   Dir.mkdir('cb_images') if !Dir.exist?('cb_images')
   cp_if_not_exist('template/header.html','report/header.html')
   cp_if_not_exist('template/pzm-header-10.png','report/pzm-header-10.png')
+  cp_if_not_exist('multido.sty','report/multido.sty')
+  cp_if_not_exist('multido.tex','report/multido.tex')
 end
 
 
@@ -314,7 +317,20 @@ def run
   @log.info "Combining scenario reports into #{report_name}"
   EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{reports.join(' ')}")
 
-  #cleanup()
+  #Get total number of pages in final report
+  num_pages = EZQ.exec_cmd("pdftk #{report_name} dump_data").last.
+                select{|t| t =~ /^NumberOfPages/}.first.split(':').last.
+                  strip.to_i
+
+  # Create page number pdf
+  PageMakers.make_number_overlay(num_pages)
+
+  # Overlay page numbers onto report
+  @log.info "Overlaying page numbers"
+  FileUtils.mv(report_name,"#{report_name}.in")
+  EZQ.exec_cmd("pdftk #{report_name}.in multistamp report/page_numbers.pdf output #{report_name}")
+
+  cleanup()
 end
 
 run
