@@ -180,6 +180,15 @@ def set_vars(scenario)
 end
 
 
+def make_maps(input)
+  @log.info "Making yield maps"
+  make_yield_map(input)
+  @log.info "Making profit maps"
+  make_profit_maps(input)
+  @log.info "Making profit histograms"
+  make_profit_histograms(input)
+end
+
 
 def cleanup()
   @log.info "cleanup"
@@ -191,10 +200,18 @@ def cleanup()
 
   #Delete contents of report dir *except* for the finished reports
   Dir.chdir('report')
-  to_del = Dir.entries(Dir.pwd).reject{|f| f =~ /final_report\.pdf/}
+  to_del = Dir.entries(Dir.pwd).reject{|f| f =~ /_full_report\.pdf$/}
   to_del = to_del - ['.','..','header.html','pzm-header-10.png','multido.sty','multido.tex']
   to_del.each{|f| File.unlink(f)}
   Dir.chdir('..')
+end
+
+
+
+def get_num_pages(filename)
+  return EZQ.exec_cmd("pdftk #{filename} dump_data").last.
+                select{|t| t =~ /^NumberOfPages/}.first.split(':').last.
+                  strip.to_i
 end
 
 
@@ -215,15 +232,12 @@ def prep_report_dir
 end
 
 
-
-def run
-  # This is just for development in LightTable, since somehow my path gets munged:
-  Dir.chdir('/home/penn/EZQ/pzm_reportmaker')
-
-  get_reqs()
-
+def init
   @log = Logger.new(STDOUT)
   @log.level = Logger::DEBUG
+
+  Extractors.set_logger(@log)
+  PageMakers.set_logger(@log)
 
   Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test6')
 
@@ -231,19 +245,12 @@ def run
   prep_report_dir()
 
   AWS.config(YAML.load_file('credentials.yml'))
-  input = JSON.parse(File.read('47.json'))
+  return nil
+end
 
-  Extractors.set_logger(@log)
-  @log.info "Getting files from S3"
-  Extractors.get_files(input)
 
-  @log.info "Running binary"
-  yield_data = Extractors.run_binary(input)
-  if !yield_data
-    @log.fatal "Binary returned no yield data; exiting."
-    exit(1)
-  end
 
+def reproject_to_3857(input)
   @log.info "Reprojecting yield rasters into 3857"
   Extractors.get_yield_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
   @log.info "Reprojecting profit rasters into 3857"
@@ -251,7 +258,11 @@ def run
 
   @log.info "Reprojecting all boundaries into 3857"
   Extractors.get_boundary_hash(input).each{|k,v| SeTransforms.reproject_boundaries("report/#{k}_3857.geojson",v)}
+  return nil
+end
 
+
+def collect_boundaries(input)
   # Form up a geojson containing the field boundaries as well as all the
   # zone boundaries for each scenario
   @log.info "Collecting boundaries"
@@ -265,72 +276,104 @@ def run
       FileUtils.cp('report/field_3857.geojson', outname)
     end
   end
+  return nil
+end
 
-  @log.info "Making yield maps"
-  make_yield_map(input)
-  @log.info "Making profit maps"
-   make_profit_maps(input)
-  @log.info "Making profit histograms"
-  make_profit_histograms(input)
 
-  PageMakers.set_logger(@log)
-  reports = []
-  input['scenarios'].each do |scenario|
 
-    # Add the field name and area into the top level of each scenario since
-    # those values are needed for display in a few different places.
-    scenario['field_name'] = input['name']
-    scenario['field_area'] = input['get_area_in_acres']
-    d = set_vars(scenario)
-    d[:field_avg_yield] = yield_data[scenario['id']][:avg]
-    d[:nz_yield] = yield_data[scenario['id']][:nz]
+def make_scenario_report(scenario,name,area,yield_data)
+  # Add the field name and area into the top level of each scenario since
+  # those values are needed for display in a few different places.
+  scenario['field_name'] = name
+  scenario['field_area'] = area
+  d = set_vars(scenario)
+  d[:field_avg_yield] = yield_data[scenario['id']][:avg]
+  d[:nz_yield] = yield_data[scenario['id']][:nz]
 
-    pdfs = []
-    pdfs << PageMakers.make_yield_data(d)
-    #pdfs << PageMakers.make_applied_fertilizer(d)
-    #pdfs << PageMakers.make_applied_planting(d)
-    #pdfs << PageMakers.make_yield_by_soil(d)
-    pdfs << PageMakers.make_overall_profit(d)
-    pdfs << PageMakers.make_overall_revenue_and_expenses(d)
+  pdfs = []
+  pdfs << PageMakers.make_yield_data(d)
+  #pdfs << PageMakers.make_applied_fertilizer(d)
+  #pdfs << PageMakers.make_applied_planting(d)
+  #pdfs << PageMakers.make_yield_by_soil(d)
+  pdfs << PageMakers.make_overall_profit(d)
+  pdfs << PageMakers.make_overall_revenue_and_expenses(d)
 
-    scenario['management_zones'].each do |mz|
-      pdfs << PageMakers.make_zone_profit(d,mz)
-      pdfs << PageMakers.make_revenue_and_expenses_with_zones(d,mz)
-    end
-
-    report_name = "report/#{scenario['id']}_report.pdf"
-
-    # Stitch the report pieces into one pdf
-    @log.info "Combining pieces for #{report_name}"
-    EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
-
-    # Reject blank pages in the pdf. Set option :y to the same number as
-    # .logo{max-height} from main.css.
-    @log.info "Removing blank pages"
-    RemoveBlankPages.remove(report_name,{:y=>100})
-    reports << report_name
+  scenario['management_zones'].each do |mz|
+    pdfs << PageMakers.make_zone_profit(d,mz)
+    pdfs << PageMakers.make_revenue_and_expenses_with_zones(d,mz)
   end
+
+  report_name = "report/#{scenario['id']}_report.pdf"
+
+  # Stitch the report pieces into one pdf
+  @log.info "Combining pieces for #{report_name}"
+  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
+
+  # Reject blank pages in the pdf. Set option :y to the same number as
+  # .logo{max-height} from main.css.
+  @log.info "Removing blank pages"
+  RemoveBlankPages.remove(report_name,{:y=>100})
+
+  return report_name
+end
+
+
+def run
+  # This is just for development in LightTable, since somehow my path gets munged:
+  Dir.chdir('/home/penn/EZQ/pzm_reportmaker')
+
+  get_reqs()
+
+  init()
+
+  base_name = '47'
+  input = JSON.parse(File.read("#{base_name}.json"));
+
+
+  @log.info "Getting files from S3"
+#   Extractors.get_files(input)
+
+  @log.info "Running binary"
+  yield_data = Extractors.run_binary(input)
+  if !yield_data
+    @log.fatal "Binary returned no yield data; exiting."
+    exit(1)
+  end
+
+  reproject_to_3857(input)
+
+  collect_boundaries(input)
+
+  make_maps(input)
+
+  reports = input['scenarios'].map do |scenario|
+    make_scenario_report(scenario,
+                         input['name'],
+                         input['get_area_in_acres'],
+                         yield_data)
+  end
+
 
   # Stitch all the scenario reports into a single big report
   # Might need to add a job id into this naming scheme?
-  report_name = "report/final_report.pdf"
+  report_name = "report/#{base_name}_full_report.pdf"
   @log.info "Combining scenario reports into #{report_name}"
-  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{reports.join(' ')}")
+  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name}.numless #{reports.join(' ')}")
 
-  #Get total number of pages in final report
-  num_pages = EZQ.exec_cmd("pdftk #{report_name} dump_data").last.
-                select{|t| t =~ /^NumberOfPages/}.first.split(':').last.
-                  strip.to_i
+  @log.info "Making page number overlay"
+  PageMakers.make_number_overlay(get_num_pages("#{report_name}.numless"))
 
-  # Create page number pdf
-  PageMakers.make_number_overlay(num_pages)
-
-  # Overlay page numbers onto report
   @log.info "Overlaying page numbers"
-  FileUtils.mv(report_name,"#{report_name}.in")
-  EZQ.exec_cmd("pdftk #{report_name}.in multistamp report/page_numbers.pdf output #{report_name}")
+  #FileUtils.mv(report_name,"#{report_name}.in")
+  EZQ.exec_cmd("pdftk #{report_name}.numless multistamp report/page_numbers.pdf output #{report_name}.with_num")
 
-  cleanup()
+  @log.info "Building table of contents"
+  toc = PageMakers.make_toc(input,reports)
+
+  @log.info "Adding table of contents to report"
+  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{toc} #{report_name}.with_num")
+
+  #cleanup()
 end
 
 run

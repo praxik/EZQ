@@ -179,6 +179,23 @@ def self.make_revenue_and_expenses_with_zones(data,zone)
   return make_pdf(generate_html(d,'template/revenue_and_expenses_with_zones.html.erb',
                        "report/#{d[:scenario_id]}_zone_#{d[:mz_id]}_revenue_and_expenses.html"))
 end
+
+
+
+def self.make_toc(input,reports)
+  field_name = input['name']
+  scenario_names = input['scenarios'].map{|s| s['name']}
+  scenario_years = input['scenarios'].map{|s| s['year'].to_s}
+  start_pages = reports.map{|f| get_num_pages(f)}.
+                reduce([1]){|acc,pgs| acc += acc.last ? [acc.last + pgs] : [pgs]}.
+                map{|p| p.to_s}
+  tokens = Array.new(scenario_names.size,field_name).zip(scenario_names,scenario_years,start_pages)
+  # creates format ["field_name: scenario_name: year",page]
+  entries = tokens.map{|t| ["#{t[0]}: #{t[1]}: #{t[2]}",t[3]]}
+
+return make_pdf(generate_html(entries,'template/toc.html.erb',
+                       "report/toc.html"))
+end
 ################################################################################
 
 end # module
