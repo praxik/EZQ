@@ -121,7 +121,7 @@ def self.set_overall_expense_revenue_vars(d)
 
   d[:field_roi] = 100.0 * fp / fe
 
-  if true
+  if false
     puts "Comm Price: #{price}"
     puts "ORPA:     #{orpa}"
     puts "Expenses: #{fe}"
