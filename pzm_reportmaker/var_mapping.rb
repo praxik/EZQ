@@ -1,5 +1,17 @@
 #!/usr/bin/env ruby
 
+require 'json'
+require 'yaml'
+require 'logger'
+require 'fileutils'
+require '../ezqlib'
+require_relative './remove_blank_pages'
+require_relative './extractors'
+require_relative './side_effect_transforms'
+require_relative './page_makers'
+require_relative './pdf_utils'
+require_relative './dev_null_log'
+
 
 # Monkeypatch NilClass so we don't have to test for nil before
 # doing a fetch on the result of a select that may have returned nil
@@ -9,371 +21,340 @@ class NilClass
   end
 end
 
+class PzmReportmaker
 
+  def initialize(credentials,log=DevNullLog.new())
+    @log = log
 
-def get_reqs
-  require 'json'
-  require 'yaml'
-  require 'set'
-  require 'pdfkit'
-  require 'erb'
-  require 'logger'
-  require 'fileutils'
-  require '../ezqlib'
-  require_relative './remove_blank_pages'
-  require_relative './extractors'
-  require_relative './side_effect_transforms'
-  require_relative './page_makers'
-end
+    Extractors.set_logger(@log)
+    PageMakers.set_logger(@log)
 
+    Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test6')
 
+    @log.info "Preparing report dir"
+    prep_report_dir()
 
-# Convert an Integer or Float to String in x,xxx.yy format (like currency)
-def curr(v)
-  return commafy("%.2f" % v.to_f)
-end
-
-
-# Convert an Integer or Float to String in x,xxx format
-def int(v)
-  return commafy("%i" % v.to_f.round)
-end
-
-
-# Convert an Integer or Float to String in x,xxx.00 format
-# (fractional part is locked to 00)
-def curr_int(v)
-  return curr(v.to_f.round)
-end
-
-
-def commafy(v)
-  whole,fraction = v.to_s.split('.')
-  fraction = '' if fraction == nil
-  f_sep = fraction == '' ? '' : '.'
-  sign = whole[0] == '-' ? whole.slice!(0) : ''
-  # Add commas for each group of 3 digits, counting right to left
-  whole = whole.reverse.split(/([\d]{3})/).delete_if{|c| c==''}.join(',').reverse
-  return sign + whole + f_sep + fraction
-end
+    AWS.config(YAML.load_file('credentials.yml'))
+  end
 
 
 
-def get_profit_raster_hash(input)
-  return Extractors.get_cids(input).map do |cid|
-    tiff = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif" : "cb_images/#{cid}_cb.tif"
-    [tiff,"#{tiff}.3857"]
-  end.to_h
-end
+  # Creates the report +output_path+ based on input from +input_path+
+  # @param input_path [String] Input JSON file describing scenarios
+  # @param output_path [String] Name to use for final pdf report
+  #
+  # Developer's note: This method should ideally contain minimal logic.
+  # The goal is for it to read as a simple step-by-step sequence
+  # of function calls for building a report.
+  def make_report(input_path, output_path)
 
+    input = JSON.parse(File.read(input_path));
 
-def make_profit_maps(input)
-  images = []
-  make_legend = true
+    @log.info "Getting files from S3"
+    Extractors.get_files(input)
 
-  Extractors.get_cids(input).each do |cid|
-    out_name = "report/profit_map_#{cid}.png"
-    tiff = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif.3857" : "cb_images/#{cid}_cb.tif.3857"
-    boundary_file = "report/field_3857_#{cid.split('_').first}.geojson"
-
-    # Need to add DISPLAY=:0 back into this on AWS?
-#     cmd = "python agmap.py" +
-#           " --maptype=budget" +
-#           " --output=\"#{out_name}\"" +
-#           " --input=\"#{tiff}\"" +
-#           " --qmlfile=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-#           " --width=2000 --height=2000 --autofit=true" +
-#           " --overlayinput=report/field_3857_2.geojson --overlayfillcolor=255,0,0,255"
-      cmd = "python agmap.py" +
-            " --maptype=aerial" +
-            " --output=\"#{out_name}\"" +
-            " --input=\"#{boundary_file}\"" +
-            " --inputbudget=\"#{tiff}\"" +
-            " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
-            " --qmlfileBudget=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-            " --width=2000 --height=2000 --autofit=false" #+
-           # " --margin=100"
-      # Set margin for the zone profit maps
-      cmd += cid =~ /_/ ? " --margin=100" : ""
-
-    if make_legend
-      cmd = cmd +
-            " --legendtype=profit" +
-            " --legendformat=png" +
-            " --legendfile=report/profit_legend.png"
-      make_legend = false
+    @log.info "Running binary"
+    yield_data = Extractors.run_binary(input)
+    if !yield_data
+      @log.fatal "Binary returned no yield data; exiting."
+      exit(1)
     end
 
-    @log.debug "\t#{out_name}"
-    @log.debug cmd
-    res = EZQ.exec_cmd(cmd)
-    if res.first
-      images << out_name
-    else
-      @log.error res.last
+    reproject_to_3857(input)
+
+    collect_boundaries(input)
+
+    make_maps(input)
+
+    reports = input['scenarios'].map do |scenario|
+      make_scenario_report(scenario,
+                           input['name'],
+                           input['get_area_in_acres'],
+                           yield_data)
     end
+
+    @log.info "Combining scenario reports into #{output_path}"
+    AgPdfUtils.stitch(reports,"#{output_path}.numless")
+
+    @log.info "Overlaying page numbers"
+    PageMakers.make_number_overlay(AgPdfUtils.get_num_pages("#{output_path}.numless"))
+    EZQ.exec_cmd("pdftk #{output_path}.numless multistamp report/page_numbers.pdf output #{output_path}.with_num")
+
+    @log.info "Building table of contents"
+    toc = PageMakers.make_toc(input,reports)
+
+    @log.info "Adding table of contents to report"
+    AgPdfUtils.stitch([toc, "#{output_path}.with_num"],output_path)
+
+    @log.info "Removing intermediate files"
+    cleanup(output_path)
   end
 
-  return images
-end
 
+  ####################################################################################
+  # Private interface from here on
+  protected
 
-
-def make_yield_map(input)
-  images = []
-
-  input['scenarios'].each do |scenario|
-    out_name = "report/#{scenario['id']}_yield.png"
-    boundary_file = "report/field_3857_#{scenario['id']}.geojson"
-    @log.debug boundary_file
-    cmd =  "python agmap.py" +
-           " --maptype=aerial" +
-           " --output=\"#{out_name}\"" +
-           " --input=\"#{boundary_file}\"" +
-           " --inputyield=\"report/#{scenario['id']}_yield.tiff\"" +
-           " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
-           " --width=2000 --height=2000 --autofit=false" +
-           #" --margin=-9999" +
-           " --legendtype=yield" +
-           " --legendformat=png" +
-           " --legendfile=report/#{scenario['id']}_yield_legend.png"
-    @log.info "Yield map: #{out_name}"
-    @log.debug cmd
-    res = EZQ.exec_cmd(cmd)
-    images << out_name if res.first
-    @log.error res.last if !res.first
+  # Prepares report dir by creating it and copying over files that have to
+  # be localized there.
+  # @return nil
+  def prep_report_dir
+    Dir.mkdir('report') if !Dir.exist?('report')
+    Dir.mkdir('cb_images') if !Dir.exist?('cb_images')
+    cp_if_not_exist('template/header.html','report/header.html')
+    cp_if_not_exist('template/pzm-header-10.png','report/pzm-header-10.png')
+    cp_if_not_exist('multido.sty','report/multido.sty')
+    cp_if_not_exist('multido.tex','report/multido.tex')
+    return nil
   end
 
-  return images
-end
 
 
-
-def make_profit_histograms(input)
-  histograms = []
-
-  Extractors.get_cids(input).each do |cid|
-    in_name = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif.3857.aux.xml" : "cb_images/#{cid}_cb.tif.3857.aux.xml"
-    out_name = "#{Dir.pwd()}/report/profit_hist_#{cid}.svg"
-    cmd = "ruby hist.rb #{in_name} #{out_name}"
-    @log.debug cmd
-    histograms << out_name if EZQ.exec_cmd(cmd)
+  # Returns a hash containing the path to every profit raster reference in
+  # input as the key, and the expected name of the 3857 re-projection of same
+  # as the value.
+  # @param [Hash] input Ruby Hash of the full JSON input
+  # @return [Hash]
+  def get_profit_raster_hash(input)
+    return Extractors.get_cids(input).map do |cid|
+      tiff = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif" : "cb_images/#{cid}_cb.tif"
+      [tiff,"#{tiff}.3857"]
+    end.to_h
   end
-  return histograms
-end
 
 
 
-def set_vars(scenario)
-  j = scenario
-  d = {}
-  d[:field_name] = j['field_name']
-  d[:field_area] = j['field_area']
-  d[:field_yield] = j['field_yield_value'] # We don't use this anymore.
-  d[:scenario_name] = j['name']
-  d[:scenario_id] = j['id']
-  d[:scenario_budget] = j['budget']
-  d[:zones] = j['management_zones']
-  d[:year] =  j.fetch('year',2040)
+  # Makes all profit maps required by the report
+  # @param [Hash] input Ruby Hash of the full JSON input
+  # @return [Array] List of all output image paths
+  def make_profit_maps(input)
+    images = []
+    make_legend = true
 
-  return d
-end
+    Extractors.get_cids(input).each do |cid|
+      out_name = "report/profit_map_#{cid}.png"
+      tiff = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif.3857" : "cb_images/#{cid}_cb.tif.3857"
+      boundary_file = "report/field_3857_#{cid.split('_').first}.geojson"
 
+      # Need to add DISPLAY=:0 back into this on AWS?
+        cmd = "python agmap.py" +
+              " --maptype=aerial" +
+              " --output=\"#{out_name}\"" +
+              " --input=\"#{boundary_file}\"" +
+              " --inputbudget=\"#{tiff}\"" +
+              " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+              " --qmlfileBudget=\"template/QMLFiles/Profitn500t500w100.qml\"" +
+              " --width=2000 --height=2000 --autofit=false"
 
-def make_maps(input)
-  @log.info "Making yield maps"
-  make_yield_map(input)
-  @log.info "Making profit maps"
-  make_profit_maps(input)
-  @log.info "Making profit histograms"
-  make_profit_histograms(input)
-end
+        # Set margin for the zone profit maps
+        cmd += cid =~ /_/ ? " --margin=100" : ""
 
+      if make_legend
+        cmd = cmd +
+              " --legendtype=profit" +
+              " --legendformat=png" +
+              " --legendfile=report/profit_legend.png"
+        make_legend = false
+      end
 
-def cleanup()
-  @log.info "cleanup"
-  #Delete contents of cb_images dir
-  #FileUtils.rm_r('cb_images/*')
+      @log.debug "\t#{out_name}"
+      @log.debug cmd
+      res = EZQ.exec_cmd(cmd)
+      if res.first
+        images << out_name
+      else
+        @log.error res.last
+      end
+    end
 
-  #Delete contents of web_development dir
-  #FileUtils.rm_r('web_development/*')
-
-  #Delete contents of report dir *except* for the finished reports
-  Dir.chdir('report')
-  to_del = Dir.entries(Dir.pwd).reject{|f| f =~ /_full_report\.pdf$/}
-  to_del = to_del - ['.','..','header.html','pzm-header-10.png','multido.sty','multido.tex']
-  to_del.each{|f| File.unlink(f)}
-  Dir.chdir('..')
-end
-
-
-
-def get_num_pages(filename)
-  return EZQ.exec_cmd("pdftk #{filename} dump_data").last.
-                select{|t| t =~ /^NumberOfPages/}.first.split(':').last.
-                  strip.to_i
-end
+    return images
+  end
 
 
 
-def cp_if_not_exist(src,dst)
-  FileUtils.cp(src,dst) if !File.exist?(dst)
-end
+  # Makes all yield maps (and yield legends) required by the report
+  # @param [Hash] input Ruby Hash of the full JSON input
+  # @return [Array] List of all output image paths
+  def make_yield_map(input)
+    images = []
+
+    input['scenarios'].each do |scenario|
+      out_name = "report/#{scenario['id']}_yield.png"
+      boundary_file = "report/field_3857_#{scenario['id']}.geojson"
+      @log.debug boundary_file
+      cmd =  "python agmap.py" +
+             " --maptype=aerial" +
+             " --output=\"#{out_name}\"" +
+             " --input=\"#{boundary_file}\"" +
+             " --inputyield=\"report/#{scenario['id']}_yield.tiff\"" +
+             " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
+             " --width=2000 --height=2000 --autofit=false" +
+             #" --margin=-9999" +
+             " --legendtype=yield" +
+             " --legendformat=png" +
+             " --legendfile=report/#{scenario['id']}_yield_legend.png"
+      @log.info "Yield map: #{out_name}"
+      @log.debug cmd
+      res = EZQ.exec_cmd(cmd)
+      images << out_name if res.first
+      @log.error res.last if !res.first
+    end
+
+    return images
+  end
 
 
 
-def prep_report_dir
-  Dir.mkdir('report') if !Dir.exist?('report')
-  Dir.mkdir('cb_images') if !Dir.exist?('cb_images')
-  cp_if_not_exist('template/header.html','report/header.html')
-  cp_if_not_exist('template/pzm-header-10.png','report/pzm-header-10.png')
-  cp_if_not_exist('multido.sty','report/multido.sty')
-  cp_if_not_exist('multido.tex','report/multido.tex')
-end
+  # Makes all profit histograms required by the report
+  # @param [Hash] input Ruby Hash of the full JSON input
+  # @return [Array] List of all output image paths
+  def make_profit_histograms(input)
+    histograms = []
+
+    Extractors.get_cids(input).each do |cid|
+      in_name = cid =~ /_/ ? "cb_images/#{cid}_zone_cb.tif.3857.aux.xml" : "cb_images/#{cid}_cb.tif.3857.aux.xml"
+      out_name = "#{Dir.pwd()}/report/profit_hist_#{cid}.svg"
+      cmd = "ruby hist.rb #{in_name} #{out_name}"
+      @log.debug cmd
+      histograms << out_name if EZQ.exec_cmd(cmd)
+    end
+    return histograms
+  end
 
 
-def init
-  @log = Logger.new(STDOUT)
-  @log.level = Logger::DEBUG
-
-  Extractors.set_logger(@log)
-  PageMakers.set_logger(@log)
-
-  Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test6')
-
-  @log.info "Preparing report dir"
-  prep_report_dir()
-
-  AWS.config(YAML.load_file('credentials.yml'))
-  return nil
-end
+  # Recipe that calls into each of the image-making functions
+  # in turn.
+  # @param [Hash] input Ruby Hash of the full JSON input
+  # @return nil
+  def make_maps(input)
+    @log.info "Making yield maps"
+    make_yield_map(input)
+    @log.info "Making profit maps"
+    make_profit_maps(input)
+    @log.info "Making profit histograms"
+    make_profit_histograms(input)
+    return nil
+  end
 
 
+  # Cleans up intermediate files downloaded or created in the course
+  # of building a report
+  # @return nil
+  def cleanup(output_path)
+    @log.info "cleanup"
 
-def reproject_to_3857(input)
-  @log.info "Reprojecting yield rasters into 3857"
-  Extractors.get_yield_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
-  @log.info "Reprojecting profit rasters into 3857"
-  get_profit_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
+    FileUtils.rm_r('cb_images/*')
+    FileUtils.rm_r('web_development/*')
 
-  @log.info "Reprojecting all boundaries into 3857"
-  Extractors.get_boundary_hash(input).each{|k,v| SeTransforms.reproject_boundaries("report/#{k}_3857.geojson",v)}
-  return nil
-end
+    # Delete contents of report dir *except* for the finished report
+    Dir.chdir('report')
+    # Assumes there's no extra path depth on output_path....
+    to_del = Dir.entries(Dir.pwd).reject{|f| f == File.basename(output_path)}
+    to_del = to_del - ['.','..','header.html','pzm-header-10.png','multido.sty','multido.tex']
+    to_del.each{|f| File.unlink(f)}
+    Dir.chdir('..')
+
+    # Bing stuff is written to same dir the agmap.py script lives in.
+    bing_images = Dir.entries(Dir.pwd).select{|f| f =~ /(^L|^midL).+(\.png|\.tiff|\.xml)/}
+    bing_images.each{|f| File.unlink(f)}
+
+    return nil
+  end
 
 
-def collect_boundaries(input)
-  # Form up a geojson containing the field boundaries as well as all the
+
+  # Copies file src to dest iff dst does not exist
+  # @return nil
+  def cp_if_not_exist(src,dst)
+    FileUtils.cp(src,dst) if !File.exist?(dst)
+    return nil
+  end
+
+
+
+  # Reprojects all (necessary) rasters and geojson referenced in the input
+  # @param [Hash] Ruby Hash of full JSON input
+  # @return nil
+  def reproject_to_3857(input)
+    @log.info "Reprojecting yield rasters into 3857"
+    Extractors.get_yield_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
+    @log.info "Reprojecting profit rasters into 3857"
+    get_profit_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
+
+    @log.info "Reprojecting all boundaries into 3857"
+    Extractors.get_boundary_hash(input).each{|k,v| SeTransforms.reproject_boundaries("report/#{k}_3857.geojson",v)}
+    return nil
+  end
+
+
+
+  # Forms up a geojson containing the field boundaries as well as all the
   # zone boundaries for each scenario
-  @log.info "Collecting boundaries"
-  input['scenarios'].each do |scenario|
-    outname = "report/field_3857_#{scenario['id']}.geojson"
-    if scenario.fetch('management_zones',[]).size > 0
-        SeTransforms.collect_coords('report/field_3857.geojson',
-          scenario['management_zones'].map{|z| "report/#{scenario['id']}_#{z['id']}_3857.geojson"},
-          outname)
-    else
-      FileUtils.cp('report/field_3857.geojson', outname)
+  # @param input [Hash] Ruby Hash of full JSON input
+  # @return nil
+  def collect_boundaries(input)
+    @log.info "Collecting boundaries"
+    input['scenarios'].each do |scenario|
+      outname = "report/field_3857_#{scenario['id']}.geojson"
+      if scenario.fetch('management_zones',[]).size > 0
+          SeTransforms.collect_coords('report/field_3857.geojson',
+            scenario['management_zones'].map{|z| "report/#{scenario['id']}_#{z['id']}_3857.geojson"},
+            outname)
+      else
+        FileUtils.cp('report/field_3857.geojson', outname)
+      end
     end
-  end
-  return nil
-end
-
-
-
-def make_scenario_report(scenario,name,area,yield_data)
-  # Add the field name and area into the top level of each scenario since
-  # those values are needed for display in a few different places.
-  scenario['field_name'] = name
-  scenario['field_area'] = area
-  d = set_vars(scenario)
-  d[:field_avg_yield] = yield_data[scenario['id']][:avg]
-  d[:nz_yield] = yield_data[scenario['id']][:nz]
-
-  pdfs = []
-  pdfs << PageMakers.make_yield_data(d)
-  #pdfs << PageMakers.make_applied_fertilizer(d)
-  #pdfs << PageMakers.make_applied_planting(d)
-  #pdfs << PageMakers.make_yield_by_soil(d)
-  pdfs << PageMakers.make_overall_profit(d)
-  pdfs << PageMakers.make_overall_revenue_and_expenses(d)
-
-  scenario['management_zones'].each do |mz|
-    pdfs << PageMakers.make_zone_profit(d,mz)
-    pdfs << PageMakers.make_revenue_and_expenses_with_zones(d,mz)
-  end
-
-  report_name = "report/#{scenario['id']}_report.pdf"
-
-  # Stitch the report pieces into one pdf
-  @log.info "Combining pieces for #{report_name}"
-  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{pdfs.join(' ')}")
-
-  # Reject blank pages in the pdf. Set option :y to the same number as
-  # .logo{max-height} from main.css.
-  @log.info "Removing blank pages"
-  RemoveBlankPages.remove(report_name,{:y=>100})
-
-  return report_name
-end
-
-
-def run
-  # This is just for development in LightTable, since somehow my path gets munged:
-  Dir.chdir('/home/penn/EZQ/pzm_reportmaker')
-
-  get_reqs()
-
-  init()
-
-  base_name = '47'
-  input = JSON.parse(File.read("#{base_name}.json"));
-
-
-  @log.info "Getting files from S3"
-#   Extractors.get_files(input)
-
-  @log.info "Running binary"
-  yield_data = Extractors.run_binary(input)
-  if !yield_data
-    @log.fatal "Binary returned no yield data; exiting."
-    exit(1)
-  end
-
-  reproject_to_3857(input)
-
-  collect_boundaries(input)
-
-  make_maps(input)
-
-  reports = input['scenarios'].map do |scenario|
-    make_scenario_report(scenario,
-                         input['name'],
-                         input['get_area_in_acres'],
-                         yield_data)
+    return nil
   end
 
 
-  # Stitch all the scenario reports into a single big report
-  # Might need to add a job id into this naming scheme?
-  report_name = "report/#{base_name}_full_report.pdf"
-  @log.info "Combining scenario reports into #{report_name}"
-  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name}.numless #{reports.join(' ')}")
 
-  @log.info "Making page number overlay"
-  PageMakers.make_number_overlay(get_num_pages("#{report_name}.numless"))
+  # Makes the report (piece) for a single scenario
+  # @parm [Hash] scenario Ruby Hash of a single scenario
+  # @param [String] name Field name
+  # @param [Float] area Field area in acres
+  # @param [Hash] yield_data Hash of yield data as returned by the binary
+  #               6k_pzm_report
+  # @return [String] Name of created report
+  def make_scenario_report(scenario,name,area,yield_data)
+    scenario['field_name'] = name
+    scenario['field_area'] = area
+    d = {}
+    d[:field_name] = scenario['field_name']
+    d[:field_area] = scenario['field_area']
+    #d[:field_yield] = scenario['field_yield_value'] # We don't use this anymore.
+    d[:scenario_name] = scenario['name']
+    d[:scenario_id] = scenario['id']
+    d[:scenario_budget] = scenario['budget']
+    d[:zones] = scenario['management_zones']
+    d[:year] =  scenario.fetch('year',2040)
+    d[:field_avg_yield] = yield_data[scenario['id']][:avg]
+    d[:nz_yield] = yield_data[scenario['id']][:nz]
 
-  @log.info "Overlaying page numbers"
-  #FileUtils.mv(report_name,"#{report_name}.in")
-  EZQ.exec_cmd("pdftk #{report_name}.numless multistamp report/page_numbers.pdf output #{report_name}.with_num")
+    pdfs = []
+    pdfs << PageMakers.make_yield_data(d)
+    #pdfs << PageMakers.make_applied_fertilizer(d)
+    #pdfs << PageMakers.make_applied_planting(d)
+    #pdfs << PageMakers.make_yield_by_soil(d)
+    pdfs << PageMakers.make_overall_profit(d)
+    pdfs << PageMakers.make_overall_revenue_and_expenses(d)
 
-  @log.info "Building table of contents"
-  toc = PageMakers.make_toc(input,reports)
+    scenario['management_zones'].each do |mz|
+      pdfs << PageMakers.make_zone_profit(d,mz)
+      pdfs << PageMakers.make_revenue_and_expenses_with_zones(d,mz)
+    end
 
-  @log.info "Adding table of contents to report"
-  EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{report_name} #{toc} #{report_name}.with_num")
+    report_name = "report/#{scenario['id']}_report.pdf"
 
-  #cleanup()
-end
+    @log.info "Combining pieces for #{report_name}"
+    AgPdfUtils.stitch(pdfs,report_name)
 
-run
+    # Set option :y to the same number as .logo{max-height} from main.css.
+    @log.info "Removing blank pages"
+    RemoveBlankPages.remove(report_name,{:y=>100})
+
+    return report_name
+  end
+
+
+end #class

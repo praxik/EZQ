@@ -5,6 +5,8 @@
 # Functions in this file should not produce side-effects that are used
 # elsewhere.
 
+require 'set'
+require 'logger'
 
 module Extractors
 
