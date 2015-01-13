@@ -9,9 +9,8 @@ require_relative './number_formatters'
 
 module AgPdfUtils
 
-  # Give templates access to number formatters without having to
-  # qualify the module name at every invocation.
-  include NumberFormatters
+  # Give templates direct access to number formatters
+  extend NumberFormatters
 
 
 
@@ -92,7 +91,7 @@ module AgPdfUtils
   # @param output_name [String] Name to use for stitched file
   # @return [Bool] True if successful; false otherwise
   def self.stitch(in_files,output_name)
-    res = EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{output_name_name} #{in_files.join(' ')}")
+    res = EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{output_name} #{in_files.join(' ')}")
     @log.error "stitch error: #{res.last}" if !res.first
     return res.first
   end
