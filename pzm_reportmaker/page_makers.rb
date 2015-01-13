@@ -143,7 +143,7 @@ def self.make_toc(input,reports)
   field_name = input['name']
   scenario_names = input['scenarios'].map{|s| s['name']}
   scenario_years = input['scenarios'].map{|s| s['year'].to_s}
-  start_pages = reports.map{|f| get_num_pages(f)}.
+  start_pages = reports.map{|f| AgPdfUtils.get_num_pages(f)}.
                 reduce([1]){|acc,pgs| acc += acc.last ? [acc.last + pgs] : [pgs]}.
                 map{|p| p.to_s}
   tokens = Array.new(scenario_names.size,field_name).zip(scenario_names,scenario_years,start_pages)
