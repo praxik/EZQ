@@ -4,7 +4,7 @@ require 'json'
 require 'yaml'
 require 'logger'
 require 'fileutils'
-require '../ezqlib'
+require './ezqlib'
 require_relative './remove_blank_pages'
 require_relative './extractors'
 require_relative './side_effect_transforms'
@@ -28,8 +28,6 @@ class PzmReportmaker
 
     Extractors.set_logger(@log)
     PageMakers.set_logger(@log)
-
-    Dir.chdir('/home/penn/EZQ/pzm_reportmaker/test6')
 
     @log.info "Preparing report dir"
     prep_report_dir()
@@ -243,8 +241,8 @@ class PzmReportmaker
   def cleanup(output_path)
     @log.info "cleanup"
 
-    FileUtils.rm_r('cb_images/*')
-    FileUtils.rm_r('web_development/*')
+    FileUtils.rm_r('cb_images') if Dir.exist?('cb_images')
+    FileUtils.rm_r('web_development') if Dir.exist?('web_development')
 
     # Delete contents of report dir *except* for the finished report
     Dir.chdir('report')

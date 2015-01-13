@@ -1,11 +1,14 @@
 #!/usr/bin/env ruby
 
+require 'bundler/setup'
 require 'optparse'
+require './dual_log'
+require_relative './pzm_reportmaker'
 
 quiet = false
 creds_file = 'credentials.yml'
 severity = 'info'
-token = nil
+loggly_token = nil
 loggly_severity = 'info'
 app_name = 'pzm_report'
 log_file = STDOUT
@@ -94,7 +97,7 @@ begin
     exit(1)
   end
 
-  output_report = "#{job_id}_report.pdf"
+  output_report = "report/#{job_id}_report.pdf"
   PzmReportmaker.new(credentials,log).make_report(json_file,output_report)
 
 # Handle Ctrl-C gracefully
