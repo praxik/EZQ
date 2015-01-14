@@ -31,11 +31,13 @@ ami_map:
   pregrid_ISU:        'ami-2a354042'
   pregrid_IN:         'ami-2a354042'
   # Linux
-  reporthandler:  'ami-f4419c9c'
-  aggregator:     'ami-f4419c9c'
+  reporthandler:  'ami-ba6518d2'
+  aggregator:     'ami-ba6518d2'
   aggregator_r2:  'ami-2e44c546' #'ami-f4419c9c'
-  errorhandler:   'ami-f4419c9c'
-  builder:        'ami-f4419c9c'
+  errorhandler:   'ami-ba6518d2'
+  builder:        'ami-ba6518d2'
+  pzm_report_dev: 'ami-ba6518d2'
+  linux_base:     'ami-ba6518d2'
 
 spot_subnets:
   - subnet-b2f1ff9a # spot-1
@@ -96,6 +98,11 @@ security:
     security_groups: ['dev-base','dev-kibitz-worker']
 
   worker_pzm_md_dev_long:
+    vpc_id: 'vpc-e894b787'
+    vpc_subnet: 'subnet-fc94b793'
+    security_groups: ['dev-base','dev-kibitz-worker']
+    
+  pzm_report_dev:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-fc94b793'
     security_groups: ['dev-base','dev-kibitz-worker']
@@ -165,6 +172,10 @@ launch_settings:
   worker_pzm_md_dev_long:
     size: 't2.medium'
     bill_to: 'PZM'
+    
+  pzm_report_dev:
+    size: 't2.micro'
+    bill_to: 'PZM'
 
   worker_pzm_md_prod:
     size: 't2.medium'
@@ -187,6 +198,10 @@ launch_settings:
 
   errorhandler:
     size: 't1.micro'
+    bill_to: 'EZQ-6k_dev'
+    
+  linux_base:
+    size: 't2.micro'
     bill_to: 'EZQ-6k_dev'
 
 # The information in this section is used to populate the userdata on
@@ -339,6 +354,16 @@ userdata:
     receive_queue_name: "roi_long_job_web_development"
     error_queue_name: "roi_error_web_development"
     result_queue_name: "roi_results_web_development"
+    
+  pzm_report_dev:
+    deploy_key: arks/default/pzm_reportmaker.zip
+    number_of_processes: 1
+    s3_bucket: web_development
+    app_name: "pzm_report.processor"
+    use_instance_store: false
+    receive_queue_name: "roi_report_web_development"
+    error_queue_name: "roi_error_web_development"
+    result_queue_name: "roi_report_result_test"
 
   worker_pzm_md_prod:
     deploy_key: arks/default/md_worker_prod.zip
