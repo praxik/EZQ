@@ -291,7 +291,7 @@ module EZQ
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
   # @return [Thread] Returns a handle to a Thread. You should ensure that
-  #                  Thread#join is called on this thread before existing your
+  #                  Thread#join is called on this thread before exiting your
   #                  application.
   def self.send_file_to_s3_async( filename,bucket,key )
     return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k,@log) }
