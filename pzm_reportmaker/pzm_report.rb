@@ -28,7 +28,7 @@ rescue
 end
 
 op = OptionParser.new do |opts|
-  opts.banner = "Usage: pzm_report.rb [options] JSON_FILE JOB_ID"
+  opts.banner = "Usage: pzm_report.rb [options] JSON_FILE"
 
   opts.on("-q", "--quiet", "Run quietly") do |q|
     quiet = q
@@ -97,17 +97,16 @@ begin
   end
 
   json_file = ARGV.shift
-  job_id = ARGV.shift
 
   if !json_file
     @log.fatal "No input json file given. Aborting."
     exit(1)
   end
 
-  if !job_id
-    @log.fatal "No job_id given. Aborting."
-    exit(1)
-  end
+  json = JSON.parse(File.read(json_file))
+  eid = json.fetch('enterprise_id','000')
+  fid = json.fetch('id','000')
+  job_id = "#{eid}_#{fid}"
 
   report_fname = "#{job_id}_report.pdf"
   output_report = "report/#{report_fname}"
