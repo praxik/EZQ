@@ -361,8 +361,8 @@ userdata:
     s3_bucket: web_development
     app_name: "pzm_report.processor"
     use_instance_store: false
-    report_bucket = "roi.agsolver"
-    report_key_base = "web_development/reports"
+    report_bucket: "roi.agsolver"
+    report_key_base: "web_development/reports"
     receive_queue_name: "roi_report_web_development"
     error_queue_name: "roi_error_web_development"
     result_queue_name: "roi_report_result_test"
