@@ -31,13 +31,13 @@ ami_map:
   pregrid_ISU:        'ami-2a354042'
   pregrid_IN:         'ami-2a354042'
   # Linux
-  reporthandler:  'ami-ba6518d2'
-  aggregator:     'ami-ba6518d2'
+  reporthandler:  'ami-8eacd1e6'
+  aggregator:     'ami-8eacd1e6'
   aggregator_r2:  'ami-2e44c546' #'ami-f4419c9c'
-  errorhandler:   'ami-ba6518d2'
-  builder:        'ami-ba6518d2'
-  pzm_report_dev: 'ami-ba6518d2'
-  linux_base:     'ami-ba6518d2'
+  errorhandler:   'ami-8eacd1e6'
+  builder:        'ami-8eacd1e6'
+  pzm_report_dev: 'ami-8eacd1e6'
+  linux_base:     'ami-8eacd1e6'
 
 spot_subnets:
   - subnet-b2f1ff9a # spot-1
@@ -361,6 +361,8 @@ userdata:
     s3_bucket: web_development
     app_name: "pzm_report.processor"
     use_instance_store: false
+    report_bucket = "roi.agsolver"
+    report_key_base = "web_development/reports"
     receive_queue_name: "roi_report_web_development"
     error_queue_name: "roi_error_web_development"
     result_queue_name: "roi_report_result_test"
