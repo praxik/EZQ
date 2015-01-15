@@ -2,8 +2,12 @@
 
 require 'bundler/setup'
 require 'optparse'
+require 'json'
+require 'yaml'
 require './dual_log'
 require_relative './pzm_reportmaker'
+require_relative './ezqlib'
+
 
 quiet = false
 creds_file = 'credentials.yml'
@@ -14,6 +18,14 @@ app_name = 'pzm_report'
 log_file = STDOUT
 json_file = nil
 job_id = nil
+
+begin
+  userdata = YAML.load_file('userdata.yml')
+  loggly_token = userdata.fetch('loggly_token','')
+  s3_bucket = userdata['report_bucket']
+  s3_key_base = userdata['report_key_base']
+rescue
+end
 
 op = OptionParser.new do |opts|
   opts.banner = "Usage: pzm_report.rb [options] JSON_FILE JOB_ID"
@@ -97,8 +109,17 @@ begin
     exit(1)
   end
 
-  output_report = "report/#{job_id}_report.pdf"
+  report_fname = "#{job_id}_report.pdf"
+  output_report = "report/#{report_fname}"
   PzmReportmaker.new(credentials,log).make_report(json_file,output_report)
+
+  s3_key = "#{s3_key_base}/#{report_fname}"
+  EZQ.send_file_to_s3(output_report, s3_bucket, s3_key)
+
+  # Result message for EZQ::Processor to pick up
+  result = {"worker_succeeded"=>true,
+            "pdf_report"=>s3_key}
+  Filewrite("output_#{job_id}.txt",result.to_json)
 
 # Handle Ctrl-C gracefully
 rescue Interrupt
