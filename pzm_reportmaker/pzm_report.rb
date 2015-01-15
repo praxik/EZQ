@@ -28,7 +28,10 @@ rescue
 end
 
 op = OptionParser.new do |opts|
-  opts.banner = "Usage: pzm_report.rb [options] JSON_FILE"
+  opts.banner = "Usage: pzm_report.rb [options] JSON_FILE MSG_ID"
+  # JSON_FILE is the input JSON containing scenarios, budgets, etc.
+  # MSG_ID is the EZQ message id for this task. It's needed so we can
+  # write out the correct filename for EZQ to send to result queue.
 
   opts.on("-q", "--quiet", "Run quietly") do |q|
     quiet = q
@@ -98,8 +101,15 @@ begin
 
   json_file = ARGV.shift
 
+  msg_id = ARGV.shift
+
   if !json_file
     @log.fatal "No input json file given. Aborting."
+    exit(1)
+  end
+
+  if !msg_id
+    @log.fatal "No message id given. Aborting."
     exit(1)
   end
 
@@ -118,7 +128,7 @@ begin
   # Result message for EZQ::Processor to pick up
   result = {"worker_succeeded"=>true,
             "pdf_report"=>s3_key}
-  Filewrite("output_#{job_id}.txt",result.to_json)
+  File.write("output_#{msg_id}.txt",result.to_json)
 
 # Handle Ctrl-C gracefully
 rescue Interrupt
