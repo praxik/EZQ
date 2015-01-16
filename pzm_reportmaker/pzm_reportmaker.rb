@@ -142,7 +142,7 @@ class PzmReportmaker
               " --inputbudget=\"#{tiff}\"" +
               " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
               " --qmlfileBudget=\"template/QMLFiles/Profitn500t500w100.qml\"" +
-              " --width=1000 --height=1000 --autofit=false"
+              " --width=630 --height=630 --autofit=false"
 
         # Set margin for the zone profit maps
         cmd += cid =~ /_/ ? " --margin=100" : ""
@@ -186,7 +186,7 @@ class PzmReportmaker
              " --input=\"#{boundary_file}\"" +
              " --inputyield=\"report/#{scenario['id']}_yield.tiff\"" +
              " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
-             " --width=1000 --height=1000 --autofit=false" +
+             " --width=630 --height=630 --autofit=false" +
              #" --margin=-9999" +
              " --legendtype=yield" +
              " --legendformat=png" +
