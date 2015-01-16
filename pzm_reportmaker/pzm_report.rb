@@ -127,7 +127,8 @@ begin
 
   # Result message for EZQ::Processor to pick up
   result = {"worker_succeeded"=>true,
-            "pdf_report"=>s3_key}
+            "pdf_report"=>s3_key,
+            "type"=>"report"}
   File.write("output_#{msg_id}.txt",result.to_json)
 
 # Handle Ctrl-C gracefully

@@ -80,6 +80,7 @@ if !json_doc.fetch('year',false) or !json_doc.fetch('report_record_id',false)
     result_message['errors'] = errors
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
+    result_message['type'] = 'md'
 
     File.write(output_file,result_message.to_json)
     exit(0)
@@ -99,6 +100,7 @@ rescue Exception => e
     result_message['errors'] = 'The field boundary file is invalid\n'
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
+    result_message['type'] = 'md'
     log.error 'The field boundary file is invalid\n'
 
     File.write(output_file,result_message.to_json)
@@ -209,6 +211,7 @@ if exit_status.zero?
     result_message = {}
     result_message['report_record_id'] = report_record_id
     result_message['worker_succeeded'] = !has_errors
+    result_message['type'] = 'md'
 
     results_tags.each do |results|
         tag,value = results.split(',').map{|s| s.strip}
