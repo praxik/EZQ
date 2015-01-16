@@ -36,8 +36,8 @@ ami_map:
   aggregator_r2:  'ami-2e44c546' #'ami-f4419c9c'
   errorhandler:   'ami-8eacd1e6'
   builder:        'ami-8eacd1e6'
-  pzm_report_dev: 'ami-8eacd1e6'
-  linux_base:     'ami-8eacd1e6'
+  pzm_report_dev: 'ami-b06519d8' # Paravirtual image
+  linux_base:     'ami-8eacd1e6' # HVM image
 
 spot_subnets:
   - subnet-b2f1ff9a # spot-1
@@ -174,7 +174,7 @@ launch_settings:
     bill_to: 'PZM'
     
   pzm_report_dev:
-    size: 't2.micro'
+    size: 't1.micro'
     bill_to: 'PZM'
 
   worker_pzm_md_prod:
