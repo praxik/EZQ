@@ -101,7 +101,7 @@ security:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-fc94b793'
     security_groups: ['dev-base','dev-kibitz-worker']
-    
+
   pzm_report_dev:
     vpc_id: 'vpc-e894b787'
     vpc_subnet: 'subnet-fc94b793'
@@ -172,7 +172,7 @@ launch_settings:
   worker_pzm_md_dev_long:
     size: 't2.medium'
     bill_to: 'PZM'
-    
+
   pzm_report_dev:
     size: 't1.micro'
     bill_to: 'PZM'
@@ -199,7 +199,7 @@ launch_settings:
   errorhandler:
     size: 't1.micro'
     bill_to: 'EZQ-6k_dev'
-    
+
   linux_base:
     size: 't2.micro'
     bill_to: 'EZQ-6k_dev'
@@ -354,7 +354,7 @@ userdata:
     receive_queue_name: "roi_long_job_web_development"
     error_queue_name: "roi_error_web_development"
     result_queue_name: "roi_results_web_development"
-    
+
   pzm_report_dev:
     deploy_key: arks/default/pzm_reportmaker.zip
     number_of_processes: 1
@@ -365,7 +365,7 @@ userdata:
     report_key_base: "web_development/reports"
     receive_queue_name: "roi_report_web_development"
     error_queue_name: "roi_error_web_development"
-    result_queue_name: "roi_report_result_test"
+    result_queue_name: "roi_results_web_development"
 
   worker_pzm_md_prod:
     deploy_key: arks/default/md_worker_prod.zip
