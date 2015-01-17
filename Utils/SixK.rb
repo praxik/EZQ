@@ -217,6 +217,7 @@ class SixK
     name = "#{type}" if name.empty?
     ec2 = AWS::EC2.new
     instances.each do |inst|
+      while !inst.exists? do sleep(2) end
       ec2.tags.create(inst, 'Name', :value => name)
       ec2.tags.create(inst, 'Type', :value => type)
       ec2.tags.create(inst, 'bill_to', :value => billing_tag)
