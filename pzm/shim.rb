@@ -80,6 +80,8 @@ if !json_doc.fetch('year',false) or !json_doc.fetch('report_record_id',false)
     result_message['errors'] = errors
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
+    result_message['9m_tiff_raster'] = ''
+    result_message['3m_tiff_raster'] = ''
     result_message['type'] = 'md'
 
     File.write(output_file,result_message.to_json)
@@ -100,6 +102,8 @@ rescue Exception => e
     result_message['errors'] = 'The field boundary file is invalid\n'
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
+    result_message['9m_tiff_raster'] = ''
+    result_message['3m_tiff_raster'] = ''
     result_message['type'] = 'md'
     log.error 'The field boundary file is invalid\n'
 
@@ -220,6 +224,8 @@ if exit_status.zero?
 
     result_message['tiff_raster'] = ''
     result_message['json_raster'] = ''
+    result_message['9m_tiff_raster'] = ''
+    result_message['3m_tiff_raster'] = ''
     if has_errors
         result_message['errors'] = errors.join("\n")
     else
@@ -227,6 +233,10 @@ if exit_status.zero?
         result_message['tiff_raster'] = key
         bucket,key = already_pushed[1].split(',').map{|s| s.strip}
         result_message['json_raster'] = key
+        bucket,key = already_pushed[0].split(',').map{|s| s.strip}
+        result_message['9m_tiff_raster'] = key
+        bucket,key = already_pushed[2].split(',').map{|s| s.strip}
+        result_message['3m_tiff_raster'] = key
     end
 
     if has_warnings
