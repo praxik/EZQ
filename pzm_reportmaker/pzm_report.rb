@@ -32,6 +32,8 @@ op = OptionParser.new do |opts|
   # JSON_FILE is the input JSON containing scenarios, budgets, etc.
   # MSG_ID is the EZQ message id for this task. It's needed so we can
   # write out the correct filename for EZQ to send to result queue.
+  # INPUT_FILE is the EZQ message, which contains other data needed to
+  # correctly process the report.
 
   opts.on("-q", "--quiet", "Run quietly") do |q|
     quiet = q
@@ -116,8 +118,8 @@ begin
   end
 
   if !input_file
-      @log.fatal "No input json element provided from the web app. Aborting."
-      exit(1)
+    @log.fatal "No input json element provided from the web app. Aborting."
+    exit(1)
   end
 
   json = JSON.parse(File.read(json_file))
@@ -141,7 +143,7 @@ begin
   result = {"worker_succeeded"=>true,
             "pdf_report"=>s3_key,
             "type"=>"report",
-            "report_record_id"=>report_record_id}
+            "report_record_id"=>report_id}
   File.write("output_#{msg_id}.txt",result.to_json)
 
 # Handle Ctrl-C gracefully
