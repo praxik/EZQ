@@ -19,7 +19,7 @@ module AgPdfUtils
   # @param [Logger] logger A Ruby Logger.
   # @return [Logger] The same logger you passed in, allowing you to chain
   #                   this with other log setter functions.
-  def self.set_logger(logger)
+  def AgPdfUtils.set_logger(logger)
     @log = logger
     return logger
   end
@@ -33,7 +33,7 @@ module AgPdfUtils
   #                        applied to every page in the pdf. Defaults to
   #                        +header.html+
   # @return [String] Name of generated pdf.
-  def self.html_to_pdf(html,header='header.html')
+  def AgPdfUtils.html_to_pdf(html,header='header.html')
     # We must cd into the dir containing the html to allow relative file
     # references in the html to work as expected
     pwd = Dir.pwd()
@@ -68,7 +68,7 @@ module AgPdfUtils
   # @param [String] out_file Path to ouput html file, eg.
   #                         +"output/cool_stuff.html"+
   # @return [String] The value passed in as parameter +out_file+
-  def self.generate_html(d,in_file,out_file)
+  def AgPdfUtils.generate_html(d,in_file,out_file)
     @log.info "Generating #{out_file}" if @log
     out_file = File.absolute_path(out_file)
     pwd = Dir.pwd()
@@ -90,7 +90,7 @@ module AgPdfUtils
   # @param in_files [Array(String)] Files to stitch together
   # @param output_name [String] Name to use for stitched file
   # @return [Bool] True if successful; false otherwise
-  def self.stitch(in_files,output_name)
+  def AgPdfUtils.stitch(in_files,output_name)
     res = EZQ.exec_cmd("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=#{output_name} #{in_files.join(' ')}")
     @log.error "stitch error: #{res.last}" if !res.first
     return res.first
@@ -102,7 +102,7 @@ module AgPdfUtils
   # @param [String] filename PDF to examine
   # @return [Integer] Number of pages in the PDF. Returns 0 if PDF
   #                    does not exist.
-  def self.get_num_pages(filename)
+  def AgPdfUtils.get_num_pages(filename)
     if File.exist?(filename)
       res = EZQ.exec_cmd("pdftk #{filename} dump_data")
       if res.first
