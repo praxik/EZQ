@@ -144,7 +144,7 @@ if __FILE__ == $0
   ed = vars[1] ? vars[1] : '2014-08-31'
   cc = vars[2] ? vars[2] :  20
 
-  aoi = vars[3] ? vars[3] : 'field_Voight_10_1415115678.geojson'
+  aoi = vars[3] ? vars[3] : 'test_aoi.geojson'
 
   # Voight North
 #   xm = vars[3] ? vars[3] : -92.880077
