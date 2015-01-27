@@ -443,5 +443,5 @@ userdata:
     app_name: "errorhandler.processor"
    
   landsat:
-    deploy_key: bin_xfer/landsat.zip
+    deploy_key: arks/default/landsat.zip
     app_name: "landsat.processor"
