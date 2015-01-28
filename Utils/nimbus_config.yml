@@ -447,4 +447,5 @@ userdata:
     app_name: "landsat.processor"
     receive_queue_name: landsat_worker
     error_queue_name: landsat_error
+    result_queue_name: landsat_result
 

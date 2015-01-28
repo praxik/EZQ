@@ -28,7 +28,7 @@ polling_options:
 # none, post_to_result_queue
 result_step: post_to_result_queue
 
-result_queue_name: "roi_report_result_test"
+result_queue_name: "landsat_result"
 
 # (true/false)
 compress_result_message: false
