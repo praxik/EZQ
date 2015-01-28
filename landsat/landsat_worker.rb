@@ -1,6 +1,5 @@
 require 'logger'
 
-require_relative './landsat_scene_finder'
 require_relative './link_scraper'
 require_relative './scene_getter'
 require_relative './create_images'
@@ -8,44 +7,17 @@ require_relative './ezqlib'
 
 
 
-# Test data
-# =========
-aoi = 'test_aoi.geojson'
-cloud_cover = 20
-start_date = '2014-01-01'
-end_date ='2014-09-01'
-
-
-
-
-
-# This part will happen on the wep app side
-# =========================================
-puts "Querying for scenes..."
-scenes = LsSceneFinder.find_scenes(start_date,end_date,cloud_cover,aoi)
-puts "Found #{scenes.size} scenes"
-# The selected scene_id will be sent to the landsat worker
-scene_id_from_webapp = scenes.last[:sceneID]
-puts "Choosing scene: #{scene_id_from_webapp}"
-
-
-
-
-
-# Landsat worker begins here
-# ==========================
-
 class LandsatWorker
 
 
   def initialize
-    AWS.config(YAML.load_file('credentials.yml'))
     @log = Logger.new(STDOUT)
     @log.level = Logger::INFO
   end
 
 
-
+  # Processes the scene referenced by scene_id to generate NDVIs
+  # related to the region specified in aoi_file
   def process_scene(scene_id,aoi_file)
     scene_file = "#{scene_id}.tar.gz"
     bucket = 'landsat.agsolver'
@@ -142,11 +114,3 @@ class LandsatWorker
 
 
 end
-
-# This bit will be replaced by a commandline setup
-# so that this script can be set up as the process_command
-# for EZQ::Processor
-# Penn, don't forget to invoke this as
-# ruby -I . script_name.rb
-# to account for the load_path needed for the leaf wrappers
-LandsatWorker.new.process_scene(scene_id_from_webapp,aoi)
