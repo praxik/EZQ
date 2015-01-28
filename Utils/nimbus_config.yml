@@ -37,7 +37,7 @@ ami_map:
   errorhandler:   'ami-8eacd1e6'
   builder:        'ami-8eacd1e6'
   pzm_report_dev: 'ami-b06519d8' # Paravirtual image
-  landsat:        'ami-8eacd1e6'
+  landsat:        'ami-b06519d8'
   linux_base:     'ami-8eacd1e6' # HVM image
 
 spot_subnets:
@@ -202,7 +202,7 @@ launch_settings:
     bill_to: 'EZQ-6k_dev'
     
   landsat:
-    size: 't2.micro'
+    size: 'm1.small'
     bill_to: 'EZQ-6k_dev'
 
   linux_base:
