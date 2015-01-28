@@ -445,3 +445,6 @@ userdata:
   landsat:
     deploy_key: arks/default/landsat.zip
     app_name: "landsat.processor"
+    receive_queue_name: landsat_worker
+    error_queue_name: landsat_error
+
