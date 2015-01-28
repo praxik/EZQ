@@ -28,7 +28,8 @@ module LsSceneFinder
                                  aoi_file = '' )
 
     wkid = extract_wkid(aoi_file)
-    [xmin,ymin,xmax,ymax] = get_bbox(aoi_file)
+    xmin,ymin,xmax,ymax = get_bbox(aoi_file)
+    puts "Bbox = #{xmin}, #{ymin}, #{xmax}, #{ymax}, #{wkid}"
     response = get_json(start_date,end_date,cloud_cover,xmin,xmax,ymin,ymax,wkid)
     raise(response.message) if response.code != '200'
     return extract(response.body)
@@ -39,7 +40,7 @@ module LsSceneFinder
   private
 
 
-  def extract_wkid(file)
+  def LsSceneFinder.extract_wkid(file)
     j = JSON.parse(File.read(file))
     crs = j.fetch('crs',nil)
     return 4326 if !crs
@@ -49,9 +50,11 @@ module LsSceneFinder
 
 
 
-  def get_bbox(file)
-    cmd = "ogrinfo -al -so -ro #{file} | grep Extent"
-    extent = EZQ.exec_cmd(cmd)
+  def LsSceneFinder.get_bbox(file)
+    # Ensure we use out internally packaged version of ogrinfo
+    cmd = "./ogrinfo -al -so -ro #{file} | grep Extent"
+    extent = EZQ.exec_cmd(cmd).last.first
+    puts extent
 
     # extent contains a string like this:
     # Extent: (-92.880077, 43.269621) - (-92.870378, 43.274183)

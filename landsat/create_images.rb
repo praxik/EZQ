@@ -3,7 +3,7 @@ require_relative './leaf_wrapper_gis_landsat_ruby'
 
 module NDVI
 
-  include Leaf_wrapper_gis_landsat_ruby
+  extend Leaf_wrapper_gis_landsat_ruby
 
 
   # Creates an NDVI of an Area of Interest (aoi) from a LandsatLook
