@@ -1,4 +1,5 @@
 require 'logger'
+require 'sys/filesystem'
 
 require_relative './link_scraper'
 require_relative './scene_getter'
@@ -13,6 +14,7 @@ class LandsatWorker
   def initialize
     @log = Logger.new(STDOUT)
     @log.level = Logger::INFO
+    @mru_file = 'scene_mru.yml'
   end
 
 
@@ -28,6 +30,7 @@ class LandsatWorker
       fetch_earthexplorer(bucket,scene_id,scene_file)
     end
 
+    update_mru(scene_id)
 
     if !Dir.exist?(scene_id)
       @log.info "Inflating scene"
@@ -53,6 +56,9 @@ class LandsatWorker
     end
 
     @log.info "Checking for cached scene in S3"
+
+    ensure_free_space()
+
     if EZQ.get_s3_file(bucket,file)
       @log.info "Using scene from S3 cache"
       increment_S3_counter(bucket,file)
@@ -106,11 +112,76 @@ class LandsatWorker
   end
 
 
+
   private
   def cleanup(scene_id,scene_file,aoi_file)
     rm_if_exist(scene_file)
     #rm_if_exist(aoi_file)
   end
 
+
+
+  private
+  # Landsat scene archives are ~1Gb, and occupy an additional
+  # ~1.8 Gb when uncompressed. We ensure there is 3Gb free disk
+  # space before downloading a scene.
+  def ensure_free_space
+    s = Sys::Filesystem.stat("/")
+    gb_free = s.block_size * s.blocks_available / (1024.0 ** 3)
+
+    if gb_free < 3.0
+      lru = pop_lru
+      if !lru
+        # We're hosed!
+        raise "Out of disk space and unable to free sufficient space."
+      end
+      if Dir.exist?(lru)
+        @log.info "Freeing space by removing #{lru}"
+        FileUtils.rm_f(lru)
+      end
+    end
+  end
+
+
+
+  # We maintain a most-recently-used list so we can decide which
+  # scenes to remove from the local cache when disk space must
+  # be freed.
+  private
+  def update_mru(scene_id)
+
+    # Init mru file if it isn't there
+    if !File.exist?(@mru_file)
+      write_mru([])
+    end
+
+    mru = YAML.load_file(mru_file)
+    mru = mru - [scene_id]
+    mru.unshift(scene_id)
+    write_mru(mru)
+  end
+
+
+
+  # Removes the least-recently-used scene_id from the mru file
+  # and returns the id.
+  # @return [String] ID of least-recently-used scene
+  private
+  def pop_lru
+    mru = YAML.load_file(mru_file)
+    lru = mru.pop
+    write_mru(mru)
+    return lru
+  end
+
+
+
+  private
+  # Writes the passed mru to file
+  # @param [Array(String)] mru MRU array
+  # @return [nil]
+  def write_mru(mru)
+    File.write(@mru_file, mru.to_yaml)
+  end
 
 end
