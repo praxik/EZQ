@@ -39,9 +39,6 @@ class LandsatWorker
     end
     NDVI.from_landsat( "#{scene_id}","#{scene_id}",aoi_file )
 
-    # Do something with the generated images, and write out a result
-    # message for EZQ::Processor to slurp.
-
     cleanup(scene_id,scene_file,aoi_file)
   end
 

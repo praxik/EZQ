@@ -132,11 +132,14 @@ begin
   end
 
   LandsatWorker.new.process_scene(scene_id,aoi_file)
+
+  # Push output images into S3 and delete local copies.
   images = ['ndvi_3857.tif','ndvi_4326.tif','yld_3857.tif']
   images.each do |img|
     file = "#{scene_id}/#{img}"
     s3_key = "ndvi/#{job_id}/#{img}"
     EZQ.send_file_to_s3(file, s3_bucket, s3_key)
+    File.unlink(file) if File.exist?(file)
   end
 
   # Result message for EZQ::Processor to pick up
