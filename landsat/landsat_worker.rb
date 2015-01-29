@@ -13,6 +13,7 @@ class LandsatWorker
 
   def initialize(logger)
     @log = logger ? logger : Logger.new(STDOUT)
+    @log.info "LandsatWorker"
     @mru_file = 'scene_mru.yml'
   end
 
@@ -40,6 +41,7 @@ class LandsatWorker
     NDVI.from_landsat( "#{scene_id}","#{scene_id}",aoi_file )
 
     cleanup(scene_id,scene_file,aoi_file)
+    @log.info "Scene processed"
   end
 
 
@@ -134,7 +136,7 @@ class LandsatWorker
       end
       if Dir.exist?(lru)
         @log.info "Freeing space by removing #{lru}"
-        FileUtils.rm_f(lru)
+        FileUtils.rm_rf(lru)
       end
     end
   end
