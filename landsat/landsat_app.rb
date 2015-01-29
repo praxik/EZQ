@@ -15,7 +15,7 @@ creds_file = 'credentials.yml'
 severity = 'info'
 loggly_token = nil
 loggly_severity = 'info'
-app_name = 'pzm_report'
+app_name = 'landsat_app'
 log_file = STDOUT
 json_file = nil
 job_id = nil
@@ -131,7 +131,7 @@ begin
     exit(1)
   end
 
-  LandsatWorker.new.process_scene(scene_id,aoi_file)
+  LandsatWorker.new(@log).process_scene(scene_id,aoi_file)
 
   # Push output images into S3 and delete local copies.
   images = ['ndvi_3857.tif','ndvi_4326.tif','yld_3857.tif']

@@ -11,9 +11,8 @@ require_relative './ezqlib'
 class LandsatWorker
 
 
-  def initialize
-    @log = Logger.new(STDOUT)
-    @log.level = Logger::INFO
+  def initialize(logger)
+    @log = logger ? logger : Logger.new(STDOUT)
     @mru_file = 'scene_mru.yml'
   end
 
@@ -21,6 +20,7 @@ class LandsatWorker
   # Processes the scene referenced by scene_id to generate NDVIs
   # related to the region specified in aoi_file
   def process_scene(scene_id,aoi_file)
+    @log.info "Processing scene #{scene_id} with aoi #{aoi_file}"
     scene_file = "#{scene_id}.tar.gz"
     bucket = 'landsat.agsolver'
 
@@ -152,7 +152,7 @@ class LandsatWorker
       write_mru([])
     end
 
-    mru = YAML.load_file(mru_file)
+    mru = YAML.load_file(@mru_file)
     mru = mru - [scene_id]
     mru.unshift(scene_id)
     write_mru(mru)
@@ -165,7 +165,7 @@ class LandsatWorker
   # @return [String] ID of least-recently-used scene
   private
   def pop_lru
-    mru = YAML.load_file(mru_file)
+    mru = YAML.load_file(@mru_file)
     lru = mru.pop
     write_mru(mru)
     return lru
