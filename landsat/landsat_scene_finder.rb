@@ -78,7 +78,7 @@ module LsSceneFinder
       :where => "(acquisitionDate >= date'#{start_date}'
                 AND acquisitionDate <= date'#{end_date}')
                 AND (dayOfYear >=1 AND dayOfYear <= 366)
-                AND (sensor = 'TM' OR sensor = 'ETM'
+                AND (sensor = 'TM' OR sensor = 'ETM_SLC_ON' OR sensor = 'ETM_SLC_OFF'
                     OR sensor = 'LANDSAT_ETM' OR sensor = 'OLI')
                 AND (cloudCover <= #{cloud_cover})",
       :returnGeometry => 'true',
