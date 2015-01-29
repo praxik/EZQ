@@ -106,17 +106,17 @@ begin
   input_file = ARGV.shift
 
   if !aoi_file
-    @log.fatal "No input geojson file given. Aborting."
+    log.fatal "No input geojson file given. Aborting."
     exit(1)
   end
 
   if !msg_id
-    @log.fatal "No message id given. Aborting."
+    log.fatal "No message id given. Aborting."
     exit(1)
   end
 
   if !input_file
-    @log.fatal "No message file provided. Aborting."
+    log.fatal "No message file provided. Aborting."
     exit(1)
   end
 
@@ -127,11 +127,11 @@ begin
   job_id = j.fetch('job_id','default_job')
 
   if !scene_id
-    @log.fatal "No scene id in message!"
+    log.fatal "No scene id in message!"
     exit(1)
   end
 
-  LandsatWorker.new(@log).process_scene(scene_id,aoi_file)
+  LandsatWorker.new(log).process_scene(scene_id,aoi_file)
 
   # Push output images into S3 and delete local copies.
   images = ['ndvi_3857.tif','ndvi_4326.tif','yld_3857.tif']
@@ -148,6 +148,8 @@ begin
             "ndvi_bucket"=>s3_bucket,
             "ndvis"=>images.map{|img| "ndvi/#{job_id}/#{img}"} }
   File.write("output_#{msg_id}.txt",result.to_json)
+
+  log.info "Done"
 
 # Handle Ctrl-C gracefully
 rescue Interrupt
