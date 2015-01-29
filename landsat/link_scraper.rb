@@ -10,7 +10,8 @@ module EELinkScraper
   # @param [String] scene_id The scene id
   # @return [String] The download url for this scene id
   def self.scrape(scene_id)
-    url = "http://earthexplorer.usgs.gov/download/options/4923/" + scene_id
+    tag = scene_id =~ /^LC8/ ? '4923' : '3373'
+    url = "http://earthexplorer.usgs.gov/download/options/#{tag}/#{scene_id}"
     page = Nokogiri::HTML(open(url))
     links = page.css("input[type=button][value=Download]").
       select{|u| u['onclick'] =~ /http:\/\/earthexplorer\.usgs\.gov\/download\//}
