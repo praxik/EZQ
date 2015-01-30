@@ -36,9 +36,10 @@ ami_map:
   aggregator_r2:  'ami-2e44c546' #'ami-f4419c9c'
   errorhandler:   'ami-8eacd1e6'
   builder:        'ami-8eacd1e6'
-  pzm_report_dev: 'ami-b06519d8' # Paravirtual image
-  landsat:        'ami-b06519d8'
+  pzm_report_dev: 'ami-fab0f692' # Paravirtual image
+  landsat:        'ami-fab0f692'
   linux_base:     'ami-8eacd1e6' # HVM image
+  linux_base_pv:  'ami-fab0f692'
 
 spot_subnets:
   - subnet-b2f1ff9a # spot-1
@@ -207,6 +208,10 @@ launch_settings:
 
   linux_base:
     size: 't2.micro'
+    bill_to: 'EZQ-6k_dev'
+    
+  linux_base_pv:
+    size: 't1.micro'
     bill_to: 'EZQ-6k_dev'
 
 # The information in this section is used to populate the userdata on
