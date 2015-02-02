@@ -14,10 +14,16 @@ bincount = hist.at_xpath('BucketCount').text.to_i
 binwidth = (max-min) / bincount
 counts = hist.at_xpath('HistCounts').text
 
+# We need to get the cell size from the actual image.
+# Same filename as the input_file, but without .xml on the end.
+base_image = input_file.gsub(/\.xml$/,'')
+external = %x("./gdalinfo #{base_image} | grep \"Pixel Size\"")
+cell_size = external.gsub('Pixel Size = (','').gsub(')','').split(',').first.strip.to_f
+
 counts = counts.split('|')
-counts = counts.map{|i| i.to_i * 9 * 0.000247105} # *9 converts from mapunit to
-                                                  # m^2. 0.0002... converts from
-                                                  # m^2 to acre
+counts = counts.map{|i| i.to_i * cell_size**2 * 0.000247105}
+# * cell_size**2 converts from mapunit to m^2.
+# 0.0002... converts from m^2 to acre
 
 hashed = {}
 counts.each_with_index{|v,i| hashed[min + i*binwidth] = v }
