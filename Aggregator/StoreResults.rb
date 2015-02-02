@@ -29,7 +29,7 @@ class Rusle2Aggregator < SingletonApp
       @db = PG.connect(dbname: ARGV[0])
     else
       @db = PG.connect(
-        host: 'development-ezq-persistence.agsolver.com',
+        host: 'persistence.ezq.development.internal.agsolver.com',
         dbname: 'praxik',
         user: 'app',
         password: 'app')

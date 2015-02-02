@@ -366,7 +366,7 @@ class RusleReport < EZQ::Processor
   # Hit the db to get inputs associated with the dom_crit task
   def get_inputs(dom_crit_id)
     @db = PG.connect(
-        host: 'development-ezq-persistence.agsolver.com',
+        host: 'persistence.ezq.development.internal.agsolver.com',
         dbname: 'praxik',
         user: 'app',
         password: 'app')
@@ -379,7 +379,7 @@ class RusleReport < EZQ::Processor
 
   def store_job_stats(stats,job_id)
     db = PG.connect(
-        host: 'development-ezq-persistence.agsolver.com',
+        host: 'persistence.ezq.development.internal.agsolver.com',
         dbname: 'praxik',
         user: 'app',
         password: 'app')
