@@ -37,14 +37,53 @@ class PzmReportmaker
 
 
 
-  # Creates the report +output_path+ based on input from +input_path+
+  # Creates the report +output_path+ for a set of fields
+  # based on input from +input_path+
   # @param input_path [String] Input JSON file describing scenarios
   # @param output_path [String] Name to use for final pdf report
+  # @param toc [Bool] Whether to put a table of contents in the document
+  def make_report(input_path,output_path,toc=true)
+    input = JSON.parse(File.read(input_path));
+    stitched = []
+    reports = []
+    input.each_with_index do |field,n|
+      field_json = "field_#{n}.json"
+      field_out = "field_#{n}.pdf"
+      File.write(field_json,field.to_json)
+      s,r = make_field_report(field_json,field_out)
+      stitched << s
+      reports << r
+    end
+
+    total_pages = stitched.reduce(0){|acc,r| acc += AgPdfUtils.get_num_pages(r)}
+
+    @log.info "Overlaying page numbers"
+    AgPdfUtils.stitch(stitched,"#{output_path}.numless")
+    PageMakers.make_number_overlay(total_pages)
+    EZQ.exec_cmd("pdftk #{output_path}.numless multistamp report/page_numbers.pdf output #{output_path}.with_num")
+
+    @log.info "Building table of contents"
+    toc = PageMakers.make_toc(input,reports)
+
+    @log.info "Adding table of contents to report"
+    AgPdfUtils.stitch([toc, "#{output_path}.with_num"],output_path)
+
+    @log.info "Removing intermediate files"
+    cleanup(output_path)
+
+  end
+
+
+  # Creates the report +output_path+ for a single field
+  # based on input from +input_path+
+  # @param input_path [String] Input JSON file describing scenarios
+  # @param output_path [String] Name to use for final pdf report
+  # @param toc [Bool] Whether to put a table of contents in the document
   #
   # Developer's note: This method should ideally contain minimal logic.
   # The goal is for it to read as a simple step-by-step sequence
   # of function calls for building a report.
-  def make_report(input_path, output_path)
+  def make_field_report(input_path, output_path)
 
     input = JSON.parse(File.read(input_path));
 
@@ -72,20 +111,10 @@ class PzmReportmaker
     end
 
     @log.info "Combining scenario reports into #{output_path}"
-    AgPdfUtils.stitch(reports,"#{output_path}.numless")
+    stitched = "#{output_path}.numless"
+    AgPdfUtils.stitch(reports,stitched)
 
-    @log.info "Overlaying page numbers"
-    PageMakers.make_number_overlay(AgPdfUtils.get_num_pages("#{output_path}.numless"))
-    EZQ.exec_cmd("pdftk #{output_path}.numless multistamp report/page_numbers.pdf output #{output_path}.with_num")
-
-    @log.info "Building table of contents"
-    toc = PageMakers.make_toc(input,reports)
-
-    @log.info "Adding table of contents to report"
-    AgPdfUtils.stitch([toc, "#{output_path}.with_num"],output_path)
-
-    @log.info "Removing intermediate files"
-    cleanup(output_path)
+    return [stitched,reports]
   end
 
 
@@ -188,6 +217,8 @@ class PzmReportmaker
              " --qmlfile=\"template/QMLFiles/bnd_blue_nameoutline.qml\"" +
              " --width=630 --height=630 --autofit=false" +
              #" --margin=-9999" +
+             " --stndevs=1.5" +
+             " --ycolormin=#fff5f0 --ycolormid=#fc9272 --ycolormax=#67000d" +
              " --legendtype=yield" +
              " --legendformat=png" +
              " --legendfile=report/#{scenario['id']}_yield_legend.png"

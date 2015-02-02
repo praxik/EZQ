@@ -140,13 +140,18 @@ end
 
 
 def self.make_toc(input,reports)
-  field_name = input['name']
-  scenario_names = input['scenarios'].map{|s| s['name']}
-  scenario_years = input['scenarios'].map{|s| s['year'].to_s}
-  start_pages = reports.map{|f| AgPdfUtils.get_num_pages(f)}.
-                reduce([1]){|acc,pgs| acc += acc.last ? [acc.last + pgs] : [pgs]}.
-                map{|p| p.to_s}
-  tokens = Array.new(scenario_names.size,field_name).zip(scenario_names,scenario_years,start_pages)
+  field_names = []
+  scenario_names = []
+  scenario_years = []
+  input.each do |field,|
+    scenario_names += field['scenarios'].map{|s| s['name']}
+    scenario_years += field['scenarios'].map{|s| s['year'].to_s}
+    field_names += Array.new(scenario_names.size,field['name'])
+  end
+  start_pages = reports.flatten.map{|f| AgPdfUtils.get_num_pages(f)}.
+                  reduce([1]){|acc,pgs| acc += acc.last ? [acc.last + pgs] : [pgs]}.
+                  map{|p| p.to_s}
+  tokens = field_names.zip(scenario_names,scenario_years,start_pages)
   # creates format ["field_name: scenario_name: year",page]
   entries = tokens.map{|t| ["#{t[0]}: #{t[1]}: #{t[2]}",t[3]]}
 
