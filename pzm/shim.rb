@@ -6,10 +6,12 @@
 # and then runs mmp_worker. If mmp_worker exits successfully, this script will
 # also package up a "success!" message that EZQ will place in a result queue.
 #
-# This script expects 3 positional commandline arguments:
-# 1. A JSON input file containing the key "report_record_id"
-# 2. The pid of the calling process
-# 3. The name of an outputfile to which it should write its "success!" message
+# This script expects 5 positional commandline arguments:
+# 1. Path to JSON input file containing the key "report_record_id"
+# 2. Path to yield file
+# 3. Path to field boundary file
+# 4. The pid of the calling process
+# 5. The name of an outputfile to which it should write its "success!" message
 #
 # All of the above arguments are set in mmp_example_config.yml
 
@@ -20,6 +22,20 @@ require_relative 'ezqlib'
 require_relative 'dual_log'
 require 'fileutils'
 require 'securerandom'
+
+
+
+# Gzips the file referenced as bucket_comma_filename (bcf)
+# iff the file extension is .json. Returns the new bcf. If
+# file extension is not .json, just returns the original bcf.
+def gzip_json(bcf)
+  return bcf if !(bcf.strip =~ /\.json$/)
+  bucket, key = bcf.split(',').map{|s| s.strip}
+  EZQ.compress_file(key)
+  return "#{bucket},#{key}.gz"
+end
+
+
 
 begin
 # The command line arg order
@@ -149,11 +165,8 @@ begin
         if !already_pushed.include?(bucket_comma_filename)
           log.info "File has not been pushed previously. Doing so now...."
           begin
-            #If we want to reference files via cwd
-            #bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
-            #fname = File.basename(key)
-            #push_threads << EZQ.send_file_to_s3_async(fname,bucket,key)
-            #If we want to reference a file to mirror what is in s3
+            # Gzip and mutate bcf only for .json files.
+            bucket_comma_filename = gzip_json(bucket_comma_filename)
             push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
             already_pushed << bucket_comma_filename
           rescue => e
@@ -222,22 +235,15 @@ if exit_status.zero?
         result_message[tag] = value
     end
 
-    result_message['tiff_raster'] = ''
-    result_message['json_raster'] = ''
-    result_message['9m_tiff_raster'] = ''
-    result_message['3m_tiff_raster'] = ''
-    if has_errors
-        result_message['errors'] = errors.join("\n")
-    else
-        bucket,key = already_pushed[0].split(',').map{|s| s.strip}
-        result_message['tiff_raster'] = key
-        bucket,key = already_pushed[1].split(',').map{|s| s.strip}
-        result_message['json_raster'] = key
-        bucket,key = already_pushed[0].split(',').map{|s| s.strip}
-        result_message['9m_tiff_raster'] = key
-        bucket,key = already_pushed[2].split(',').map{|s| s.strip}
-        result_message['3m_tiff_raster'] = key
-    end
+
+    result_message['errors'] = errors.join("\n") if has_errors
+
+    files = already_pushed.map{|bcf| bcf.split(',').last.strip} if !has_errors
+    result_message['tiff_raster'] = has_errors ? '' : files[0]
+    result_message['json_raster'] = has_errors ? '' : files[1]
+    result_message['9m_tiff_raster'] = has_errors ? '' : files[0]
+    result_message['3m_tiff_raster'] = has_errors ? '' : files[2]
+
 
     if has_warnings
         result_message['warnings'] = warnings.join("\n")
