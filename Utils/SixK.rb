@@ -903,6 +903,7 @@ class SixK
       when 'tunnel'
         puts "Setting up tunnel to #{h_ip} mapping port #{h_p} to local port #{l_p}"
         ssh_cmd = "ssh -i #{p_id} -L #{l_p}:#{h_ip}:#{h_p} #{p_user}@#{p_ip}"
+        puts ssh_cmd
       when 'shell'
         puts "Setting up shell for #{h_ip}"
         ssh_cmd = "ssh -i #{h_id} -o 'ProxyCommand=ssh -i #{p_id} #{p_user}@#{p_ip} nc -q0 #{h_ip} 22' #{h_user}@#{h_ip}"
