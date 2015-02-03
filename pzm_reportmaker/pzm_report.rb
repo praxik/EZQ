@@ -122,7 +122,7 @@ begin
     exit(1)
   end
 
-  json = JSON.parse(File.read(json_file))
+  json = JSON.parse(File.read(json_file)).first
   eid = json.fetch('enterprise_id','000')
   fid = json.fetch('id','000')
   job_id = "#{eid}_#{fid}"
