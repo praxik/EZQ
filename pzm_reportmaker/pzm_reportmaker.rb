@@ -218,7 +218,7 @@ class PzmReportmaker
              " --width=630 --height=630 --autofit=false" +
              #" --margin=-9999" +
              " --stndevs=1.5" +
-             " --ycolormin=#fff5f0 --ycolormid=#fc9272 --ycolormax=#67000d" +
+             " --ycolormin=#fff5f0 --ycolormid=#fd6f49 --ycolormax=#680009" +
              " --legendtype=yield" +
              " --legendformat=png" +
              " --legendfile=report/#{scenario['id']}_yield_legend.png"
