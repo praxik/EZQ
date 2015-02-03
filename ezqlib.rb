@@ -69,7 +69,7 @@ module EZQ
     # `block in add_service': undefined method `global_endpoint?' for AWS::S3:
     #  Class (NoMethodError)
     @s3 ||= exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
-    
+
     while !@s3.respond_to?(:buckets)
       @log.warn "AWS::S3 isn't responding to 'buckets'. Again." if @log
       @s3 = exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
@@ -139,7 +139,7 @@ module EZQ
     keys = fill_array( key_ary,body_ary.size,nil )
     msgs = body_ary.zip( preambles ).zip( keys ).flatten.
       map_slice(3){|body,preamble,key| prepare_message_for_queue( body,preamble,bucket,key )}
-    
+
     digests = msgs.map{|msg| Digest::MD5.hexdigest( msg )}
     mdfives = []
     msgs.each_slice(10){|batch| mdfives += q.batch_send( *batch ).map{|sent| sent.md5}}
@@ -237,7 +237,7 @@ module EZQ
     @log.debug "EZQ::prepare_message_for_queue" if @log
     # 256k limit minus assumed metadata size of 6k:  (256-6)*1024 = 256000
     bc = body.clone
-    if (body.bytesize + preamble.to_yaml.bytesize) > 256000   
+    if (body.bytesize + preamble.to_yaml.bytesize) > 256000
       bc,preamble = divert_body_to_s3( bc,preamble,bucket,key )
     end
 
@@ -277,9 +277,10 @@ module EZQ
   # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
+  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
   # @return [nil] Always returns nil.
-  def self.send_file_to_s3( filename,bucket,key )
-    thread = send_file_to_s3_async( filename,bucket,key )
+  def self.send_file_to_s3( filename,bucket,key,options={} )
+    thread = send_file_to_s3_async( filename,bucket,key,options )
     thread.join
     return nil
   end
@@ -290,11 +291,12 @@ module EZQ
   # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
+  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def self.send_file_to_s3_async( filename,bucket,key )
-    return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k,@log) }
+  def self.send_file_to_s3_async( filename,bucket,key,options={} )
+    return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k,options,@log) }
   end
 
 
@@ -302,9 +304,10 @@ module EZQ
   # @param [String] bucket_commna_filename Bucket and filename (key) joined with
   #                                        a comma and no spaces. The bucket
   #                                        will be created if it doesn't exist.
+  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
   # @return [nil] Always returns nil.
-  def self.send_bcf_to_s3( bucket_comma_filename )
-    thread = send_bcf_to_s3( bucket_comma_filename )
+  def self.send_bcf_to_s3( bucket_comma_filename,options={} )
+    thread = send_bcf_to_s3_async( bucket_comma_filename,options )
     thread.join
     return nil
   end
@@ -314,12 +317,13 @@ module EZQ
   # @param [String] bucket_commna_filename Bucket and filename (key) joined with
   #                                        a comma and no spaces. The bucket
   #                                        will be created if it doesn't exist.
+  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def self.send_bcf_to_s3_async( bucket_comma_filename )
+  def self.send_bcf_to_s3_async( bucket_comma_filename, options={} )
     bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
-    return send_file_to_s3_async( key,bucket,key )
+    return send_file_to_s3_async( key,bucket,key,options )
   end
 
 
@@ -336,7 +340,7 @@ module EZQ
       dig = Digest::MD5.hexdigest(data)
       if obj.exists? and ((obj.etag() == dig) or (obj.metadata.to_h.fetch('md5','') == dig ))
         log.debug "Remote file is up-to-date; skipping send." if log
-        return nil 
+        return nil
       end
       obj.write(data,{:metadata=>{:md5=>dig}})
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
@@ -354,7 +358,8 @@ module EZQ
   # FilePusher class pushes specified file to S3. It is intended to be used
   # as a thread object.
   class FilePusher
-    def initialize( filename,bucket_name,key,log=nil )
+    # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
+    def initialize( filename,bucket_name,key,options={},log=nil )
       @retries ||= 10
       if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
@@ -366,9 +371,11 @@ module EZQ
       file_dig = EZQ.md5file(filename).hexdigest
       if obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
         log.debug "Remote file is up-to-date; skipping send." if log
-        return nil 
+        return nil
       end
-      obj.write(Pathname.new(filename),{:metadata=>{:md5=>EZQ.md5file(filename).hexdigest}})
+      md5_opts = {:metadata=>{:md5=>EZQ.md5file(filename).hexdigest}}
+      all_opts = options.merge(md5_opts)
+      obj.write(Pathname.new(filename),all_opts)
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
     rescue => e
@@ -393,16 +400,16 @@ module EZQ
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ]
     FileUtils.mkdir_p(File.dirname(key))
-    
+
     # Do we already have a current version of this file?
     if File.exists?(key) and (obj.etag() == EZQ.md5file(key).hexdigest)
       @log.debug "EZQ::get_s3_file: local file is already current" if @log
-      return true 
+      return true
     end
     File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
     return true
   rescue
-      return false  
+      return false
   end
 
 
@@ -595,13 +602,13 @@ module EZQ
 
 
   # Runs an external command.
-  # @param [String,Array] cmd The command to run. If +cmd+ is a single string, 
+  # @param [String,Array] cmd The command to run. If +cmd+ is a single string,
   #        it will be run via the default shell. If +cmd+ is an array with two
   #        or more terms, the command will be run without passing through a
   #        shell, with the first array entry referring to the program name, and
   #        all other entries referring to commandline arguents to the program.
   #        The array form is particularly useful for passing long strings to
-  #        an external program without escape the string(S) to accomodate 
+  #        an external program without escape the string(S) to accomodate
   #        the shell.
   # @return Returns an array containing a success flag in the
   # first position, and an array of strings containing all stdout and stderr
