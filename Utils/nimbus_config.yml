@@ -437,11 +437,21 @@ userdata:
     deploy_key: arks/default/aggregator_r2.zip
     receive_queue_name: 6k_aggregator_r2
     app_name: "aggregator_r2.processor"
+    db_ip:  persistence.ezq.development.internal.agsolver.com
+    db_port: 5432
+    db_user_name: app
+    db_password: app
+    db_name: praxik
 
   aggregator:
     deploy_key: arks/default/aggregator.zip
     receive_queue_name: 6k_aggregator
     app_name: "aggregator.processor"
+    db_ip:  persistence.ezq.development.internal.agsolver.com
+    db_port: 5432
+    db_user_name: app
+    db_password: app
+    db_name: praxik
 
   errorhandler:
     deploy_key: arks/default/errorhandler.zip

@@ -8,6 +8,7 @@ require 'aws-sdk'
 require 'socket'
 require 'fileutils'
 require 'pg'
+require 'yaml'
 require './data_spec_parser.rb'
 require_relative './ezqlib'
 
@@ -23,6 +24,13 @@ class RusleReport < EZQ::Processor
     filename = ARGV[0]
     exit 1 if !File.exists?(filename)
     @agg_settings = JSON.parse(File.read(filename))
+    
+    userdata = YAML.load_file('userdata.yml')
+    @db_user_name = userdata['db_user_name']
+    @db_password = userdata['db_password']
+    @db_name = userdata['db_name']
+    @db_ip = userdata['db_ip']
+    @db_port = userdata['db_port']
 
     @credentials = credentials
     @job_id = @agg_settings['job_id']
@@ -366,10 +374,10 @@ class RusleReport < EZQ::Processor
   # Hit the db to get inputs associated with the dom_crit task
   def get_inputs(dom_crit_id)
     @db = PG.connect(
-        host: 'persistence.ezq.development.internal.agsolver.com',
-        dbname: 'praxik',
-        user: 'app',
-        password: 'app')
+        host: @db_ip,
+        dbname: @db_name,
+        user: @db_user_name,
+        password: @db_password)
     sql = "select inputs from _#{@job_id.gsub('-','')}_inputs where task_id=#{dom_crit_id}"
     result = @db.exec(sql)
     @logger.info "result: #{result[0]}"
@@ -379,10 +387,10 @@ class RusleReport < EZQ::Processor
 
   def store_job_stats(stats,job_id)
     db = PG.connect(
-        host: 'persistence.ezq.development.internal.agsolver.com',
-        dbname: 'praxik',
-        user: 'app',
-        password: 'app')
+        host: @db_ip,
+        dbname: @db_name,
+        user: @db_user_name,
+        password: @db_password)
     tablename = 'job_statistics_6k'
     sql = "create table if not exists #{tablename}( job_id text, stats text )"
     db.exec( sql )

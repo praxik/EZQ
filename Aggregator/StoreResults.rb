@@ -5,6 +5,7 @@
 require 'bundler/setup'
 require 'pg'
 require 'json'
+require 'yaml'
 require 'socket'
 require 'tmpdir'
 require './singleton_app'
@@ -28,11 +29,17 @@ class Rusle2Aggregator < SingletonApp
     if ARGV[0]
       @db = PG.connect(dbname: ARGV[0])
     else
+      userdata = YAML.load_file('userdata.yml')
+      @db_user_name = userdata['db_user_name']
+      @db_password = userdata['db_password']
+      @db_name = userdata['db_name']
+      @db_ip = userdata['db_ip']
+      @db_port = userdata['db_port']
       @db = PG.connect(
-        host: 'persistence.ezq.development.internal.agsolver.com',
-        dbname: 'praxik',
-        user: 'app',
-        password: 'app')
+        host: @db_ip,
+        dbname: @db_name,
+        user: @db_user_name,
+        password: @db_password)
     end
 
     data_spec = DataSpecParser::get_data_spec('main.cxx')
