@@ -167,7 +167,9 @@ begin
           begin
             # Gzip and mutate bcf only for .json files.
             bucket_comma_filename = gzip_json(bucket_comma_filename)
-            push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
+            gz_opts = {:content_type => 'application/json', :content_encoding => 'gzip'}
+            options = bucket_comma_filename =~ /\.gz$/ ? gz_opts : {}
+            push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename,options)
             already_pushed << bucket_comma_filename
           rescue => e
             log.error e
