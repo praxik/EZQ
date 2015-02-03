@@ -133,15 +133,16 @@ end
 
 # The message written here will be picked up by EZQ::Processor and placed into
 # the result queue specified in mmp_example_config.yml.
+result_message = {}
+result_message['report_record_id'] = report_record_id
+result_message['worker_succeeded'] = !has_errors
+
 if exit_status.zero?
-  result_message = {}
-  result_message['report_record_id'] = report_record_id
-  result_message['worker_succeeded'] = !has_errors
   if has_errors
     result_message['errors'] = errors.join("\n")
   end
-  File.write(output_file,result_message.to_json)
 end
+File.write(output_file,result_message.to_json)
 
 log.info 'Done.'
 exit(exit_status)
