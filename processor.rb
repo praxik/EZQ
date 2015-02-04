@@ -235,36 +235,6 @@ module EZQ
     end
 
 
-
-    protected
-    # Decompresses the file and stores the result in a file with the same name.
-    def decompress_file(filename)
-      @logger.info "Decompressing file #{filename}"
-      File.open(filename) do |cf|
-        zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-        uncname = filename + '.uc'
-        File.open(uncname, "w+") {|ucf|
-          ucf << zi.inflate(cf.read) }
-        zi.close
-      end
-      File.delete(filename)
-      File.rename(filename + '.uc', filename)
-    end
-
-
-
-    protected
-    # Compresses the file and stores the result in filename.gz
-    def compress_file(filename)
-      @logger.info "Compressing file #{filename}"
-      Zlib::GzipWriter.open("#{filename}.gz",9) do |gz|
-        gz.mtime = File.mtime(filename)
-        gz.orig_name = filename
-        gz.write IO.binread(filename)
-      end
-    end
-
-
     protected
     # Replace a set of pre-defined tokens in str with appropriate strings
     # based on the message id.
