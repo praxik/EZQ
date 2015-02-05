@@ -62,3 +62,4 @@ end # module
 
 # Test:
 #SceneGetter.scene('http://earthexplorer.usgs.gov/download/4923/LC80260312014079LGN00/STANDARD/EE')
+#SceneGetter.scene('http://earthexplorer.usgs.gov/download/3373/LE70270312011294EDC00/STANDARD/EE')
