@@ -140,22 +140,33 @@ end
 
 
 def self.make_toc(input,reports)
+  @log.debug "PageMakers.make_toc begin"
   field_names = []
   scenario_names = []
   scenario_years = []
   input.each do |field,|
     scenario_names += field['scenarios'].map{|s| s['name']}
     scenario_years += field['scenarios'].map{|s| s['year'].to_s}
-    field_names += Array.new(scenario_names.size,field['name'])
+    field_names += Array.new(field['scenarios'].size,field['name'])
   end
+  @log.debug "scenario_names: #{scenario_names}"
+  @log.debug "scenario_years: #{scenario_years}"
+  @log.debug "field_names: #{field_names}"
+  @log.debug "reports: #{reports}"
+  # Do a reduce-with-partials operation the array of page numbers from each
+  # sub-report.
   start_pages = reports.flatten.map{|f| AgPdfUtils.get_num_pages(f)}.
                   reduce([1]){|acc,pgs| acc += acc.last ? [acc.last + pgs] : [pgs]}.
                   map{|p| p.to_s}
+  @log.debug "start_pages: #{start_pages}"
   tokens = field_names.zip(scenario_names,scenario_years,start_pages)
+  @log.debug "tokens: #{tokens}"
   # creates format ["field_name: scenario_name: year",page]
   entries = tokens.map{|t| ["#{t[0]}: #{t[1]}: #{t[2]}",t[3]]}
+  @log.debug "entries: #{entries}"
+  @log.debug "PageMakers.make_toc end"
 
-return AgPdfUtils.html_to_pdf(AgPdfUtils.generate_html(entries,'template/toc.html.erb',
+  return AgPdfUtils.html_to_pdf(AgPdfUtils.generate_html(entries,'template/toc.html.erb',
                        "report/toc.html"))
 end
 ################################################################################
