@@ -28,6 +28,7 @@ class PzmReportmaker
 
     Extractors.set_logger(@log)
     PageMakers.set_logger(@log)
+    SeTransforms.set_logger(@log)
 
     @log.info "Preparing report dir"
     prep_report_dir()
@@ -51,8 +52,8 @@ class PzmReportmaker
       field_out = "field_#{n}.pdf"
       File.write(field_json,field.to_json)
       s,r = make_field_report(field_json,field_out)
-      stitched << s
-      reports << r
+      stitched << s if s
+      reports  << r  if r
     end
 
     total_pages = stitched.reduce(0){|acc,r| acc += AgPdfUtils.get_num_pages(r)}
@@ -93,8 +94,9 @@ class PzmReportmaker
     @log.info "Running binary"
     yield_data = Extractors.run_binary(input)
     if !yield_data
-      @log.fatal "Binary returned no yield data; exiting."
+      @log.error "Binary returned no yield data; exiting."
       exit(1)
+      return [nil,nil]
     end
 
     reproject_to_3857(input)
@@ -306,7 +308,7 @@ class PzmReportmaker
   # @return nil
   def reproject_to_3857(input)
     @log.info "Reprojecting yield rasters into 3857"
-    Extractors.get_yield_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
+    Extractors.get_yield_raster_array(input).each{|rasters| SeTransforms.reproject_raster(rasters.first,rasters.last)}
     @log.info "Reprojecting profit rasters into 3857"
     get_profit_raster_hash(input).each{|r_in,r_out| SeTransforms.reproject_raster(r_in,r_out)}
 
