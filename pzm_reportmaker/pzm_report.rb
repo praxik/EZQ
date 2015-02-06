@@ -18,6 +18,8 @@ app_name = 'pzm_report'
 log_file = STDOUT
 json_file = nil
 job_id = nil
+s3_bucket = ''
+s3_key_base = ''
 
 begin
   userdata = YAML.load_file('userdata.yml')
