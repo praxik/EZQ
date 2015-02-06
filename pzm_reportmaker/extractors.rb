@@ -58,17 +58,17 @@ end
 
 
 
-# Returns a hash in which each key is an input yield raster and the
-# associated value is the desired name of the reprojected raster.
+# Returns an array of arrays in which the first entry is an input yield raster and the
+# second entry is the desired name of the reprojected raster.
 # @param [Hash] input Ruby hash containing the full JSON sent by web app
-def self.get_yield_raster_hash(input)
-  hash = {}
+def self.get_yield_raster_array(input)
+  mapping = []
   input['scenarios'].each do |scenario|
     raster_in = scenario['get_tiff_raster_path']
     raster_out = "report/#{scenario['id']}_yield.tiff"
-    hash[raster_in] = raster_out
+    mapping << [raster_in, raster_out]
   end
-  return hash
+  return mapping
 end
 
 
