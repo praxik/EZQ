@@ -16,9 +16,11 @@ counts = hist.at_xpath('HistCounts').text
 
 # We need to get the cell size from the actual image.
 # Same filename as the input_file, but without .xml on the end.
-base_image = input_file.gsub(/\.xml$/,'')
-external = %x("./gdalinfo #{base_image} | grep \"Pixel Size\"")
+base_image = input_file.gsub(/\.aux\.xml$/,'')
+external = %x( LD_LIBRARY_PATH=. ./gdalinfo #{base_image} | grep \"Pixel Size\" )
 cell_size = external.gsub('Pixel Size = (','').gsub(')','').split(',').first.strip.to_f
+cell_size = cell_size > 8.9 ? 9.0 : 3.0
+puts cell_size
 
 counts = counts.split('|')
 counts = counts.map{|i| i.to_i * cell_size**2 * 0.000247105}
