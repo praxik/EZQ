@@ -19,9 +19,9 @@ def self.reproject_raster(raster_in,raster_out)
         " -t_srs EPSG:3857" +
         " -srcnodata #{no_data}" +
         " -dstnodata #{no_data}" +
+        " -overwrite" +
         " \"#{raster_in}\"" +
-        " \"#{raster_out}\"" +
-        " -overwrite"
+        " \"#{raster_out}\""
   @log.debug "reproject #{raster_in} #{raster_out}" if @log
   EZQ.exec_cmd(cmd)
 end
@@ -36,7 +36,9 @@ end
 def self.reproject_boundaries(out_name,coords)
   in_name = "#{out_name}.tmp.geojson"
   File.write(in_name,coords)
-  cmd = "ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" #{out_name} #{in_name} -overwrite"
+  # Overwrite flag in call to ogr2ogr does not cause file to be overwritten
+  File.unlink(out_name) if File.exist?(out_name)
+  cmd = "ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" -overwrite #{out_name} #{in_name}"
   EZQ.exec_cmd(cmd)
   return nil
 end
@@ -70,7 +72,8 @@ def self.collect_coords(master,pieces_array,collected_name)
   File.write("#{master}.prj",prj)
 
   # Convert the shapefile back to geojson.
-  res = EZQ.exec_cmd("ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" #{collected_name} #{master}.shp -overwrite")
+  File.unlink(collected_name) if File.exist?(collected_name)
+  res = EZQ.exec_cmd("ogr2ogr -t_srs EPSG:3857 -f \"GeoJSON\" -overwrite #{collected_name} #{master}.shp")
   @log.error(res.last) if !res.first && @log
 
   return nil
