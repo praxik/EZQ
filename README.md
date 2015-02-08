@@ -47,6 +47,7 @@ is as simple as
     
 It's just a matter of getting your configuration file setup correctly....
 
+<!--
 
 Getting your feet wet
 ----------------------
@@ -96,3 +97,5 @@ To test using a result queue:
 
 Read {file:Processor_Config_Details.md} for a description of all the options
 you can change to alter the way EZQ handles messages and results.
+
+-->
