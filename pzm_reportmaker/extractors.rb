@@ -7,6 +7,7 @@
 
 require 'set'
 require 'logger'
+require_relative 'ezqlib'
 
 module Extractors
 
