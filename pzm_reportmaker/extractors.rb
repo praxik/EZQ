@@ -53,6 +53,7 @@ def self.run_binary(input)
     yields = yields.map{|t| t.chomp.gsub('pzm: ','').split(',')}
     yields = yields.map{|a| [a[0].to_i,[[:avg,a[1].to_f],[:nz,a[2].to_f]].to_h]}.to_h
   end
+  @log.debug "Extractors.run_binary: yields: #{yields}" if @log
   # Return either a hash or nil
   return yields
 end
