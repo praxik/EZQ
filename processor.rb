@@ -500,7 +500,7 @@ module EZQ
           end
         end
       else
-        body = 'No output'
+        body = '{}' #'No output'
       end
       if @compress_result_message
         @logger.info 'Compressing raw message'
