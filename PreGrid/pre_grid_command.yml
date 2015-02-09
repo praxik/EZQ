@@ -1,1 +1,0 @@
-command: "6k_pregrid.exe -c ODBC --ssurgoconnstr Server=10.1.2.8;Port=5432;Uid=postgres;Pwd=postgres;Database=ssurgo; -g iowammp.gdb -j $jobid -f $input_file"

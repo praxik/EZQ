@@ -1,2 +1,0 @@
-# AgSolver - Report Templates
-
