@@ -31,13 +31,13 @@ module EZQ
   # Ruby's builtin Logger class and you're good to go.
   # @param [Logger-like] logger The Logger to use. Must respond to Logger
   #   methods and Logger level constants, but need not be derived from Logger.
-  def self.set_logger(logger)
+  def EZQ.set_logger(logger)
     @log = logger
   end
 
   # Returns the local ip of the machine using only standard builtin OS calls.
   # Restricted to Windows and Unix-like OSes.
-  def self.get_local_ip()
+  def EZQ.get_local_ip()
     ip = ''
     if RUBY_PLATFORM =~ /mswin|mingw/
       cmd = 'FOR /f "tokens=1 delims=:" %d IN (\'ping %computername% -4 -n 1 ^| find /i "reply"\') DO FOR /F "tokens=3 delims= " %g IN ("%d") DO echo %g'
@@ -55,7 +55,7 @@ module EZQ
 
   # Returns a new array of size +size+ which contains the elements of +ary+
   # repeated cyclically.
-  def self.cyclical_fill( ary,size )
+  def EZQ.cyclical_fill( ary,size )
     elem = ary.cycle
     result = []
     size.times{result << elem.next}
@@ -64,7 +64,7 @@ module EZQ
 
 
   # Returns handle to S3.
-  def self.get_s3()
+  def EZQ.get_s3()
     # The backoff retry is an attempt to deal with this uninformative error:
     # `block in add_service': undefined method `global_endpoint?' for AWS::S3:
     #  Class (NoMethodError)
@@ -89,7 +89,7 @@ module EZQ
   # @returns [Array(String,String)] Returns the new body and new preamble that
   #                                 should be sent on to a queue in place of the
   #                                 original.
-  def self.divert_body_to_s3( body,
+  def EZQ.divert_body_to_s3( body,
                               preamble,
                               bucket_name = 'Overflow',
                               key = SecureRandom.uuid() )
@@ -123,7 +123,7 @@ module EZQ
   #                               SQS.
   # @return [String,Array] Array of MD5 hexdigests of the sent messages. The
   #                        strings will be empty if the messages failed to send.
-  def self.enqueue_batch( body_ary,
+  def EZQ.enqueue_batch( body_ary,
                           preamble_ary,
                           queue,
                           create_queue_if_needed = false,
@@ -163,7 +163,7 @@ module EZQ
   # @param [String] key S3 key to use if message is too large for SQS
   # @return [String] MD5 hexdigest of the sent message. The return string will
   #                  be empty if the message failed to send.
-  def self.enqueue_message( body,
+  def EZQ.enqueue_message( body,
                             preamble,
                             queue,
                             create_queue_if_needed = false,
@@ -181,7 +181,7 @@ module EZQ
   # @param [Integer] size  Size of array to return
   # @param [Object] filler The fill object to use to pad the end of the array
   #                        if +ary+ is smaller than +size+.
-  def self.fill_array( ary,size,filler )
+  def EZQ.fill_array( ary,size,filler )
     if ary.size < size
       return ary + Array.new( size-ary.size,filler )
     else
@@ -198,7 +198,7 @@ module EZQ
   # @returns [AWS::Queue] Returns the requested queue, or nil.
   # @raise Raises exception if the queue could not be created when it didn't
   #        already exist and create_if_needed was true.
-  def self.get_queue( queue,create_if_needed=false )
+  def EZQ.get_queue( queue,create_if_needed=false )
     @log.debug "EZQ::get_queue" if @log
     # If it's an SQS::Queue already, treat it as such....
     if queue.respond_to?( :send_message )
@@ -233,7 +233,7 @@ module EZQ
   # @return [String] The full message with the preamble and body concatenated
   #                  together. Both will have been altered if the body had to
   #                  be diverted to S3.
-  def self.prepare_message_for_queue( body,preamble,bucket=nil,key=nil )
+  def EZQ.prepare_message_for_queue( body,preamble,bucket=nil,key=nil )
     @log.debug "EZQ::prepare_message_for_queue" if @log
     # 256k limit minus assumed metadata size of 6k:  (256-6)*1024 = 256000
     bc = body.clone
@@ -252,7 +252,7 @@ module EZQ
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
   # @return [nil] Always returns nil
-  def self.send_data_to_s3( data,bucket_name,key )
+  def EZQ.send_data_to_s3( data,bucket_name,key )
     thread = send_data_to_s3_async( data,bucket_name,key )
     thread.join
     return nil
@@ -267,7 +267,7 @@ module EZQ
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before existing your
   #                  application.
-  def self.send_data_to_s3_async( data,bucket,key )
+  def EZQ.send_data_to_s3_async( data,bucket,key )
     return Thread.new(data,bucket,key){ |d,b,k| DataPusher.new(d,b,k,@log) }
   end
 
@@ -279,7 +279,7 @@ module EZQ
   # @param [String] key S3 key to use.
   # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
   # @return [nil] Always returns nil.
-  def self.send_file_to_s3( filename,bucket,key,options={} )
+  def EZQ.send_file_to_s3( filename,bucket,key,options={} )
     thread = send_file_to_s3_async( filename,bucket,key,options )
     thread.join
     return nil
@@ -295,7 +295,7 @@ module EZQ
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def self.send_file_to_s3_async( filename,bucket,key,options={} )
+  def EZQ.send_file_to_s3_async( filename,bucket,key,options={} )
     return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k,options,@log) }
   end
 
@@ -306,7 +306,7 @@ module EZQ
   #                                        will be created if it doesn't exist.
   # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
   # @return [nil] Always returns nil.
-  def self.send_bcf_to_s3( bucket_comma_filename,options={} )
+  def EZQ.send_bcf_to_s3( bucket_comma_filename,options={} )
     thread = send_bcf_to_s3_async( bucket_comma_filename,options )
     thread.join
     return nil
@@ -321,7 +321,7 @@ module EZQ
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def self.send_bcf_to_s3_async( bucket_comma_filename, options={} )
+  def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options={} )
     bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
     return send_file_to_s3_async( key,bucket,key,options )
   end
@@ -394,7 +394,7 @@ module EZQ
   # @param [String] bucket The S3 bucket from which to pull
   # @param [String] key The S3 key, which will also map directly to the local filename
   # @return [Bool] true if successful, false otherwise
-  def self.get_s3_file(bucket,key)
+  def EZQ.get_s3_file(bucket,key)
     @log.debug "EZQ::get_s3_file" if @log
     s3 = EZQ.get_s3()
     b = s3.buckets[ bucket ]
@@ -417,7 +417,7 @@ module EZQ
   # From https://www.ruby-forum.com/topic/58563
   # @param [String] filename The name of the file to digest.
   # @return [Digest] An md5 digest object.
-  def self.md5file(filename)
+  def EZQ.md5file(filename)
     md5 = File.open(filename, 'rb') do |io|
       dig = Digest::MD5.new
       buf = ""
@@ -431,7 +431,7 @@ module EZQ
   # Un-escapes an escaped string. Cribbed from
   # http://stackoverflow.com/questions/8639642/whats-the-best-way-to-escape-and-unescape-strings
   # Does *not* modify str in place. Returns a new, unescaped string.
-  def self.unescape(str)
+  def EZQ.unescape(str)
     str.gsub(/\\(?:([#{UNESCAPES.keys.join}])|u([\da-fA-F]{4}))|\\0?x([\da-fA-F]{2})/) {
       if $1
         if $1 == '\\' then '\\' else UNESCAPES[$1] end
@@ -451,7 +451,7 @@ module EZQ
 
 
   # Decompresses the file and stores the result in a file with the same name.
-  def self.decompress_file(filename)
+  def EZQ.decompress_file(filename)
     Zip::File.open(filename) do |zip_file|
       zip_file.each { |entry| entry.extract(entry.name) }
     end
@@ -460,7 +460,7 @@ module EZQ
 
   # Decompress a file that contains data compressed directly with libz; that
   # is, the file is not a standard .zip with appropriate header information.
-  def self.decompress_headerless_file(filename)
+  def EZQ.decompress_headerless_file(filename)
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
       uncname = filename + '.uc'
@@ -474,7 +474,7 @@ module EZQ
 
 
   # Compresses the file and stores the result in filename.gz
-  def self.compress_file(filename)
+  def EZQ.compress_file(filename)
     Zlib::GzipWriter.open("#{filename}.gz",9) do |gz|
       gz.mtime = File.mtime(filename)
       gz.orig_name = filename
@@ -484,30 +484,33 @@ module EZQ
 
 
   # Returns a new string with the **first** EZQ preamble stripped off
-  def self.strip_preamble(str)
+  def EZQ.strip_preamble(str)
     return str.sub(/-{3}\nEZQ.+?\.{3}\n/m,'')
   end
 
 
   # Replaces the body of an AWS::SQS::RecievedMessage with a version of the
   # body that doesn't contain the **first** EZQ preamble. Returns nil.
-  def self.strip_preamble_msg!(msg)
+  def EZQ.strip_preamble_msg!(msg)
     msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
     return nil
   end
 
-  def self.extract_preamble(msgbody)
+
+  # Returns a hash of the EZQ preamble. Does **not** remove the
+  # preamble from the message body.
+  def EZQ.extract_preamble(msgbody)
     body = YAML.load(msgbody)
     return '' if !body.kind_of?(Hash)
     return '' if !body.has_key?('EZQ')
     return body['EZQ']
   rescue
-    return ''
+    return {}
   end
 
   # Rogue out single backslashes that are not real escape sequences and
   # turn them into double backslashes.
-  def self.fix_escapes(text)
+  def EZQ.fix_escapes(text)
     # (?<!\\)  -- no backslashes directly before current match
     # (\\)     -- match a single backslash
     # (?![\\\/\"\'rnbt])  -- not followed by a character that would indicate
@@ -536,7 +539,7 @@ module EZQ
   #                             so that the default backoff is exponential. To
   #                             use a constant delay between retries, set base
   #                             equal to 1.
-  def self.exceptional_retry_with_backoff(retries,
+  def EZQ.exceptional_retry_with_backoff(retries,
                                           first_delay=1,
                                           base=Math.exp(1),
                                           &block)
@@ -577,7 +580,7 @@ module EZQ
   #                             so that the default backoff is exponential. To
   #                             use a constant delay between retries, set base
   #                             equal to 1.
-  def self.boolean_retry_with_backoff(retries,
+  def EZQ.boolean_retry_with_backoff(retries,
                                       first_delay=1,
                                       base=Math.exp(1),
                                       &block)
@@ -618,7 +621,7 @@ module EZQ
   # Nil indicates an exception was raised in Ruby when attempting to run the
   # command. In this case, the output array in the second position will
   # contain the text of the exception.
-  def self.exec_cmd(cmd)
+  def EZQ.exec_cmd(cmd)
     success = false
     output = []
     begin
