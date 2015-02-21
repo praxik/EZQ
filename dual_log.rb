@@ -19,7 +19,7 @@ require_relative 'multi_logger.rb'
 # still reading this?
 class LogglyWrapper < Logger
 
- 
+
   def initialize(opts={})
 
     @progname = opts.fetch(:progname,'not_set')
@@ -43,57 +43,57 @@ class LogglyWrapper < Logger
   end
 
   def datetime_format=(datetime_format)
-    @loggly.datetime_format = datetime_format
+    @loggly.datetime_format = datetime_format if @loggly
   end
 
   def level=(level)
-    @loggly.level = level
+    @loggly.level = level if @loggly
   end
 
   def level
-    return @loggly.level
+    return @loggly ? @loggly.level : Logger::INFO
   end
 
   def progname=(progname)
-    @loggly.progname=progname
+    @loggly.progname=progname if @loggly
   end
 
   def progname
-    return @loggly.progname
+    return @loggly ? @loggly.progname : ''
   end
 
   # Methods that write to logs just write to each contained logger in turn
   def add(severity, message = nil, progname = nil, &block)
-    @loggly.add(severity, add_metadata(message), progname, &block)
+    @loggly.add(severity, add_metadata(message), progname, &block) if @loggly
   end
   alias log add
 
   def <<(msg)
-    @loggly << add_metadata(msg)
+    @loggly << add_metadata(msg) if @loggly
   end
 
   def debug(progname = nil, &block)
-    @loggly.debug(add_metadata(progname), &block)
+    @loggly.debug(add_metadata(progname), &block) if @loggly
   end
 
   def info(progname = nil, &block)
-    @loggly.info(add_metadata(progname), &block)
+    @loggly.info(add_metadata(progname), &block) if @loggly
   end
 
   def warn(progname = nil, &block)
-    @loggly.warn(add_metadata(progname), &block)
+    @loggly.warn(add_metadata(progname), &block) if @loggly
   end
 
   def error(progname = nil, &block)
-    @loggly.error(add_metadata(progname), &block)
+    @loggly.error(add_metadata(progname), &block) if @loggly
   end
 
   def fatal(progname = nil, &block)
-    @loggly.fatal(add_metadata(progname), &block)
+    @loggly.fatal(add_metadata(progname), &block) if @loggly
   end
 
   def unknown(progname = nil, &block)
-    @loggly.unknown(add_metadata(progname), &block)
+    @loggly.unknown(add_metadata(progname), &block) if @loggly
   end
 
 end
@@ -129,7 +129,7 @@ class DualLogger < MultiLogger
   def initialize(opts={})
 
     @progname = opts.fetch(:progname,'not_set')
-    
+
     filename = opts.fetch(:filename,nil)
     local = nil
     if filename
