@@ -209,7 +209,7 @@ module EZQ
     if queue.respond_to?( :send_message )
       begin
         return queue if queue.exists?
-      rescue(AWS::S3::Errors::ExpiredToken)
+      rescue(AWS::SQS::Errors::ExpiredToken)
         return EZQ.get_queue( queue.name, create_if_needed)
       end
       return AWS::SQS.new.queues.create(queue.name) if create_if_needed
@@ -409,7 +409,7 @@ module EZQ
   # @param [String] bucket The S3 bucket from which to pull
   # @param [String] key The S3 key, which will also map directly to the local filename
   # @return [Bool] true if successful, false otherwise
-  def EZQ.get_s3_file(bucket,key)
+  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false)
     @log.debug "EZQ::get_s3_file" if @log
     s3 = EZQ.get_s3()
     b = s3.buckets[ bucket ]
@@ -422,6 +422,17 @@ module EZQ
       return true
     end
     File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
+
+    if decompress
+      type = File.extname(key)
+      case type
+      when '.gz'
+        EZQ.gunzip(key,keep_name: keep_name)
+      when '.zip'
+        EZQ.decompress_file(key)
+      end
+    end
+
     return true
   rescue(AWS::S3::Errors::ExpiredToken)
       @s3 = nil
@@ -492,13 +503,19 @@ module EZQ
   end
 
 
-  def EZQ.gunzip(filename)
+  def EZQ.gunzip(filename,keep_name: false)
     return nil if !File.extname(filename) == '.gz'
+    uncname = ''
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
       uncname = filename.split('.')[0...-1].join('.')
       File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
       zi.close
+    end
+
+    if keep_name
+      File.delete(filename)
+      File.rename(uncname,filename)
     end
   end
 
