@@ -64,7 +64,11 @@ module EZQ
 
 
   # Returns handle to S3.
-  def EZQ.get_s3()
+  # @param [Bool] reset If true, get a new S3 object rather than
+  #                     returning the cached one
+  # @return [AWS::S3] the S3 object
+  def EZQ.get_s3(reset: false)
+    @s3 = nil if reset
     # The backoff retry is an attempt to deal with this uninformative error:
     # `block in add_service': undefined method `global_endpoint?' for AWS::S3:
     #  Class (NoMethodError)
@@ -86,7 +90,7 @@ module EZQ
   #                 Defaults to 'Overflow'.
   # @param [String] key The S3 key to use. Defaults to a random uuid.
   #
-  # @returns [Array(String,String)] Returns the new body and new preamble that
+  # @return [Array(String,String)] Returns the new body and new preamble that
   #                                 should be sent on to a queue in place of the
   #                                 original.
   def EZQ.divert_body_to_s3( body,
@@ -156,7 +160,8 @@ module EZQ
   # if it is larger than SQS allows.
   # @param [String] body The message body
   # @param [Hash] preamble The EZQ preamble to use for this message
-  # @param [String] queue Name of the SQS queue
+  # @param [AWS::SQS::Queue,String] queue SQS::Queue object or name of an SQS
+  #                                       queue
   # @param [Bool] create_queue_if_needed Create the queue if it doesn't exist?
   # @param [String] bucket Name of S3 bucket to use for overflow if
   #                        message is too large for SQS
@@ -201,8 +206,12 @@ module EZQ
   def EZQ.get_queue( queue,create_if_needed=false )
     @log.debug "EZQ::get_queue" if @log
     # If it's an SQS::Queue already, treat it as such....
-    if queue.respond_to?( :send_message )
-      return queue if queue.exists?
+    if queue.respond_to?( :send_message )AWS::S3::Errors::ExpiredToken
+      begin
+        return queue if queue.exists?
+      rescue(AWS::S3::Errors::ExpiredToken)
+        return EZQ.get_queue( queue.name, create_if_needed)
+      end
       return AWS::SQS.new.queues.create(queue.name) if create_if_needed
       return nil
     end
@@ -345,6 +354,9 @@ module EZQ
       obj.write(data,{:metadata=>{:md5=>dig}})
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
+    rescue(AWS::S3::Errors::ExpiredToken)
+      EZQ.get_s3(reset: true)
+      retry
     rescue => e
       log.warn "EZQ::DataPusher: #{e}" if log
       retry if (@retries -= 1) > -1
@@ -378,6 +390,9 @@ module EZQ
       obj.write(Pathname.new(filename),all_opts)
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
+    rescue(AWS::S3::Errors::ExpiredToken)
+      EZQ.get_s3(reset: true)
+      retry
     rescue => e
       log.warn "EZQ::FilePusher: #{e}" if log
       retry if (@retries -= 1) > -1
@@ -408,6 +423,9 @@ module EZQ
     end
     File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
     return true
+  rescue(AWS::S3::Errors::ExpiredToken)
+      @s3 = nil
+      retry
   rescue
       return false
   end
@@ -464,8 +482,7 @@ module EZQ
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
       uncname = filename + '.uc'
-      File.open(uncname, "w+") {|ucf|
-      ucf << zi.inflate(cf.read) }
+      File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
       zi.close
     end
     File.delete(filename)
@@ -563,6 +580,7 @@ module EZQ
     return result
   end
 
+  alias :ex_retry :exceptional_retry_with_backoff
 
 
   # Retries a block that returns nil, false, or integer < 1 upon failure,
@@ -602,6 +620,8 @@ module EZQ
     end
     return result
   end
+
+  alias :bool_retry :boolean_retry_with_backoff
 
 
   # Runs an external command.
