@@ -22,8 +22,8 @@ def substitute(command,idx)
   command += " --token #{@loggly_token}" if @loggly_token
   command += " --loggly_severity #{@loggly_level}" if @loggly_level
   command += " --app_name #{@app_name}" if @app_name
-  command += " --debug_port #{@dbp}" if @pry_server
-  command += " --exit_port #{@exp}"
+  command += " --debug_port #{dbp}" if @pry_server
+  command += " --exit_port #{exp}"
   return command
 end
 
