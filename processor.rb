@@ -273,11 +273,11 @@ module EZQ
 
         # Everything in here that could potentially be large has to be forcibly
         # capped to ensure we don't go over the 256kB message size limit
-        err = {'stdout_stderr' => output.join("\n").byteslice(0..99999) # limit to 100 kB
-               'error_collection' => collect_errors(input_filename,id).byteslice(0..99999) # limit to 100kB
-               'command' => commandline.byteslice(0..2999) # limit to 3kB
-               'msg_id' => @id
-               'input' => @msg_contents.byteslice(0..49999) # limit to 50kB
+        err = {'stdout_stderr' => output.join("\n").byteslice(0..99999), # limit to 100 kB
+               'error_collection' => collect_errors(input_filename,id).byteslice(0..99999), # limit to 100kB
+               'command' => commandline.byteslice(0..2999), # limit to 3kB
+               'msg_id' => @id,
+               'input' => @msg_contents.byteslice(0..49999), # limit to 50kB
                'pid' => @pid}
         err['instance'] = @instance_id if !@instance_id.empty?
         send_error(err.to_yaml)
@@ -395,7 +395,7 @@ module EZQ
       if @collect_errors_command
         command = expand_vars(@collect_errors_command,input_filename,id)
         return '' if command.empty?
-        success, errors = EZQ.exec_cmd(command)
+        errors = EZQ.exec_cmd(command).last
       end
       return errors.join("\n")
     end
@@ -423,7 +423,6 @@ module EZQ
     protected
     # Post a message to result_queue
     def post_to_result_queue
-      msg = ""
       preamble = {'EZQ'=>{}}
       body = make_raw_result(preamble)
       preamble['EZQ']['processed_message_id'] = @id
@@ -511,10 +510,10 @@ module EZQ
       return true if !preamble.has_key?('get_s3_files')
       files = preamble['get_s3_files']
       files.each do |props|
-        return false if !get_s3_file(props['bucket'],props['key'],msgbody)
+        key = props['key']
+        return false if !get_s3_file(props['bucket'],key,msgbody)
         if props.has_key?('decompress') && props['decompress'] == true
-          EZQ.decompress_file(props['key'],overwrite: false)
-        end
+          EZQ.decompress_file(key,overwrite: false)
         elsif File.extname(key) == '.gz'
           EZQ.gunzip(key)
           @s3_files[@s3_file.find_index(key)] = key.gsub(/\.gz$/,'')
@@ -756,7 +755,7 @@ module EZQ
       # Just save the first message since we have no concept of saving all of
       # them. Since save_message uses @msg_contents for the body, this is kind
       # of okay.
-      save_message(msg,id) if @store_message
+      save_message(mol[0],id) if @store_message
 
       success = run_process_command(@input_filename,@id)
       if success
@@ -822,8 +821,9 @@ module EZQ
           # anything that might clobber them! The idea is to continue polling for
           # messages until we get enough to form a molecule.
         rescue(AWS::S3::Errors::ExpiredToken)
-        init_receive_queue()
-        retry
+          init_receive_queue()
+          retry
+        end
       end
     end
 
