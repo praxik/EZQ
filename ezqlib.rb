@@ -206,7 +206,7 @@ module EZQ
   def EZQ.get_queue( queue,create_if_needed=false )
     @log.debug "EZQ::get_queue" if @log
     # If it's an SQS::Queue already, treat it as such....
-    if queue.respond_to?( :send_message )AWS::S3::Errors::ExpiredToken
+    if queue.respond_to?( :send_message )
       begin
         return queue if queue.exists?
       rescue(AWS::S3::Errors::ExpiredToken)
@@ -468,7 +468,7 @@ module EZQ
     "\"" => "\x22", "'" => "\x27"}
 
 
-  # Decompresses the file and stores the result in a file with the same name.
+  # Decompress a .zip archive
   def EZQ.decompress_file(filename)
     Zip::File.open(filename) do |zip_file|
       zip_file.each { |entry| entry.extract(entry.name) }
@@ -478,6 +478,7 @@ module EZQ
 
   # Decompress a file that contains data compressed directly with libz; that
   # is, the file is not a standard .zip with appropriate header information.
+  # Decompresses the file and stores the result in a file with the same name.
   def EZQ.decompress_headerless_file(filename)
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
@@ -487,6 +488,17 @@ module EZQ
     end
     File.delete(filename)
     File.rename(filename + '.uc', filename)
+  end
+
+
+  def EZQ.gunzip(filename)
+    return nil if !File.extname(filename) == '.gz'
+    File.open(filename) do |cf|
+      zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+      uncname = filename.split('.')[0...-1].join('.')
+      File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
+      zi.close
+    end
   end
 
 
@@ -580,8 +592,6 @@ module EZQ
     return result
   end
 
-  alias :ex_retry :exceptional_retry_with_backoff
-
 
   # Retries a block that returns nil, false, or integer < 1 upon failure,
   # using a timed backoff. If all retries fail, the last error code is returned.
@@ -620,8 +630,6 @@ module EZQ
     end
     return result
   end
-
-  alias :bool_retry :boolean_retry_with_backoff
 
 
   # Runs an external command.
