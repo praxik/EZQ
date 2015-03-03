@@ -100,11 +100,6 @@ module EZQ
       # Grab the receive_queue
       init_receive_queue()
 
-      # Get the result queue, if one was specified
-      if @result_step == 'post_to_result_queue'
-        init_result_queue()
-      end
-
       set_instance_details()
 
       @run = true
@@ -191,26 +186,6 @@ module EZQ
     end
 
 
-    protected
-    # Call into AWS to get the result queue and put it into the variable
-    # +@result_queue+. No call to AWS is made if the result queue already exists
-    # and has the name of the currently-specified queue.
-    def init_result_queue
-      return nil if @result_queue_name.empty?
-      if (!@result_queue) || ( @result_queue && (@result_queue.arn.split(':').last != @result_queue_name) )
-        @result_queue = EZQ.exceptional_retry_with_backoff(3) do
-          EZQ.get_queue(@result_queue_name,true)
-        end
-      end
-      if !@result_queue.exists?
-        m = "Exception: No queue named #{@result_queue_name} exists."
-        @logger.fatal m
-        send_error(m, true)
-      end
-      return nil
-    end
-
-
 
     protected
     # Parse a configuration file as yaml
@@ -262,15 +237,14 @@ module EZQ
     # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
     # @param [String] id The id of this message to use for forming filename
     def save_message(msg,id)
-      tmp = {}
-      tmp['body'] = @msg_contents # Instead of msg.body because by now we will
-      # have decompressed, pulled body out of S3,
-      # and mutated the body in other ways.
-      tmp['sender_id'] = msg.sender_id
-      tmp['sent_at'] = msg.sent_at
-      tmp['receive_count'] = msg.receive_count
-      tmp['first_received_at'] = msg.first_received_at
-      File.open( "#{id}.message", 'w' ) { |output| output << tmp.to_yaml }
+      # Use @msg_contents instead of msg.body because body may have
+      # already been mutated by this point.
+      mess = {'body'=>@msg_contents,
+              'sender_id'=>msg.sender_id,
+              'sent_at'=>msg.sent_at,
+              'receive_count'=>msg.receive_count,
+              'first_received_at'=>msg.first_received_at}
+      File.write("#{id}.message",mess.to_yaml)
     end
 
 
@@ -282,8 +256,7 @@ module EZQ
     # @param [String] id Unique id associated with the current message
     def run_process_command(input_filename,id,log_command=true)
       commandline = expand_vars(@process_command,input_filename,id)
-      @logger.info "Running command '#{commandline}'" if log_command
-      @logger.info 'Running process_command' if !log_command
+      @logger.info log_command ? "Running command '#{commandline}'" : 'Running process_command'
 
       success = false
       output = []
@@ -293,20 +266,21 @@ module EZQ
         break if success
       end
 
+
       @logger.fatal "Command does not exist!" if success == nil
-      @logger.error "Command '#{commandline}' failed with output: \n#{output.join("\n")}" if !success
       if !success
-        err_hash = {}
+        @logger.error "Command '#{commandline}' failed with output: \n#{output.join("\n")}"
+
         # Everything in here that could potentially be large has to be forcibly
         # capped to ensure we don't go over the 256kB message size limit
-        err_hash['stdout_stderr'] = output.join("\n").byteslice(0..99999) # limit to 100 kB
-        err_hash['error_collection'] = collect_errors(input_filename,id).byteslice(0..99999) # limit to 100kB
-        err_hash['command'] = commandline.byteslice(0..2999) # limit to 3kB
-        err_hash['msg_id'] = @id
-        err_hash['input'] = @msg_contents.byteslice(0..49999) # limit to 50kB
-        err_hash['pid'] = @pid
-        err_hash['instance'] = @instance_id if !@instance_id.empty?
-        send_error(err_hash.to_yaml)
+        err = {'stdout_stderr' => output.join("\n").byteslice(0..99999) # limit to 100 kB
+               'error_collection' => collect_errors(input_filename,id).byteslice(0..99999) # limit to 100kB
+               'command' => commandline.byteslice(0..2999) # limit to 3kB
+               'msg_id' => @id
+               'input' => @msg_contents.byteslice(0..49999) # limit to 50kB
+               'pid' => @pid}
+        err['instance'] = @instance_id if !@instance_id.empty?
+        send_error(err.to_yaml)
       end
 
       return success
@@ -383,8 +357,6 @@ module EZQ
           @logger.info "overrode config for #{k}"
         end
       end
-      # Result queue may have changed. This does nothing if it hasn't.
-      init_result_queue()
     rescue
       @logger.info "No overrides."
     end
@@ -423,15 +395,7 @@ module EZQ
       if @collect_errors_command
         command = expand_vars(@collect_errors_command,input_filename,id)
         return '' if command.empty?
-        begin
-          IO.popen(command) do |io|
-            while !io.eof?
-              errors << io.gets
-            end
-          end
-        rescue
-          errors << "collect_errors_command '#{command}' does not exist."
-        end
+        success, errors = EZQ.exec_cmd(command)
       end
       return errors.join("\n")
     end
@@ -465,9 +429,8 @@ module EZQ
       preamble['EZQ']['processed_message_id'] = @id
       # Non-destuctively add our s3 files to any that were previously set
       preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
-      @s3_outs if !@s3_outs.empty?
-      digest = EZQ.enqueue_message(body,preamble,@result_queue,false,
-      bucket = 'EZQOverflow.praxik')
+                                        @s3_outs if !@s3_outs.empty?
+      digest = EZQ.enqueue_message(body,preamble,@result_queue_name,false,'EZQOverflow.praxik')
       if !digest.empty?
         @logger.info "Posted result message to queue '#{@result_queue_name}'"
         return true
@@ -518,10 +481,7 @@ module EZQ
       @s3_endpoints.each do |ep|
         fname = ep['filename']
         if File.exists?(fname)
-          s3 = AWS::S3.new
-          bucket = s3.buckets[ep['bucket']]
-          obj = bucket.objects.create(ep['key'],Pathname.new(fname))
-          AWS.config.http_handler.pool.empty! # Hack to solve odd timeout issue
+          EZQ.ex_retry(2){EZQ.send_file_to_s3(fname,ep['bucket'],ep['key'])}
           info = {'bucket'=>ep['bucket'],'key'=>ep['key']}
           @s3_outs.push(info)
         end
@@ -552,13 +512,12 @@ module EZQ
       files = preamble['get_s3_files']
       files.each do |props|
         return false if !get_s3_file(props['bucket'],props['key'],msgbody)
-        if props.has_key?('decompress') and props['decompress'] == true
-          Zip.on_exists_proc = true # Don't raise if extracted files already exist
-          Zip::File.open(props['key']) do |zip_file|
-            # Don't actually overwrite an existing file, because doing so with
-            # multiple processes simultaneously -- it happens! -- causes crashes.
-            zip_file.each { |entry| entry.extract(entry.name) if !File.exists?(entry.name) }
-          end
+        if props.has_key?('decompress') && props['decompress'] == true
+          EZQ.decompress_file(props['key'],overwrite: false)
+        end
+        elsif File.extname(key) == '.gz'
+          EZQ.gunzip(key)
+          @s3_files[@s3_file.find_index(key)] = key.gsub(/\.gz$/,'')
         end
       end
 
@@ -594,13 +553,12 @@ module EZQ
       if !EZQ.get_s3_file(bucket,key)
         issue = "Unable to fetch #{key} from S3."
         @logger.error(issue)
-        err_hash = {}
-        err_hash['issue'] = issue
-        err_hash['msg_id'] = @id
-        err_hash['input'] = msgbody.byteslice(0..49999)
-        err_hash['pid'] = @pid
-        err_hash['instance'] = @instance_id if !@instance_id.empty?
-        send_error(err_hash.to_yaml,false)
+        err = {'issue' => issue,
+               'msg_id' => @id,
+               'input' => msgbody.byteslice(0..49999),
+               'pid' => @pid}
+        err['instance'] = @instance_id if !@instance_id.empty?
+        send_error(err.to_yaml,false)
         return false
       end
       return true
@@ -835,6 +793,9 @@ module EZQ
         exit if !@run
       end
       return nil
+    rescue(AWS::S3::Errors::ExpiredToken)
+      init_receive_queue()
+      retry
     end
 
 
@@ -843,22 +804,26 @@ module EZQ
       opts = atom_opts(a)
       msgs = []
       while @run
-        msgs += Array(@in_queue.receive_message(opts))
-        if msgs.size < a
-          n = a - msgs.size
-          opts[:limit] = n > 10 ? 10 : n
-          next
-        end
-        msgs = remove_duplicates(msgs)
-        msgs.each_slice(a) do |molecule|
-          if molecule.size == a
-            process_molecule(molecule)
-            msgs -= molecule
+        begin
+          msgs += Array(@in_queue.receive_message(opts))
+          if msgs.size < a
+            n = a - msgs.size
+            opts[:limit] = n > 10 ? 10 : n
+            next
           end
-        end
-        # At this point, msgs may still contain fewer than 'a' entries. Don't do
-        # anything that might clobber them! The idea is to continue polling for
-        # messages until we get enough to form a molecule.
+          msgs = remove_duplicates(msgs)
+          msgs.each_slice(a) do |molecule|
+            if molecule.size == a
+              process_molecule(molecule)
+              msgs -= molecule
+            end
+          end
+          # At this point, msgs may still contain fewer than 'a' entries. Don't do
+          # anything that might clobber them! The idea is to continue polling for
+          # messages until we get enough to form a molecule.
+        rescue(AWS::S3::Errors::ExpiredToken)
+        init_receive_queue()
+        retry
       end
     end
 
