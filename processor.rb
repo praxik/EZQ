@@ -480,7 +480,7 @@ module EZQ
       @s3_endpoints.each do |ep|
         fname = ep['filename']
         if File.exists?(fname)
-          EZQ.ex_retry(2){EZQ.send_file_to_s3(fname,ep['bucket'],ep['key'])}
+          EZQ.exceptional_retry_with_backoff(2){EZQ.send_file_to_s3(fname,ep['bucket'],ep['key'])}
           info = {'bucket'=>ep['bucket'],'key'=>ep['key']}
           @s3_outs.push(info)
         end
