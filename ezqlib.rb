@@ -260,12 +260,15 @@ module EZQ
   # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
+  # @param [Bool] compress If true, compresses data with gzip and alters key to end
+  #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [nil] Always returns nil
-  def EZQ.send_data_to_s3( data,bucket_name,key )
-    thread = send_data_to_s3_async( data,bucket_name,key )
+  def EZQ.send_data_to_s3( data,bucket_name,key,compress: false )
+    thread = send_data_to_s3_async( data,bucket_name,key,compress: compress )
     thread.join
     return nil
   end
+
 
 
   # Sends data to S3 on a new thread, using bucket_name and key
@@ -273,12 +276,15 @@ module EZQ
   # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
+  # @param [Bool] compress If true, compresses data with gzip and alters key to end
+  #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before existing your
   #                  application.
-  def EZQ.send_data_to_s3_async( data,bucket,key )
-    return Thread.new(data,bucket,key){ |d,b,k| DataPusher.new(d,b,k,@log) }
+  def EZQ.send_data_to_s3_async( data,bucket,key,compress: false )
+    return Thread.new(data,bucket,key,compress){ |d,b,k,c| DataPusher.new(d,b,k,c,@log) }
   end
+
 
 
   # Sends a file to S3, using bucket_name and key
@@ -287,12 +293,15 @@ module EZQ
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
   # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
+  # @param [Bool] compress If true, compresses file with gzip and alters key to end
+  #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [nil] Always returns nil.
-  def EZQ.send_file_to_s3( filename,bucket,key,options={} )
-    thread = send_file_to_s3_async( filename,bucket,key,options )
+  def EZQ.send_file_to_s3( filename,bucket,key,options={},compress: false )
+    thread = send_file_to_s3_async( filename,bucket,key,options,compress: compress )
     thread.join
     return nil
   end
+
 
 
   # Sends a file to S3 on a new thread, using bucket_name and key
@@ -301,38 +310,46 @@ module EZQ
   #                             it will be automatically created.
   # @param [String] key S3 key to use.
   # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
+  # @param [Bool] compress If true, compresses file with gzip and alters key to end
+  #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def EZQ.send_file_to_s3_async( filename,bucket,key,options={} )
-    return Thread.new(filename,bucket,key){ |f,b,k| FilePusher.new(f,b,k,options,@log) }
+  def EZQ.send_file_to_s3_async( filename,bucket,key,options={},compress: false )
+    return Thread.new(filename,bucket,key,compress){ |f,b,k,c| FilePusher.new(f,b,k,options,c,@log) }
   end
 
 
+
   # Sends a file to S3, using the filename as the key.
-  # @param [String] bucket_commna_filename Bucket and filename (key) joined with
-  #                                        a comma and no spaces. The bucket
-  #                                        will be created if it doesn't exist.
+  # @param [String] bucket_comma_filename Bucket and filename (key) joined with
+  #                                       a comma and no spaces. The bucket
+  #                                       will be created if it doesn't exist.
   # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
+  # @param [Bool] compress If true, compresses file with gzip and alters key to end
+  #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [nil] Always returns nil.
-  def EZQ.send_bcf_to_s3( bucket_comma_filename,options={} )
-    thread = send_bcf_to_s3_async( bucket_comma_filename,options )
+  def EZQ.send_bcf_to_s3( bucket_comma_filename,options={},compress: false )
+    thread = send_bcf_to_s3_async( bucket_comma_filename,options,compress: compress )
     thread.join
     return nil
   end
 
 
+
   # Sends a file to S3, using the filename as the key.
-  # @param [String] bucket_commna_filename Bucket and filename (key) joined with
-  #                                        a comma and no spaces. The bucket
-  #                                        will be created if it doesn't exist.
+  # @param [String] bucket_comma_filename Bucket and filename (key) joined with
+  #                                       a comma and no spaces. The bucket
+  #                                       will be created if it doesn't exist.
   # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
+  # @param [Bool] compress If true, compresses file with gzip and alters key to end
+  #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options={} )
+  def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options={},compress: false )
     bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
-    return send_file_to_s3_async( key,bucket,key,options )
+    return send_file_to_s3_async( key,bucket,key,options,compress: compress )
   end
 
 
@@ -340,8 +357,17 @@ module EZQ
   # DataPusher class pushes specified data to S3. It is intended to be used
   # as a thread object.
   class DataPusher
-    def initialize( data,bucket_name,key,log=nil )
+    def initialize( data,bucket_name,key,compress=false,log=nil )
       @retries ||= 10
+      if compress
+        sio = StringIO.new
+        gz = Zlib::GzipWriter.new(sio,9)
+        gz.write(data)
+        gz.close
+        data = sio.string
+        key = "#{key}.gz" if !(key =~ /\.gz$/)
+      end
+
       s3 = EZQ.get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
@@ -371,23 +397,36 @@ module EZQ
   # as a thread object.
   class FilePusher
     # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
-    def initialize( filename,bucket_name,key,options={},log=nil )
+    def initialize( filename,bucket_name,key,options={},compress=false,log=nil )
       @retries ||= 10
       if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
       end
+
+      fname = filename
+
+      # If filename doesn't end in .gz but key does, we will compress
+      # *even if* +compress+ *is false*
+      gz = /\.gz$/
+      silent_compress = ( !(filename =~ gz) && key =~ gz )
+      log "EZQ::FilePusher: implicitly gzipping #{filename}" if (log && silent_compress)
+      if compress or silent_compress
+        fname = EZQ.compress_file(filename)
+        key = "#{key}.gz" if !(key =~ gz)
+      end
+
       s3 = EZQ.get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
       obj = bucket.objects[key]
-      file_dig = EZQ.md5file(filename).hexdigest
+      file_dig = EZQ.md5file(fname).hexdigest
       if obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
         log.debug "Remote file is up-to-date; skipping send." if log
         return nil
       end
-      md5_opts = {:metadata=>{:md5=>EZQ.md5file(filename).hexdigest}}
+      md5_opts = {:metadata=>{:md5=>file_dig}}
       all_opts = options.merge(md5_opts)
-      obj.write(Pathname.new(filename),all_opts)
+      obj.write(Pathname.new(fname),all_opts)
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
       return nil
     rescue(AWS::S3::Errors::ExpiredToken)
@@ -408,9 +447,14 @@ module EZQ
   # without actually downloading the file.
   # @param [String] bucket The S3 bucket from which to pull
   # @param [String] key The S3 key, which will also map directly to the local filename
+  # @param [Bool] decompress Whether to decompress the file (.gz or .zip). Default: false
+  #               Note this is a **named** parameter.
+  # @param [Bool] keep_name If true and +decompress+ is true, decompressed file
+  #               will have the same name as compressed file, including .gz or .zip
+  #               extension. Note this is a **named** parameter.
   # @return [Bool] true if successful, false otherwise
   def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false)
-    @log.debug "EZQ::get_s3_file" if @log
+    @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
     s3 = EZQ.get_s3()
     b = s3.buckets[ bucket ]
     obj = b.objects[ key ]
@@ -427,8 +471,10 @@ module EZQ
       type = File.extname(key)
       case type
       when '.gz'
+        @log.debug "EZQ::get_s3_file: decompressing file with gunzip" if @log
         EZQ.gunzip(key,keep_name: keep_name)
       when '.zip'
+        @log.debug "EZQ::get_s3_file: decompressing file with unzip" if @log
         EZQ.decompress_file(key)
       end
     end
@@ -439,6 +485,21 @@ module EZQ
       retry
   rescue
       return false
+  end
+
+
+  # Removes a file from S3. This will only remove individual files,
+  # not complete "directories"
+  # @param [String] bucket S3 bucket in which the file is stored
+  # @param [String] key S3 key to the file
+  # @return nil
+  def EZQ.remove_s3_file(bucket,key)
+    @log.debug "EZQ::remove_s3_file: #{bucket}/#{key}" if @log
+    s3 = EZQ.get_s3()
+    b = s3.buckets[ bucket ]
+    obj = b.objects[ key ]
+    obj.delete if obj.exists?
+    return nil
   end
 
 
@@ -492,14 +553,15 @@ module EZQ
   # is, the file is not a standard .zip with appropriate header information.
   # Decompresses the file and stores the result in a file with the same name.
   def EZQ.decompress_headerless_file(filename)
+    uncname = filename + '.uc'
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-      uncname = filename + '.uc'
       File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
       zi.close
     end
     File.delete(filename)
-    File.rename(filename + '.uc', filename)
+    File.rename(uncname, filename)
+    return filename
   end
 
 
@@ -508,7 +570,8 @@ module EZQ
     uncname = ''
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-      uncname = filename.split('.')[0...-1].join('.')
+      # Strip .gz from the end of the filename
+      uncname = filename.gsub(/\.gz$/,'')
       File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
       zi.close
     end
@@ -516,17 +579,23 @@ module EZQ
     if keep_name
       File.delete(filename)
       File.rename(uncname,filename)
+      return filename
     end
+    return uncname
   end
 
 
   # Compresses the file and stores the result in filename.gz
+  # @param [String] filename Path to file to compress
+  # @return [String] Path to the compressed file
   def EZQ.compress_file(filename)
-    Zlib::GzipWriter.open("#{filename}.gz",9) do |gz|
+    cfname = "#{filename}.gz"
+    Zlib::GzipWriter.open(cfname,9) do |gz|
       gz.mtime = File.mtime(filename)
       gz.orig_name = filename
       gz.write IO.binread(filename)
     end
+    return cfname
   end
 
 
@@ -684,95 +753,5 @@ module EZQ
     end
     return [success,output]
   end
-
-end
-
-
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-# Unit Tests
-if __FILE__ == $0
-
-print 'Setting up AWS...'
-AWS.config(YAML.load(File.read('credentials.yml')))
-puts 'done'
-
-# Send a message to a queue, ask to receive it back, check it.
-def test_one
-  digest = EZQ.enqueue_message( "Test data", {'EZQ'=>nil},'test_queue',true )
-  print "Test one (enqueue a single message): "
-  q = EZQ.get_queue('test_queue')
-  if !q
-    puts "failed to get test_queue"
-    return nil
-  end
-  q.receive_message do |msg|
-    if msg.md5 == digest
-      puts "pass"
-    else
-      puts "fail"
-    end
-  end
-  return nil
-end
-
-# Send a message that we know is way too big to a queue. Ensure it was diverted
-# to S3 properly. Ask to receive message back from queue, and check the
-# preamble.
-def test_two
-  digest = EZQ.enqueue_message((1..40000).to_a.to_yaml,{'EZQ'=>nil},'test_queue')
-  print "Test two (enqueue an oversized message): "
-  q = EZQ.get_queue('test_queue')
-  if !q
-    puts "failed to get test_queue"
-    return nil
-  end
-  q.receive_message do |msg|
-    pre = YAML.load(msg.body)
-    if pre.has_key?('get_s3_file_as_body')
-      puts 'pass'
-    else
-      puts 'fail'
-    end
-  end
-  return nil
-end
-
-
-# Send a whole batch of messages at once.
-def test_three
-  print "Test three (enqueue batch of messages): "
-  msg_ary = (1..14).map{|i| i.to_s}
-  EZQ.enqueue_batch(msg_ary,[{'EZQ'=>nil}],'test_queue')
-  q = EZQ.get_queue('test_queue')
-  14.times do
-    q.receive_message do |msg|
-      msg_ary -= [EZQ.strip_preamble(msg.body)]
-    end
-  end
-  puts msg_ary
-  if msg_ary.empty?
-    puts 'pass'
-  else
-    puts 'fail'
-  end
-end
-
-
-def test_four
-  print "Test four (send a file to s3 using bcf notation): "
-  File.write('test.txt',"This is a test")
-  thread = EZQ.send_bcf_to_s3_async("6k_test.praxik,test.txt")
-  thread.join
-  puts 'pass'
-end
-
-#test_one()
-#test_two()
-#test_three()
-#test_four()
-
 
 end
