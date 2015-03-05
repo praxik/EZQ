@@ -296,8 +296,8 @@ module EZQ
   # @param [Bool] compress If true, compresses file with gzip and alters key to end
   #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [nil] Always returns nil.
-  def EZQ.send_file_to_s3( filename,bucket,key,options={},compress: false )
-    thread = send_file_to_s3_async( filename,bucket,key,options,compress: compress )
+  def EZQ.send_file_to_s3( filename,bucket,key,options: {},compress: false )
+    thread = send_file_to_s3_async( filename,bucket,key,options: options,compress: compress )
     thread.join
     return nil
   end
@@ -315,8 +315,8 @@ module EZQ
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def EZQ.send_file_to_s3_async( filename,bucket,key,options={},compress: false )
-    return Thread.new(filename,bucket,key,compress){ |f,b,k,c| FilePusher.new(f,b,k,options,c,@log) }
+  def EZQ.send_file_to_s3_async( filename,bucket,key,options: {},compress: false )
+    return Thread.new(filename,bucket,key,options,compress){ |f,b,k,c| FilePusher.new(f,b,k,options,c,@log) }
   end
 
 
@@ -329,8 +329,8 @@ module EZQ
   # @param [Bool] compress If true, compresses file with gzip and alters key to end
   #               with '.gz'. Default: false. Note this is a **named parameter**.
   # @return [nil] Always returns nil.
-  def EZQ.send_bcf_to_s3( bucket_comma_filename,options={},compress: false )
-    thread = send_bcf_to_s3_async( bucket_comma_filename,options,compress: compress )
+  def EZQ.send_bcf_to_s3( bucket_comma_filename,options: {},compress: false )
+    thread = send_bcf_to_s3_async( bucket_comma_filename,options: options,compress: compress )
     thread.join
     return nil
   end
@@ -347,9 +347,9 @@ module EZQ
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #                  Thread#join is called on this thread before exiting your
   #                  application.
-  def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options={},compress: false )
+  def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options: {},compress: false )
     bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
-    return send_file_to_s3_async( key,bucket,key,options,compress: compress )
+    return send_file_to_s3_async( key,bucket,key,options: options,compress: compress )
   end
 
 
@@ -410,7 +410,8 @@ module EZQ
       gz = /\.gz$/
       silent_compress = ( !(filename =~ gz) && key =~ gz )
       log "EZQ::FilePusher: implicitly gzipping #{filename}" if (log && silent_compress)
-      if compress or silent_compress
+      compress |= silent_compress
+      if compress
         fname = EZQ.compress_file(filename)
         key = "#{key}.gz" if !(key =~ gz)
       end
@@ -428,6 +429,9 @@ module EZQ
       all_opts = options.merge(md5_opts)
       obj.write(Pathname.new(fname),all_opts)
       AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
+
+      # Remove the temporary if we created one.
+      File.unlink(key) if compress
       return nil
     rescue(AWS::S3::Errors::ExpiredToken)
       EZQ.get_s3(reset: true)
