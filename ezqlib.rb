@@ -316,7 +316,7 @@ module EZQ
   #                  Thread#join is called on this thread before exiting your
   #                  application.
   def EZQ.send_file_to_s3_async( filename,bucket,key,options: {},compress: false )
-    return Thread.new(filename,bucket,key,options,compress){ |f,b,k,c| FilePusher.new(f,b,k,options,c,@log) }
+    return Thread.new(filename,bucket,key,options,compress){ |f,b,k,o,c| FilePusher.new(f,b,k,o,c,@log) }
   end
 
 
