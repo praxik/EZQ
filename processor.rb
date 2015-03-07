@@ -792,7 +792,8 @@ module EZQ
         exit if !@run
       end
       return nil
-    rescue(AWS::S3::Errors::ExpiredToken)
+    rescue(AWS::SQS::Errors::ExpiredToken)
+      @logger.debug "Credentials expired. Re-initing rec. queue"
       init_receive_queue()
       retry
     end
@@ -820,7 +821,8 @@ module EZQ
           # At this point, msgs may still contain fewer than 'a' entries. Don't do
           # anything that might clobber them! The idea is to continue polling for
           # messages until we get enough to form a molecule.
-        rescue(AWS::S3::Errors::ExpiredToken)
+        rescue(AWS::SQS::Errors::ExpiredToken)
+          @logger.debug "Credentials expired. Re-initing rec. queue"
           init_receive_queue()
           retry
         end
