@@ -87,7 +87,7 @@ module EZQ
       config.merge!(overrides)
 
       # Set up AWS with the specified credentials
-      AWS.config(credentials)
+      #AWS.config(credentials)
 
       # Create a bunch of instance variables and give them sensible defaults
       set_defaults()
@@ -1000,16 +1000,16 @@ if __FILE__ == $0
       Thread.new{loop{binding.remote_pry('localhost',debug_port.to_i)}}
     end
 
-    if !File.exists?(creds_file)
-      log.fatal "Credentials file '#{creds_file}' does not exist! Aborting."
-      exit 1
-    end
+#     if !File.exists?(creds_file)
+#       log.fatal "Credentials file '#{creds_file}' does not exist! Aborting."
+#       exit 1
+#     end
 
-    credentials = YAML.load(File.read(creds_file))
-    if !credentials.kind_of?(Hash)
-      log.fatal "Credentials file '#{creds_file}' is not properly formatted! Aborting."
-      exit 1
-    end
+    credentials = {} #YAML.load(File.read(creds_file))
+#     if !credentials.kind_of?(Hash)
+#       log.fatal "Credentials file '#{creds_file}' is not properly formatted! Aborting."
+#       exit 1
+#     end
 
     overrides = queue ? {"receive_queue_name"=>queue} : {}
     overrides['error_queue_name'] = error_queue if error_queue
