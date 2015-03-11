@@ -550,7 +550,7 @@ module EZQ
       @logger.info "Getting object #{key} from bucket #{bucket}"
       @s3_files << key
       if !EZQ.get_s3_file(bucket,key)
-        issue = "Unable to fetch #{key} from S3."
+        issue = "Unable to fetch s3://#{bucket}/#{key}"
         @logger.error(issue)
         err = {'issue' => issue,
                'msg_id' => @id,
@@ -634,6 +634,7 @@ module EZQ
       override_configuration(msg.body)
       if !fetch_s3(msg.body)
         cleanup(@input_filename,@id)
+        set_visibility(msg,10)
         return false
       end
       fetch_uri(msg.body)
