@@ -409,10 +409,11 @@ module EZQ
       # *even if* +compress+ *is false*
       gz = /\.gz$/
       silent_compress = ( !(filename =~ gz) && key =~ gz )
-      log "EZQ::FilePusher: implicitly gzipping #{filename}" if (log && silent_compress)
+      log.debug "EZQ::FilePusher: implicitly gzipping #{filename}" if (log && silent_compress)
       compress |= silent_compress
       if compress
         fname = EZQ.compress_file(filename)
+        options[:content_encoding] = 'gzip'
         key = "#{key}.gz" if !(key =~ gz)
       end
 
