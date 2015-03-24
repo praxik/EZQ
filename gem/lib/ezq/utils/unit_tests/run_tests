@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+cmd = "ruby -I ../../../"
+
+FILES=['exec_test.rb',
+       'common_test.rb',
+       'compression_test.rb',
+       'ip_test.rb',
+       'escaping_test.rb',
+       's3_test.rb']
+
+sep = "======================================================================="
+FILES.each{|f| puts "\n#{sep}\n#{f}\n#{sep}";system("#{cmd} #{f}")}

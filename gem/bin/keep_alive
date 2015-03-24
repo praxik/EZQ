@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+require 'optparse'
+require 'logger'
+
+def start
+
+  command = ''
+  num = 0
+  check_interval = 0
+  use_ids = false
+
+  logger = Logger.new('keep_alive.log')
+
+  op = OptionParser.new do |opts|
+    opts.banner = "Usage: keep_alive.rb [options]"
+
+    opts.on("-c", "--command COMMAND", "COMMAND string to run") do |c|
+      command = c
+    end
+    opts.on("-n", "--number N","Number of instances to keep alive") do |n|
+      num = n.to_i
+    end
+    opts.on("-t", "--check_interval SECONDS","SECONDS to wait between checking whether processes are still alive") do |s|
+      check_interval = s.to_i
+    end
+    opts.on("-i", "--ids","Whether to replace the pattern $pid in the command string with a unique id") do |ids|
+      use_ids = ids
+    end
+  end
+
+  begin op.parse! ARGV
+  rescue OptionParser::InvalidOption => e
+    exit(1)
+  end
+
+  if command.empty? or num == 0  or check_interval < 1
+    puts op
+    exit(1)
+  end
+
+  pids = []
+
+  # Start initial batch of processes
+  num.times do |idx|
+    cmd = use_ids ? command.gsub('$pid',"#{idx}") : command
+    log.info "Initial start of '#{cmd}'"
+    pids << spawn(cmd)
+  end
+
+  # Check in on the processes and restart as needed
+  loop do
+    sleep(check_interval)
+    pids.each do |pid|
+      id = Process.wait(pid,Process::WNOHANG)
+      if id
+        idx = pids.find_index(id)
+        pids.delete(id)
+        # Reuse the same id for $pid each time this process is restarted
+        cmd = use_ids ? command.gsub('$pid',"#{idx}") : command
+        log.info "Restarting '#{cmd}'"
+        pids << spawn(cmd)
+      end
+    end
+  end
+end
+
+
+begin
+  start()
+rescue Interrupt
+  puts "Killed by user. Aborting."
+end

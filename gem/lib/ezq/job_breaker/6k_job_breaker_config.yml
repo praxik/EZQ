@@ -1,0 +1,6 @@
+task_queue_name: '6k_task'
+job_creator_command: "ruby Pre_grid_wrapper.rb"
+preamble: ""
+repeat_message_n_times: 0
+# collection or inline
+repeat_message_type: collection

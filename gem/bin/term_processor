@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+require 'socket'
+
+port = ARGV.shift
+
+if !port
+  puts "Usage: term_processor PORT"
+  exit(1)
+end
+
+s = TCPSocket.new('localhost',port.to_i)
+s.puts "TERMINATE"
+s.close

@@ -1,0 +1,115 @@
+#!/usr/bin/env ruby
+
+require 'yaml'
+require 'optparse'
+
+require 'ezq/dual_log'
+require 'ezq/processor/processor'
+
+quiet = false
+config_file = 'queue_config.yml'
+severity = 'info'
+queue = nil
+result_queue = nil
+error_queue = nil
+log_file = STDOUT
+loggly_token = nil
+loggly_severity = 'info'
+app_name = 'EZQ::Processor'
+exit_port = '8642'
+debug_port = nil
+op = OptionParser.new do |opts|
+  opts.banner = "Usage: processor.rb [options]"
+
+  opts.on("-q", "--quiet", "Run quietly") do |q|
+    quiet = q
+  end
+  opts.on("-c", "--config [CONFIG_FILE]", "Use configuration file CONFIG_FILE. Defaults to queue_config.yml if not specified.") do |file|
+    config_file = file
+  end
+  opts.on("-l", "--log [LOG_FILE]","Log to file LOG_FILE") do |file|
+    log_file = file
+  end
+  opts.on("-s", "--log_severity [SEVERITY]","Set local log severity to one of: unknown, fatal, error, warn, info, debug. Default = info") do |s|
+    severity = s
+  end
+  opts.on("-t", "--token [LOGGLY_TOKEN]","Loggly token. Turns on logging to loggly") do |token|
+    loggly_token = token
+  end
+  opts.on("-u", "--loggly_severity [SEVERITY]","Set loggly severity to one of: unknown, fatal, error, warn, info, debug. Default = info") do |s|
+    loggly_severity = s
+  end
+  opts.on("-n", "--app_name [APP_NAME]","Application name to use with Loggly.") do |name|
+    app_name = name
+  end
+  opts.on("-Q", "--queue [QUEUE_NAME]","Poll QUEUE_NAME for tasks rather than the receive_queue specified in the config file") do |q|
+    queue = q
+  end
+  opts.on("-e", "--error_queue [QUEUE_NAME]","Report fatal errors to this queue rather than the error_queue specified in the config file") do |q|
+    error_queue = q
+  end
+  opts.on("-R", "--result_queue [QUEUE_NAME]","Send results to QUEUE_NAME rather than the queue specified in the config file") do |q|
+    result_queue = q
+  end
+  opts.on("-p", "--exit_port [PORT]","On MSWindows, open a socket on PORT to listen for 'TERMINATE' message for graceful exit") do |p|
+    exit_port = p
+  end
+  opts.on("-d", "--debug_port [PORT]","Starts a pry-remote server on the selected port. WARNING: This can be a gaping security hole if your port access rules are not sane.") do |p|
+    debug_port = p
+  end
+end
+
+begin op.parse! ARGV
+rescue OptionParser::InvalidOption => e
+  if !quiet
+    puts e
+    puts op
+  end
+  exit 1
+end
+
+begin
+  puts "EZQ.Processor started.\n\n" unless quiet
+  if log_file != STDOUT
+    log_file = File.new(log_file, 'a')
+    log_file.sync = true
+    log = Logger.new(log_file)
+    $stderr = log_file
+  else
+    if quiet
+      log_file = RUBY_PLATFORM =~ /mswin|mingw/ ? 'NUL:' : '/dev/null'
+    end
+  end
+  s_map = {'unknown'=>Logger::UNKNOWN,'fatal'=>Logger::FATAL,
+    'error'=>Logger::ERROR,'warn'=>Logger::WARN,
+    'info'=>Logger::INFO,'debug'=>Logger::DEBUG}
+
+  log = DualLogger.new({:progname=>app_name,
+    :ip=>EZQ.get_local_ip(),
+    :filename=>log_file,
+    :local_level=>s_map[severity],
+    :loggly_token=>loggly_token,
+    :loggly_level=>s_map[loggly_severity],
+    :pid=>Process.pid})
+
+  log.unknown "\n\n==============EZQ.Processor started================"
+
+  if debug_port
+    log.unknown "Pry-remote port: #{debug_port}"
+    require 'pry-remote'
+    Thread.new{loop{binding.remote_pry('localhost',debug_port.to_i)}}
+  end
+
+  credentials = {}
+
+  overrides = queue ? {"receive_queue_name"=>queue} : {}
+  overrides['error_queue_name'] = error_queue if error_queue
+  overrides['result_queue_name'] = result_queue if result_queue
+  overrides['exit_port'] = exit_port
+  EZQ::Processor.new(config_file,credentials,log,overrides).start
+  # Handle Ctrl-C gracefully
+rescue Interrupt
+  warn "\nEZQ.Processor aborted!"
+  exit 1
+end
+
