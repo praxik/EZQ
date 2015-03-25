@@ -5,7 +5,6 @@
 # A value of 'auto' will start as many processes as there are available cores
 # (according to the OS)
 
-require 'bundler/setup'
 require 'yaml'
 require 'parallel'
 require 'logger'
@@ -31,14 +30,13 @@ end
 def start
   log = Logger.new('processor_fan_out.log')
 
-  command = 'ruby processor.rb -c receive_queue_config.yml'
-  Dir.chdir(File.dirname(__FILE__))
+  command = 'processor -c receive_queue_config.yml'
 
   userdata = ''
   begin
     userdata = YAML.load_file('userdata.yml')
-  rescue
-    warn 'Error opening or parsing `userdata.yml`. Aborting'
+  rescue => e
+    warn "Error opening or parsing 'userdata.yml': #{e}. Aborting"
     exit(1)
   end
 
