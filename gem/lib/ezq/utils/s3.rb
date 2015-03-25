@@ -183,57 +183,103 @@ module EZQ
   # FilePusher class pushes specified file to S3. It is intended to be used
   # as a thread object.
   class FilePusher
+
+    # Push a file into Amazon S3 storage, setting the content_type along the way, and
+    # compressing with gz (and setting content_encoding if so) if requested. Content_type
+    # is *not* overwritten if you have already passed a +:content_type+ in the options hash.
+    # @param [String] filename Path to local file to send to S3
+    # @param [String] bucket_name Name of S3 bucket to use as endpoint. We attempt
+    #                 to create bucket if it does not already exist.
+    # @param [String] key Key to use for file in S3. This is the S3 equivalent of a full path
+    #                 to the file. Note that +key+ need not be the same as +filename+. If
+    #                 +filename+ does not end in +".gz"+ but +key+ does, the file will be
+    #                 compressed with gzip *even if the* +compress+ *parameter is false*.
     # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
+    # @param [Bool] compress Whether to compress the file before sending. If +true+, and +key+
+    #               does not end in +".gz"+, +key+ will be changed to end in +".gz"+.
+    # @param [Logger] log Logger to use for loggish purposes.
+    # @return [String] The key that was sent to S3. Notice the key might be different from the
+    #                  one passed in if +compress+ was +true+.
     def push( filename,bucket_name,key,options={},compress=false,log=nil )
       @retries ||= 10
+      @log = log
+      raise_if_no_file(filename)
+      set_content_type(filename,options) # mutates options
+      local_file, key2, compress2 = handle_compression(filename,key,options,compress) # mutates options
+      set_md5(local_file,options) # mutates options
+
+      @log.debug "Sending #{filename} to S3://#{bucket_name}/#{key2}" if @log
+
+      begin
+        obj = get_s3_obj(bucket_name,key2)
+        if !up_to_date?(obj,options)
+          obj.write(Pathname.new(local_file),options)
+          AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
+        end
+      rescue(AWS::S3::Errors::ExpiredToken)
+        EZQ.get_s3(reset: true)
+        retry
+      rescue => e
+        @log.warn "EZQ::FilePusher: #{e}" if @log
+        retry if (@retries -= 1) > -1
+        @log.error "EZQ::FilePusher: #{e}" if @log
+        raise e
+      ensure
+        # Cleanup the temporary compressed file
+        File.unlink(key2) if compress2
+        return key2
+      end
+    end
+
+    protected # Everything in this class below this line is protected
+    def raise_if_no_file(filename)
       if !File.exists?(filename)
         raise "File '#{filename}' does not exist."
       end
+    end
 
-      fname = filename
-
+    def handle_compression(local_file,key,options,compress)
       # If filename doesn't end in .gz but key does, we will compress
       # *even if* +compress+ *is false*
       gz = /\.gz$/
-      silent_compress = ( !(filename =~ gz) && key =~ gz )
-      log.debug "EZQ::FilePusher: implicitly gzipping #{filename}" if (log && silent_compress)
+      silent_compress = ( !(local_file =~ gz) && key =~ gz )
+      @log.debug "EZQ::FilePusher: implicitly gzipping #{local_file}" if (@log && silent_compress)
       compress |= silent_compress
       if compress
-        fname = EZQ.compress_file(filename)
+        local_file = EZQ.compress_file(local_file)
         options[:content_encoding] = 'gzip'
         key = "#{key}.gz" if !(key =~ gz)
       end
+      return [local_file,key,compress]
+    end
 
+    def set_content_type(filename,options)
       if !options.fetch(:content_type,false)
         options[:content_type] = EZQ.get_content_type(filename)
       end
+    end
 
+    def set_md5(local_file,options)
+      options[:metadata] = {:md5=>EZQ.md5file(local_file).hexdigest}
+    end
+
+    def up_to_date?(obj,options)
+      utd = false
+      file_dig = options[:metadata][:md5]
+      if obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
+        @log.debug "Remote file is up-to-date; skipping send." if @log
+        utd = true
+      end
+      return utd
+    end
+
+    def get_s3_obj(bucket_name,key)
       s3 = EZQ.get_s3()
       s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
       bucket = s3.buckets[bucket_name]
-      obj = bucket.objects[key]
-      file_dig = EZQ.md5file(fname).hexdigest
-      if obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
-        log.debug "Remote file is up-to-date; skipping send." if log
-        return key
-      end
-      md5_opts = {:metadata=>{:md5=>file_dig}}
-      all_opts = options.merge(md5_opts)
-      obj.write(Pathname.new(fname),all_opts)
-      AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
-
-      # Remove the temporary if we created one.
-      File.unlink(key) if compress
-      return key
-    rescue(AWS::S3::Errors::ExpiredToken)
-      EZQ.get_s3(reset: true)
-      retry
-    rescue => e
-      log.warn "EZQ::FilePusher: #{e}" if log
-      retry if (@retries -= 1) > -1
-      log.error "EZQ::FilePusher: #{e}" if log
-      raise e
+      return bucket.objects[key]
     end
+
   end
 
 

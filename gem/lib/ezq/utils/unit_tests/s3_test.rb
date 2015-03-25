@@ -12,6 +12,10 @@ class TestEZQS3 < Minitest::Test
 #     @log = Logger.new(STDOUT)
 #     @log.level = Logger::DEBUG
 #     EZQ.set_logger(@log)
+
+    @wrong_contents = 'File contents are incorrect'
+    @wrong_key = 'Returned key is incorrect'
+    @no_file = 'File does not exist'
   end
 
   def clean_file(file)
@@ -19,18 +23,20 @@ class TestEZQS3 < Minitest::Test
   end
 
   def test_get_s3
-    refute_equal nil, EZQ.get_s3
+    refute_equal nil, EZQ.get_s3, 'Could not get S3 object'
   end
 
 
   def test_send_data_to_s3
     file = 'EZQ_unit_tests/test.txt'
     EZQ.remove_s3_file(@bucket,file)
+    contents = 'Test data'
 
-    EZQ.send_data_to_s3("Test data", @bucket, file)
+    key = EZQ.send_data_to_s3(contents, @bucket, file)
     EZQ.get_s3_file(@bucket, file)
-    assert File.exist?(file)
-    assert_equal 'Test data', File.read(file)
+    assert_equal file, key, @wrong_key
+    assert File.exist?(file), @no_file
+    assert_equal contents, File.read(file), @wrong_contents
   ensure
     FileUtils.rm_rf(file)
   end
@@ -39,82 +45,64 @@ class TestEZQS3 < Minitest::Test
   def test_send_data_to_s3_compressed
     file = 'EZQ_unit_tests/compress.txt'
     EZQ.remove_s3_file(@bucket,file)
+    contents = 'Test data'
 
-    EZQ.send_data_to_s3("Test data", @bucket, file, compress: true)
+    key = EZQ.send_data_to_s3(contents, @bucket, file, compress: true)
     EZQ.get_s3_file(@bucket, "#{file}.gz", decompress: true)
-    assert File.exist?(file)
-    assert_equal 'Test data', File.read(file)
+    assert_equal file + '.gz', key, @wrong_key
+    assert File.exist?(file), @no_file
+    assert_equal contents, File.read(file), @wrong_contents
   ensure
     clean_file(file)
     clean_file("#{file}.gz")
   end
 
 
-  def test_send_file_to_s3
-    file = 'EZQ_unit_tests/file_test.txt'
-    dir = 'EZQ_unit_tests'
+  def send_file(file,dir,key,compress)
+    contents = 'Some test text'
     EZQ.remove_s3_file(@bucket,file)
 
     FileUtils.mkdir(dir) if !File.exist?(dir)
-    File.write(file,'Some test text')
+    File.write(file,contents)
 
-    name = EZQ.send_file_to_s3(file,@bucket,file)
-    assert_equal file, name
+    key = EZQ.send_file_to_s3(file,@bucket,file,compress: compress)
+    if compress
+      assert_equal "#{file}.gz", key, @wrong_key
+    else
+      assert_equal file, key, @wrong_key
+    end
 
     clean_file(file)
-    refute File.exist?(file)
-    EZQ.get_s3_file(@bucket,file)
-    assert File.exist?(file)
-    assert_equal 'Some test text', File.read(file)
+    refute File.exist?(file), 'File was not removed in cleanup step'
+    EZQ.get_s3_file(@bucket,key,decompress: true)
+    assert File.exist?(file), @no_file
+    assert_equal contents, File.read(file), @wrong_contents
   ensure
     clean_file(file)
+    clean_file("#{file}.gz")
+  end
+
+
+  def simple_send(compress)
+    file = 'EZQ_unit_tests/file_test.txt'
+    dir = 'EZQ_unit_tests'
+    send_file(file,dir,file,compress)
+  end
+
+  def test_send_file_to_s3
+    simple_send(false)
   end
 
 
   def test_send_file_to_s3_compressed
-    file = 'EZQ_unit_tests/file_test.txt'
-    dir = 'EZQ_unit_tests'
-    EZQ.remove_s3_file(@bucket,file)
-
-    FileUtils.mkdir(dir) if !File.exist?(dir)
-    File.write(file,'Some test text')
-
-    name = EZQ.send_file_to_s3(file,@bucket,file,compress: true)
-    assert_equal "#{file}.gz", name
-
-    clean_file(file)
-    refute File.exist?(file)
-    EZQ.get_s3_file(@bucket,"#{file}.gz",decompress: true)
-    assert File.exist?(file)
-    assert_equal 'Some test text', File.read(file)
-  ensure
-    clean_file(file)
-    clean_file("#{file}.gz")
+    simple_send(true)
   end
 
 
   def test_send_file_to_s3_compressed_implicit
     file = 'EZQ_unit_tests/file_test_implicit.txt'
     dir = 'EZQ_unit_tests'
-    EZQ.remove_s3_file(@bucket,file)
-
-    FileUtils.mkdir(dir) if !File.exist?(dir)
-    File.write(file,'Some test text')
-
-    name = EZQ.send_file_to_s3(file,@bucket,"#{file}.gz")
-    assert_equal "#{file}.gz", name
-
-    clean_file(file)
-    refute File.exist?(file)
-    EZQ.get_s3_file(@bucket,"#{file}.gz",decompress: true)
-    assert File.exist?(file)
-    assert_equal 'Some test text', File.read(file)
-  ensure
-    clean_file(file)
-    clean_file("#{file}.gz")
-  end
-
-  def test_send_bcf_to_s3
+    send_file(file,dir,"#{file}.gz",false)
   end
 
 
@@ -123,7 +111,7 @@ class TestEZQS3 < Minitest::Test
     clean_file(file)
     File.write(file,"Test")
     known_md5 = "0cbc6611f5540bd0809a388dc95a615b"
-    assert_equal known_md5, EZQ.md5file(file).hexdigest
+    assert_equal known_md5, EZQ.md5file(file).hexdigest, 'MD5s do not match'
   ensure
     clean_file(file)
   end
@@ -133,7 +121,7 @@ class TestEZQS3 < Minitest::Test
     file = 'test.json'
     clean_file(file)
     File.write(file, {"this" => "is a test"}.to_json)
-    assert_equal "application/json", EZQ.get_content_type(file)
+    assert_equal "application/json", EZQ.get_content_type(file), 'Content-type is incorrect'
   ensure
     clean_file(file)
   end
@@ -146,14 +134,14 @@ class TestEZQS3 < Minitest::Test
     FileUtils.mkdir(dir) if !File.exist?(dir)
     File.write(file,'Some test text')
 
-    name = EZQ.send_file_to_s3(file,@bucket,file)
-    assert_equal file, name
+    key = EZQ.send_file_to_s3(file,@bucket,file)
+    assert_equal file, key, @wrong_key
 
     # Compare modified time to check whether file was pulled down again.
     mtime = File.mtime(file)
     res = EZQ.get_s3_file(@bucket,file)
-    assert_equal true, res
-    assert_equal mtime, File.mtime(file)
+    assert_equal true, res, 'Failed to get file'
+    assert_equal mtime, File.mtime(file), 'File timestamps do not match; file was fetched a second time'
   ensure
     clean_file(file)
   end
