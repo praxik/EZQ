@@ -18,6 +18,7 @@ module EZQ
   #                             so that the default backoff is exponential. To
   #                             use a constant delay between retries, set base
   #                             equal to 1.
+  # @return [?] The result of the provided block
   def EZQ.exceptional_retry_with_backoff(retries,
                                           first_delay=1,
                                           base=Math.exp(1),
@@ -59,6 +60,7 @@ module EZQ
   #                             so that the default backoff is exponential. To
   #                             use a constant delay between retries, set base
   #                             equal to 1.
+  # @return [?] The result of the provided block
   def EZQ.boolean_retry_with_backoff(retries,
                                       first_delay=1,
                                       base=Math.exp(1),
