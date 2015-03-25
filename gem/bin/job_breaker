@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'bundler/setup'
 require 'json'
 require 'yaml'
 require 'aws-sdk'
@@ -17,11 +16,11 @@ module EZQ
 # each of the separate tasks as specified in the configuration. A *Job* is
 # a collection of *Tasks*.
 #
-# There are two ways to use Job_Breaker: Give it a single string containing 
+# There are two ways to use Job_Breaker: Give it a single string containing
 # all the tasks in a job, like this:
-# 
+#
 #     {
-#        "tasks": 
+#        "tasks":
 #        [
 #          {
 #            "Task ID" : "Task 1",
@@ -38,7 +37,7 @@ module EZQ
 # Or, set a job_creator_command in the configuration. Job_Breaker will run this
 # command, and listen on STDOUT for individual tasks. Each task should be
 # formatted as JSON, and should be emitted as a *single* *string*.
-# Ruby programs acting as job_creators should set <tt>$stdout.sync = true</tt> 
+# Ruby programs acting as job_creators should set <tt>$stdout.sync = true</tt>
 # to ensure the STDOUT buffer is flushed each time +puts+ is called.
 #
 # A single task looks like this:
@@ -49,9 +48,9 @@ module EZQ
 #    }
 #
 # When creating a batch of Tasks from a Job, it is often desirable to cache
-# files needed for the Tasks in Amazon S3. Job_Breaker provides a simple 
-# mechanism to support this need without having to bake it directly into the 
-# job_creator_command. To use this, have the job_creator_command write the 
+# files needed for the Tasks in Amazon S3. Job_Breaker provides a simple
+# mechanism to support this need without having to bake it directly into the
+# job_creator_command. To use this, have the job_creator_command write the
 # file to local storage, and then put a message formatted like this on STDOUT:
 #
 #     push_file: bucket,filename
@@ -73,18 +72,18 @@ class Job_Breaker
   # @param [String] job_string A JSON job string that will be broken up into
   #                 separate tasks and enqueued. This value will be ignored if
   #                 config::job_creator_command is set.
-  # @param [Logger] logger The logger to use for logging internal output 
+  # @param [Logger] logger The logger to use for logging internal output
   def initialize(config,credentials,job_string = '',logger = nil)
     if !logger
       logger = Logger.new(STDOUT)
       logger.level = Logger::INFO
     end
     @logger = logger
-    
+
     # Set up AWS with the specified credentials
     @credentials = credentials
     AWS.config(credentials)
-    
+
     @job_creator_command = config['job_creator_command']
     @task_queue_name = config['task_queue_name']
     @preamble = config['preamble']
@@ -93,21 +92,21 @@ class Job_Breaker
     @dry_run = config['dry_run']
     @enqueued_tasks = []
     @already_pushed = []
-   
+
     get_queue unless @dry_run
     if job_string.empty? && !@job_creator_command.empty?
       wrap_job_creator
-    else  
+    else
       split_job(JSON.parse(job_string))
     end
     @logger.info "Exit status #{@exit_status}"
     exit @exit_status
   end
-  
-  
-  
+
+
+
   protected
-  # Call into AWS to get the result queue and put it into the variable 
+  # Call into AWS to get the result queue and put it into the variable
   # @result_queue. No call to AWS is made if the result queue already exists
   # and has the name of the currently-specified queue.
   def get_queue
@@ -123,14 +122,14 @@ class Job_Breaker
       raise "No queue named #{@task_queue_name} exists."
     end
   end
-  
-  
+
+
   protected
   # Starts up the job_creator_command and listens to its STDOUT for tasks
   def wrap_job_creator
     @logger.info "Running: #{@job_creator_command}"
     push_threads = []
-    IO.popen(@job_creator_command)  do |io| 
+    IO.popen(@job_creator_command)  do |io|
       while !io.eof?
         msg = io.gets
         msg = EZQ.unescape(msg)#unescape(msg)
@@ -181,8 +180,8 @@ class Job_Breaker
   def clean_threads(threads)
     threads.delete_if{|t| t.status == false or t.status == nil}
   end
-  
-  
+
+
   protected
   # Breaks up a job batch into individual tasks and enqueues then
   def split_job(json)
@@ -202,8 +201,8 @@ class Job_Breaker
       @repeat_message_n_times.times {enqueue_task_impl(body,preamble)}
     end
   end
-  
-  
+
+
   protected
   # Does the true heavy-lifting of enqueueing a task
   def enqueue_task_impl(body,preamble)
@@ -230,16 +229,16 @@ class Job_Breaker
     return [task.sub(/-{3}\nEZQ.+?\.{3}\n/m,''),preamble]
   end
 
-  
+
 end #class
 end #module
 
 ################################################################################
-# Run this bit if this file is being run directly as an executable rather than 
+# Run this bit if this file is being run directly as an executable rather than
 # being imported as a module.
 if __FILE__ == $0
   require 'optparse'
-  
+
   quiet = false
   config_file = 'job_breaker_config.yml'
   jobs_file = ''
@@ -285,10 +284,10 @@ if __FILE__ == $0
     end
     exit 1
   end
-  
-  
+
+
   job = jobs_file.empty? ? '' : File.read(jobs_file)
-  
+
   begin
     puts "EZQ.Job_Breaker started.\n\n" unless quiet
     #log = Logger.new(log_file,5,1024*1024*20)
@@ -307,7 +306,7 @@ if __FILE__ == $0
                           :loggly_token=>loggly_token,
                           :loggly_level=>Logger::ERROR,
                           :pid=>Process.pid})
-    
+
     log.info "Parsing configuration file #{config_file}"
     config_file = File.join(File.dirname(__FILE__),config_file)
     if !File.exist?(config_file)
@@ -321,7 +320,7 @@ if __FILE__ == $0
     end
 
     config['dry_run'] = dry_run == true ? true : false
-    
+
     #Override the preamble if one was passed in on the cmdline
     config['preamble'] = preamble if !preamble.empty?
     #Override the job_creator_command if one was passed in on the cmdline
@@ -337,7 +336,7 @@ if __FILE__ == $0
       warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
       exit 1
     end
-    
+
     EZQ::Job_Breaker.new(config,credentials,job,log)
   # Handle Ctrl-C gracefully
   rescue Interrupt
