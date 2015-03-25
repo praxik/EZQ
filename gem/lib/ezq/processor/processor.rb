@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-#require 'bundler/setup'
 require 'yaml'
 require 'aws-sdk'
 require 'zlib'
