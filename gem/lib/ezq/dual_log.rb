@@ -1,13 +1,13 @@
 #!usr/bin/env ruby
 
 # Example use of the DualLogger class
-#d = DualLogger.new({:progname=>"my_app_name",
-#                    :ip=>"my_ip",
-#                    :filename=>"dl.log",
-#                    :local_level=>Logger::INFO,
-#                    :loggly_token=>"loggly-token-goes-here",
-#                    :loggly_level=>Logger::ERROR,
-#                    :pid=>Process.pid})
+# d = DualLogger.new({:progname=>"my_app_name",
+#                     :ip=>"my_ip",
+#                     :filename=>"dl.log",
+#                     :local_level=>Logger::INFO,
+#                     :loggly_token=>"loggly-token-goes-here",
+#                     :loggly_level=>Logger::ERROR,
+#                     :pid=>Process.pid})
 
 require 'json'
 require 'logglier'
@@ -15,11 +15,11 @@ require_relative 'multi_logger.rb'
 
 
 # This isn't the class you want. This is just a wrapper around Logglier. You
-# want the class that comes after this one. Really. I'm serious. Why are you
-# still reading this?
+# want the class that comes after this one, DualLogger. Really.
+# I'm serious. Why are you still reading this?
 class LogglyWrapper < Logger
 
- 
+
   def initialize(opts={})
 
     @progname = opts.fetch(:progname,'not_set')
@@ -30,7 +30,10 @@ class LogglyWrapper < Logger
 
     loggly_token = opts.fetch(:loggly_token,'')
     if loggly_token and !loggly_token.empty?
-      @loggly = Logglier.new("http://logs-01.loggly.com/inputs/#{loggly_token}/tag/#{@progname}/",:format => :json,:threaded => true,:failsafe=> trash_log)
+      @loggly = Logglier.new("http://logs-01.loggly.com/inputs/#{loggly_token}/tag/#{@progname}/",
+                             :format => :json,
+                             :threaded => true,
+                             :failsafe=> trash_log)
       @loggly.level = opts.fetch(:loggly_level,Logger::ERROR)
     else
       return nil
@@ -39,7 +42,10 @@ class LogglyWrapper < Logger
 
   # Takes a message and wraps all the metadata we want to carry with it
   def add_metadata(msg)
-    return {:timestamp=>Time.now.utc.strftime('%FT%T.%3NZ'),:msg=>msg,:ip=>@ip,:pid=>@pid}
+    return {:timestamp=>Time.now.utc.strftime('%FT%T.%3NZ'),
+            :msg=>msg,
+            :ip=>@ip,
+            :pid=>@pid}
   end
 
   def datetime_format=(datetime_format)
@@ -108,10 +114,10 @@ end
 # thread.
 class DualLogger < MultiLogger
 
-  # Options hash consists of the following, all of which are optional -- but you
-  # really ought to set either :filename or :loggly_token, otherwise this logger
-  # doesn't do anything. To get the most out of this logger, you should really
-  # set all of them.
+  # Options hash consists of the following, all of which are optional -- but
+  # you really ought to set either :filename or :loggly_token, otherwise this
+  # logger doesn't do anything. To get the most out of this logger, you
+  # should really set all of them.
   # :progname -- name of the application being logged. If using Loggly, setting
   #              this correctly will make your life soooo much easier.
   # :filename -- name of a local file to use for local logging. If unset, no
@@ -129,7 +135,7 @@ class DualLogger < MultiLogger
   def initialize(opts={})
 
     @progname = opts.fetch(:progname,'not_set')
-    
+
     filename = opts.fetch(:filename,nil)
     local = nil
     if filename

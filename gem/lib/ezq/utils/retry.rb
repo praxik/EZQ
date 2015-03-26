@@ -7,17 +7,19 @@ module EZQ
   # retries fail, the last raised exception is raised by this function. If
   # the block succeeds, the return value of the block is returned, so this
   # method is safe to use as the rhs of an assignment.
+  #
   # @param [Integer] retries The number of times to retry the block.
+  #
   # @param [Integer,Float] first_delay Number of seconds to delay between
-  #                                       the first failure and the first retry.
+  #   the first failure and the first retry.
+  #
   # @param [Integer,Float] base The base to use when calculating successive
-  #                             delays according to the formula
-  #                             delay = first_delay/base * (base ** num_tries),
-  #                             where num_tries increments monotonically from 1.
-  #                             The default base is Math.exp(1); that is, 'e',
-  #                             so that the default backoff is exponential. To
-  #                             use a constant delay between retries, set base
-  #                             equal to 1.
+  #   delays according to the formula delay = first_delay/base * (base **
+  #   num_tries), where num_tries increments monotonically from 1. The default
+  #   base is Math.exp(1); that is, 'e', so that the default backoff is
+  #   exponential. To use a constant delay between retries, set base equal to
+  #   1.
+  #
   # @return [?] The result of the provided block
   def EZQ.exceptional_retry_with_backoff(retries,
                                           first_delay=1,

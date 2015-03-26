@@ -1,25 +1,25 @@
 
 require 'aws/sqs/queue'
-require 'ezq'
+require 'ezq/utils/retry'
 
-# We have to monkey-patch the AWS module in order to derive from Queue because 
+# We have to monkey-patch the AWS module in order to derive from Queue because
 # AWS does some internal magic with namespaces. Perhaps there is a cleaner way,
 # but this is fairly safe because the monkey-patching only adds a method, and
 # does so by subclassing Queue. We are, of course, also adding a new internal
 # class to SQS, but there's just no way around that.
 module AWS
   class SQS
-  
+
     # Provides a polling operation that does not automatically delete a message
     # at the end of the block. This is useful when an application needs to have
     # the flexibility to fail on processing a message and move on to the next
     # message in the queue without deleting the failed one from the queue.
     class X_queue < Queue
-    
+
       # Similar to AWS::SQS::Queue#poll.
       #
-      # This version takes all the same options, but does not automatically 
-      # delete the message from the queue at the end of the block. Instead, 
+      # This version takes all the same options, but does not automatically
+      # delete the message from the queue at the end of the block. Instead,
       # user code in the block must explicitly delete the message.
       def poll_no_delete(opts = {}, &block)
             opts[:limit] = opts.delete(:batch_size) if

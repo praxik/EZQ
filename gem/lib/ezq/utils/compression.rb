@@ -7,9 +7,12 @@ require 'ezq/utils/common'
 module EZQ
 
   # Decompress a .zip archive
+  #
   # @param [String] filename Path to zip archive
+  #
   # @param [Boolean] overwrite Whether to overwrite existing files when
-  #                  decompressing. Default: true.
+  #   decompressing. Default: true.
+  #
   # @return nil
   def EZQ.decompress_file(filename, overwrite: true)
     Zip.on_exists_proc = true # Don't raise if extracted files already exist
@@ -23,7 +26,9 @@ module EZQ
   # Decompress a file that contains data compressed directly with libz; that
   # is, the file is not a standard .zip with appropriate header information.
   # Decompresses the file and stores the result in a file with the same name.
+  #
   # @param [String] filename Path to compressed file
+  #
   # @return [String] Path to uncompressed file
   def EZQ.decompress_headerless_file(filename)
     uncname = filename + '.uc'
@@ -39,9 +44,12 @@ module EZQ
 
 
   # Decompress a .gz file
+  #
   # @param [String] filename Path to gz file
+  #
   # @param [Boolean] keep_name If true, uncompressed file will
-  #                  retain the .gz extension. Default: false.
+  #   retain the .gz extension. Default: false.
+  #
   # @return [String] Path to the decompressed file
   def EZQ.gunzip(filename,keep_name: false)
     @log.debug "EZQ::gunzip: #{filename}, #{keep_name}" if @log
@@ -66,7 +74,9 @@ module EZQ
 
 
   # Compresses the file and stores the result in filename.gz
+  #
   # @param [String] filename Path to file to compress
+  #
   # @return [String] Path to the compressed file
   def EZQ.compress_file(filename)
     cfname = "#{filename}.gz"

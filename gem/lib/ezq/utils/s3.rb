@@ -12,8 +12,10 @@ require 'ezq/utils/compression'
 module EZQ
 
   # Returns handle to S3.
+  #
   # @param [Bool] reset If true, get a new S3 object rather than
-  #                     returning the cached one
+  #   returning the cached one
+  #
   # @return [AWS::S3] the S3 object
   def EZQ.get_s3(reset: false)
     @s3 = nil if reset
@@ -32,14 +34,20 @@ module EZQ
 
 
   # Sends data to S3 using bucket_name and key
+  #
   # @param [String] data Data to send
+  #
   # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
-  #                             it will be automatically created.
+  #   it will be automatically created.
+  #
   # @param [String] key S3 key to use.
-  # @param [Bool] compress If true, compresses data with gzip and alters key to end
-  #               with '.gz'. Default: false. Note this is a *named* *parameter*.
-  # @return [String] returns the key that was sent to S3. Note that if +compress+ was true, the
-  #               key may have been mutated from what you passed in.
+  #
+  # @param [Bool] compress If true, compresses data with gzip and alters key
+  #   to end with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
+  # @return [String] returns the key that was sent to S3. Note that if
+  #   +compress+ was true, the key may have been mutated from what you
+  #   passed in.
   def EZQ.send_data_to_s3( data,bucket_name,key,compress: false )
     thread = send_data_to_s3_async( data,bucket_name,key,compress: compress )
     thread.join
@@ -49,17 +57,22 @@ module EZQ
 
 
   # Sends data to S3 on a new thread, using bucket_name and key
+  #
   # @param [String] data Data to send
-  # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
-  #                             it will be automatically created.
+  #
+  # @param [String] bucket S3 Bucket. If the bucket doesn't already exist,
+  #   it will be automatically created.
+  #
   # @param [String] key S3 key to use.
-  # @param [Bool] compress If true, compresses data with gzip and alters key to end
-  #               with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
+  # @param [Bool] compress If true, compresses data with gzip and alters key
+  # to end with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
   # @return [Thread] Returns a handle to a Thread. You should ensure that
-  #                  Thread#join is called on this thread before exiting your
-  #                  application. Once the thread has joined, you can call Thread#value to
-  #                  get the actual key name that was pushed. Note that if +compress+ was
-  #                  true, the key may have been mutated from what you passed in.
+  #   Thread#join is called on this thread before exiting your
+  #   application. Once the thread has joined, you can call Thread#value to
+  #   get the actual key name that was pushed. Note that if +compress+ was
+  #   true, the key may have been mutated from what you passed in.
   def EZQ.send_data_to_s3_async( data,bucket,key,compress: false )
     return Thread.new(data,bucket,key,compress){ |d,b,k,c| DataPusher.new.push(d,b,k,c,@log) }
   end
@@ -67,15 +80,23 @@ module EZQ
 
 
   # Sends a file to S3, using bucket_name and key
+  #
   # @param [String] filename Path of file to send
-  # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
-  #                             it will be automatically created.
+  #
+  # @param [String] bucket S3 Bucket. If the bucket doesn't already exist,
+  #   it will be automatically created.
+  #
   # @param [String] key S3 key to use.
-  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
-  # @param [Bool] compress If true, compresses file with gzip and alters key to end
-  #               with '.gz'. Default: false. Note this is a *named* *parameter*.
-  # @return [String] returns the key that was sent to S3. Note that if +compress+ was true, the
-  #               key may have been mutated from what you passed in.
+  #
+  # @param [Hash] options An S3 object options hash.
+  #   See docs for AWS::S3::S3Object#write
+  #
+  # @param [Bool] compress If true, compresses file with gzip and alters key
+  #  to end with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
+  # @return [String] returns the key that was sent to S3. Note that if
+  #   +compress+ was true, the key may have been mutated from what you
+  #   passed in.
   def EZQ.send_file_to_s3( filename,bucket,key,options: {},compress: false )
     thread = send_file_to_s3_async( filename,bucket,key,options: options,compress: compress )
     thread.join
@@ -85,18 +106,25 @@ module EZQ
 
 
   # Sends a file to S3 on a new thread, using bucket_name and key
+  #
   # @param [String] filename Path of file to send
-  # @param [String] bucket_name S3 Bucket. If the bucket doesn't already exist,
-  #                             it will be automatically created.
+  #
+  # @param [String] bucket S3 Bucket. If the bucket doesn't already exist,
+  #   it will be automatically created.
+  #
   # @param [String] key S3 key to use.
-  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
-  # @param [Bool] compress If true, compresses file with gzip and alters key to end
-  #               with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
+  # @param [Hash] options An S3 object options hash.
+  #   See docs for AWS::S3::S3Object#write
+  #
+  # @param [Bool] compress If true, compresses file with gzip and alters key
+  #   to end with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
   # @return [Thread] Returns a handle to a Thread. You should ensure that
-  #                  Thread#join is called on this thread before exiting your
-  #                  application. Once the thread has joined, you can call Thread#value to
-  #                  get the actual key name that was pushed. Note that if +compress+ was
-  #                  true, the key may have been mutated from what you passed in.
+  #   Thread#join is called on this thread before exiting your
+  #   application. Once the thread has joined, you can call Thread#value to
+  #   get the actual key name that was pushed. Note that if +compress+ was
+  #   true, the key may have been mutated from what you passed in.
   def EZQ.send_file_to_s3_async( filename,bucket,key,options: {},compress: false )
     return Thread.new(filename,bucket,key,options,compress){ |f,b,k,o,c| FilePusher.new.push(f,b,k,o,c,@log) }
   end
@@ -104,12 +132,16 @@ module EZQ
 
 
   # Sends a file to S3, using the filename as the key.
+  #
   # @param [String] bucket_comma_filename Bucket and filename (key) joined with
-  #                                       a comma and no spaces. The bucket
-  #                                       will be created if it doesn't exist.
-  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
-  # @param [Bool] compress If true, compresses file with gzip and alters key to end
-  #               with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #   a comma and no spaces. The bucket will be created if it doesn't exist.
+  #
+  # @param [Hash] options An S3 object options hash.
+  #   See docs for AWS::S3::S3Object#write
+  #
+  # @param [Bool] compress If true, compresses file with gzip and alters key
+  #   to end with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
   # @return [nil] Always returns nil.
   def EZQ.send_bcf_to_s3( bucket_comma_filename,options: {},compress: false )
     thread = send_bcf_to_s3_async( bucket_comma_filename,options: options,compress: compress )
@@ -120,15 +152,18 @@ module EZQ
 
 
   # Sends a file to S3, using the filename as the key.
+  #
   # @param [String] bucket_comma_filename Bucket and filename (key) joined with
-  #                                       a comma and no spaces. The bucket
-  #                                       will be created if it doesn't exist.
-  # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
-  # @param [Bool] compress If true, compresses file with gzip and alters key to end
-  #               with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #   a comma and no spaces. The bucket will be created if it doesn't exist.
+  #
+  # @param [Hash] options An S3 object options hash.
+  #   See docs for AWS::S3::S3Object#write
+  #
+  # @param [Bool] compress If true, compresses file with gzip and alters key
+  #   to end with '.gz'. Default: false. Note this is a *named* *parameter*.
+  #
   # @return [Thread] Returns a handle to a Thread. You should ensure that
-  #                  Thread#join is called on this thread before exiting your
-  #                  application.
+  #   Thread#join is called on this thread before exiting your application.
   def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options: {},compress: false )
     bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
     return send_file_to_s3_async( key,bucket,key,options: options,compress: compress )
@@ -184,22 +219,33 @@ module EZQ
   # as a thread object.
   class FilePusher
 
-    # Push a file into Amazon S3 storage, setting the content_type along the way, and
-    # compressing with gz (and setting content_encoding if so) if requested. Content_type
-    # is *not* overwritten if you have already passed a +:content_type+ in the options hash.
+    # Push a file into Amazon S3 storage, setting the content_type along the
+    # way, and compressing with gz (and setting content_encoding if so) if
+    # requested. Content_type is *not* overwritten if you have already passed
+    # a +:content_type+ in the options hash.
+    #
     # @param [String] filename Path to local file to send to S3
-    # @param [String] bucket_name Name of S3 bucket to use as endpoint. We attempt
-    #                 to create bucket if it does not already exist.
-    # @param [String] key Key to use for file in S3. This is the S3 equivalent of a full path
-    #                 to the file. Note that +key+ need not be the same as +filename+. If
-    #                 +filename+ does not end in +".gz"+ but +key+ does, the file will be
-    #                 compressed with gzip *even if the* +compress+ *parameter is false*.
-    # @param [Hash] options An S3 object options hash. See docs for AWS::S3::S3Object#write
-    # @param [Bool] compress Whether to compress the file before sending. If +true+, and +key+
-    #               does not end in +".gz"+, +key+ will be changed to end in +".gz"+.
+    #
+    # @param [String] bucket_name Name of S3 bucket to use as endpoint.
+    #   We attempt to create bucket if it does not already exist.
+    #
+    # @param [String] key Key to use for file in S3. This is the S3 equivalent
+    #   of a full path to the file. Note that +key+ need not be the same
+    #   as +filename+. If +filename+ does not end in +".gz"+ but +key+ does,
+    #   the file will be compressed with gzip *even if the* +compress+
+    #   *parameter is false*.
+    #
+    # @param [Hash] options An S3 object options hash.
+    #   See docs for AWS::S3::S3Object#write
+    #
+    # @param [Bool] compress Whether to compress the file before sending.
+    #   If +true+, and +key+ does not end in +".gz"+, +key+ will be changed
+    #   to end in +".gz"+.
+    #
     # @param [Logger] log Logger to use for loggish purposes.
-    # @return [String] The key that was sent to S3. Notice the key might be different from the
-    #                  one passed in if +compress+ was +true+.
+    #
+    # @return [String] The key that was sent to S3. Notice the key might be
+    #   different from the one passed in if +compress+ was +true+.
     def push( filename,bucket_name,key,options={},compress=false,log=nil )
       @retries ||= 10
       @log = log
@@ -288,13 +334,19 @@ module EZQ
   # a local file with the same name as the one in S3. If the local file
   # exists and its md5 is the same as the file in S3, the method returns true
   # without actually downloading the file.
+  #
   # @param [String] bucket The S3 bucket from which to pull
-  # @param [String] key The S3 key, which will also map directly to the local filename
-  # @param [Bool] decompress Whether to decompress the file (.gz or .zip). Default: false
-  #               Note this is a *named* *parameter*.
+  #
+  # @param [String] key The S3 key, which will also map directly to the local
+  #   filename
+  #
+  # @param [Bool] decompress Whether to decompress the file (.gz or .zip).
+  #   Default: false. Note this is a *named* *parameter*.
+  #
   # @param [Bool] keep_name If true and +decompress+ is true, decompressed file
-  #               will have the same name as compressed file, including .gz or .zip
-  #               extension. Note this is a *named* *parameter*.
+  #   will have the same name as compressed file, including .gz or .zip
+  #   extension. Note this is a *named* *parameter*.
+  #
   # @return [Bool] true if successful, false otherwise
   def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false)
     @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
@@ -337,8 +389,11 @@ module EZQ
 
   # Removes a file from S3. This will only remove individual files,
   # not complete "directories"
+  #
   # @param [String] bucket S3 bucket in which the file is stored
+  #
   # @param [String] key S3 key to the file
+  #
   # @return nil
   def EZQ.remove_s3_file(bucket,key)
     @log.debug "EZQ::remove_s3_file: #{bucket}/#{key}" if @log
@@ -352,7 +407,9 @@ module EZQ
 
   # Get md5 of a file without having to read entire file into memory at once.
   # From https://www.ruby-forum.com/topic/58563
+  #
   # @param [String] filename The name of the file to digest.
+  #
   # @return [Digest] An md5 digest object.
   def EZQ.md5file(filename)
     return Digest::MD5.new unless File.exist?(filename)
@@ -367,7 +424,9 @@ module EZQ
 
 
   # Get the content/mime type of a file.
+  #
   # @param [String] path Path to file.
+  #
   # @return [String] the content type
   def EZQ.get_content_type(path)
     # MimeMagic gem currently doesn't recognize json

@@ -250,10 +250,10 @@ module EZQ
 
     protected
     # Runs the process_command on a job with id, on a given message and input file
-    # @param [AWS::SQS::ReceivedMessage] msg The message associated with this run
     # @param [String] input_filename String that will replace the $input_file
     # token in process_command
     # @param [String] id Unique id associated with the current message
+    # @param [Bool] log_command If true, logs the fully-expanded commandline.
     def run_process_command(input_filename,id,log_command=true)
       commandline = expand_vars(@process_command,input_filename,id)
       @logger.info log_command ? "Running command '#{commandline}'" : 'Running process_command'
@@ -526,8 +526,8 @@ module EZQ
 
     protected
     # Determines whether preamble indicates a file_as_body, and retrieves the file
-    # if so. Returns false if there were errors; true otherwise. Sets value of
-    # @file_as_body as a side effect.
+    # if so. Returns false if there were errors; true otherwise.
+    # Sets value of @file_as_body as a side effect.
     def get_s3_file_as_body(preamble)
       @file_as_body = nil
       if preamble.has_key?('get_s3_file_as_body')
