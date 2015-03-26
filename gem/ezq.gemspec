@@ -3,19 +3,20 @@ Gem::Specification.new do |s|
   s.version     = '0.1.0'
   s.date        = '2015-03-20'
   s.summary     = "EZQ"
-  s.description = "EZQ"
+  s.description = "EZQ is e-z"
   s.author      = "Penn Taylor"
   s.email       = 'rpenn3@gmail.com'
   s.files       =  Dir.glob("{bin,lib}/**/*")
   s.add_runtime_dependency "aws-sdk", ["< 2.0"]
-  s.add_runtime_dependency "deep_merge"
-  s.add_runtime_dependency "rubyzip"
-  s.add_runtime_dependency "parallel"
-  s.add_runtime_dependency "logglier"
-  s.add_runtime_dependency "multi_json"
-  s.add_runtime_dependency "pry"
-  s.add_runtime_dependency "pry-remote"
-  s.add_runtime_dependency "mimemagic"
+  s.add_runtime_dependency "deep_merge", ["~>0"]
+  s.add_runtime_dependency "rubyzip", ["~>0"]
+  s.add_runtime_dependency "parallel", ["~>0"]
+  s.add_runtime_dependency "logglier", ["~>0"]
+  s.add_runtime_dependency "multi_json", ["~>0"]
+  s.add_runtime_dependency "pry", ["~>0"]
+  s.add_runtime_dependency "pry-remote", ["~>0"]
+  s.add_runtime_dependency "mimemagic", ["~>0"]
   s.license     = 'Private'
+  s.homepage    = 'http://stop.warning.me'
   s.executables = ['processor','processor_fan_out','keep_alive','job_breaker','term_processor']
 end
