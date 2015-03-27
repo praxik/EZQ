@@ -4,3 +4,7 @@ install-64-bit
 build-32-bit
 install-32-bit
 *.log
+gem/doc
+gem/.yardoc
+gem/lib/ezq/utils/.yardoc
+gem/*.gem
