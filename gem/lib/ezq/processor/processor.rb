@@ -193,7 +193,7 @@ module EZQ
     def parse_config_file(config_file)
       @logger.info "Parsing configuration file #{config_file}"
       if !File.exist?(config_file)
-        m = "Exception: Configuration file #{filename} does not exist."
+        m = "Exception: Configuration file #{config_file} does not exist."
         @logger.fatal m
         send_error(m, true)
       end
