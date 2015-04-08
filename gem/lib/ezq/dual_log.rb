@@ -49,57 +49,58 @@ class LogglyWrapper < Logger
   end
 
   def datetime_format=(datetime_format)
-    @loggly.datetime_format = datetime_format
+    @loggly.datetime_format = datetime_format if @loggly
   end
 
   def level=(level)
-    @loggly.level = level
+    @loggly.level = level if @loggly
   end
 
   def level
-    return @loggly.level
+    return @loggly.level if @loggly
   end
 
   def progname=(progname)
-    @loggly.progname=progname
+    @loggly.progname=progname if @loggly
   end
 
   def progname
-    return @loggly.progname
+    return @loggly.progname if @loggly
+    return 'not_set'
   end
 
   # Methods that write to logs just write to each contained logger in turn
   def add(severity, message = nil, progname = nil, &block)
-    @loggly.add(severity, add_metadata(message), progname, &block)
+    @loggly.add(severity, add_metadata(message), progname, &block) if @loggly
   end
   alias log add
 
   def <<(msg)
-    @loggly << add_metadata(msg)
+    @loggly << add_metadata(msg) if @loggly
   end
 
   def debug(progname = nil, &block)
-    @loggly.debug(add_metadata(progname), &block)
+    @loggly.debug(add_metadata(progname), &block) if @loggly
   end
 
   def info(progname = nil, &block)
-    @loggly.info(add_metadata(progname), &block)
+    @loggly.info(add_metadata(progname), &block) if @loggly
   end
 
   def warn(progname = nil, &block)
-    @loggly.warn(add_metadata(progname), &block)
+    @loggly.warn(add_metadata(progname), &block) if @loggly
   end
 
   def error(progname = nil, &block)
-    @loggly.error(add_metadata(progname), &block)
+    @loggly.error(add_metadata(progname), &block) if @loggly
   end
 
   def fatal(progname = nil, &block)
-    @loggly.fatal(add_metadata(progname), &block)
+    @loggly.fatal(add_metadata(progname), &block) if @loggly
   end
 
   def unknown(progname = nil, &block)
-    @loggly.unknown(add_metadata(progname), &block)
+    @loggly.unknown(add_metadata(progname), &block) if @loggly
   end
 
 end
@@ -143,7 +144,7 @@ class DualLogger < MultiLogger
       local.level = opts.fetch(:local_level,Logger::INFO)
     end
 
-    loggly = LogglyWrapper.new(opts) if opts.fetch(:loggly_token,false)
+    loggly = if !opts.fetch(:loggly_token,'').empty? then LogglyWrapper.new(opts) else nil end
 
     logs = []
     logs << local if local
