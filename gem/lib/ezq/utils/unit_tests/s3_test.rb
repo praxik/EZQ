@@ -9,9 +9,9 @@ class TestEZQS3 < Minitest::Test
 
   def setup
     @bucket = 'test.agsolver'
-#     @log = Logger.new(STDOUT)
-#     @log.level = Logger::DEBUG
-#     EZQ.set_logger(@log)
+    # @log = Logger.new(STDOUT)
+    # @log.level = Logger::DEBUG
+    # EZQ.set_logger(@log)
 
     @wrong_contents = 'File contents are incorrect'
     @wrong_key = 'Returned key is incorrect'

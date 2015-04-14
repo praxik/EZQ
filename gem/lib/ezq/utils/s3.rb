@@ -7,28 +7,44 @@ require 'ezq/utils/common'
 require 'ezq/utils/retry'
 require 'ezq/utils/compression'
 
-
+# TODO: refactor most of this into service-agnostic calls to either
+# EZQ.to_remote(uri,opts)
+# EZQ.from_remote(uri,opts)
+#
+# or
+#
+# EZQ.to_remote(:service,:opts_for_service)
+# EZQ.from_remote(:service,:opts_for_service)
+#
+# Those methods should inspect the uri and decide how to handle it.
+# The second version would eliminate parsing to determine how to handle
+# requests. I think that's the better way right now.
 
 module EZQ
 
-  # Returns handle to S3.
+  # Returns S3 Client object.
   #
-  # @param [Bool] reset If true, get a new S3 object rather than
+  # @param [Bool] reset If true, get a new S3 Client object rather than
   #   returning the cached one
   #
-  # @return [AWS::S3] the S3 object
+  # @return [AWS::S3] the S3 Client object
   def EZQ.get_s3(reset: false)
     @s3 = nil if reset
     # The backoff retry is an attempt to deal with this uninformative error:
     # `block in add_service': undefined method `global_endpoint?' for AWS::S3:
     #  Class (NoMethodError)
-    @s3 ||= exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
+    @s3 ||= exceptional_retry_with_backoff(5,1,1){Aws::S3::Client.new()}#AWS::S3.new()}
 
-    while !@s3.respond_to?(:buckets)
-      @log.warn "AWS::S3 isn't responding to 'buckets'. Again." if @log
-      @s3 = exceptional_retry_with_backoff(5,1,1){AWS::S3.new()}
+    while !@s3.respond_to?(:get_object)
+      @log.warn "Aws::S3 isn't responding to ':get_object'." if @log
+      @s3 = exceptional_retry_with_backoff(5,1,1){Aws::S3::Client.new()}
     end
     return @s3
+  end
+
+  def EZQ.s3_resource
+    @s3_res ||= Aws::S3:Resource.new()
+    return @s3_res
   end
 
 
@@ -191,22 +207,21 @@ module EZQ
       end
 
       s3 = EZQ.get_s3()
-      s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
-      bucket = s3.buckets[bucket_name]
-      obj = bucket.objects[key]
+      s3.create_bucket( bucket_name ) if !Aws::S3::Bucket.new(bucket_name).exists?
+      obj = Aws::S3::Object.new(bucket_name,key)
       dig = Digest::MD5.hexdigest(data)
-      if obj.exists? and ((obj.etag() == dig) or (obj.metadata.to_h.fetch('md5','') == dig ))
+      if obj.exists? and ((obj.etag() == dig) or (obj.metadata.fetch('md5','') == dig ))
         log.debug "Remote file is up-to-date; skipping send." if log
         return key
       end
       md5_opts = {:metadata=>{:md5=>dig}}
       all_opts = options.merge(md5_opts)
-      obj.write(data,all_opts)
-      AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
+      all_opts[:body] = data
+      obj.put(all_opts)
       return key
-    rescue(AWS::S3::Errors::ExpiredToken)
-      EZQ.get_s3(reset: true)
-      retry
+#     rescue(Aws::S3::Errors::ExpiredToken)
+#       EZQ.get_s3(reset: true)
+#       retry
     rescue => e
       log.warn "EZQ::DataPusher: #{e}" if log
       retry if (@retries -= 1) > -1
@@ -261,12 +276,12 @@ module EZQ
       begin
         obj = get_s3_obj(bucket_name,key2)
         if !up_to_date?(obj,options)
-          obj.write(Pathname.new(local_file),options)
-          AWS.config.http_handler.pool.empty! # Hack to solve s3 timeout issue
+          #obj.write(Pathname.new(local_file),options)
+          obj.upload_file(local_file,options)
         end
-      rescue(AWS::S3::Errors::ExpiredToken)
-        EZQ.get_s3(reset: true)
-        retry
+      #rescue(AWS::S3::Errors::ExpiredToken)
+      #  EZQ.get_s3(reset: true)
+      #  retry
       rescue => e
         @log.warn "EZQ::FilePusher: #{e}" if @log
         retry if (@retries -= 1) > -1
@@ -323,9 +338,8 @@ module EZQ
 
     def get_s3_obj(bucket_name,key)
       s3 = EZQ.get_s3()
-      s3.buckets.create( bucket_name ) if !s3.buckets[bucket_name].exists?
-      bucket = s3.buckets[bucket_name]
-      return bucket.objects[key]
+      s3.create_bucket( bucket_name ) if !Aws::S3::Bucket.new(bucket_name).exists?
+      return Aws::S3::Object.new(bucket_name,key)
     end
 
   end
@@ -352,9 +366,7 @@ module EZQ
   # @return [Bool] true if successful, false otherwise
   def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false)
     @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
-    s3 = EZQ.get_s3()
-    b = s3.buckets[ bucket ]
-    obj = b.objects[ key ]
+    obj = Aws::S3::Object.new(bucket,key)
 
     # Do we already have a current version of this file?
     if File.exists?(key)
@@ -366,7 +378,7 @@ module EZQ
     end
 
     FileUtils.mkdir_p(File.dirname(key))
-    File.open(key,'wb'){ |f| obj.read {|chunk| f.write(chunk)} }
+    EZQ.get_s3().get_object(:bucket=>bucket,:key=>key,:response_target=>key)
 
     if decompress
       type = File.extname(key)
@@ -381,9 +393,9 @@ module EZQ
     end
 
     return true
-  rescue(AWS::S3::Errors::ExpiredToken)
-      @s3 = nil
-      retry
+  #rescue(AWS::S3::Errors::ExpiredToken)
+  #    @s3 = nil
+  #    retry
   rescue
       return false
   end
@@ -400,9 +412,7 @@ module EZQ
   def EZQ.remove_s3_file(bucket,key)
     @log.debug "EZQ::remove_s3_file: #{bucket}/#{key}" if @log
     s3 = EZQ.get_s3()
-    b = s3.buckets[ bucket ]
-    obj = b.objects[ key ]
-    obj.delete if obj.exists?
+    s3.delete_object(:bucket=>bucket,:key=>key)
     return nil
   end
 
