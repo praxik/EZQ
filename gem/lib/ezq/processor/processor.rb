@@ -11,7 +11,7 @@ require 'fileutils'
 require 'zip'
 require 'socket'
 
-require 'ezq/x_queue'
+#require 'ezq/x_queue'
 require 'ezq/dual_log'
 require 'ezq'
 
@@ -86,9 +86,6 @@ module EZQ
       # Override config with values in overrides
       config.merge!(overrides)
 
-      # Set up AWS with the specified credentials
-      #AWS.config(credentials)
-
       # Create a bunch of instance variables and give them sensible defaults
       set_defaults()
 
@@ -123,7 +120,7 @@ module EZQ
       @receive_queue_name = ''
       @error_queue_name = 'errors'
       @error_topic = ''
-      @polling_options = {:wait_time_seconds => 20}
+      @polling_options = {:wait_time_seconds => 20, :skip_delete=>true}
       @halt_instance_on_timeout = false
       @smart_halt_when_idle_N_seconds = 0
       @halt_type = 'terminate'
@@ -160,8 +157,9 @@ module EZQ
       @logger.info "setting instance details"
       # Are we running on an EC2 instance?
       uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
+      #raise # FIXME: THIS IS TEMPORARY FOR LOCAL TESTING!!!!
       @instance_id = Net::HTTP.get_response(uri).body
-      @instance = AWS::EC2.new.instances[@instance_id]
+      @instance = Aws::EC2::Instance.new(@instance_id)
       raise unless @instance.exists? # Either of the two previous calls can raise
       # an exception, and we want to do the same thing in either case.
       @instance_ip = @instance.private_ip_address
@@ -181,14 +179,16 @@ module EZQ
     # Grabs the receive_queue set up in the configuration and stores it in
     # instance var @in_queue. If the queue doesn't exist, we try to create it.
     def init_receive_queue
-      @in_queue = EZQ.exceptional_retry_with_backoff(4) do
-        AWS::SQS::X_queue.new(EZQ.get_queue(@receive_queue_name,true).url)
-      end
-      if !@in_queue.exists?
-        m = "Exception: No queue named #{@receive_queue_name} exists."
-        @logger.fatal m
-        send_error(m,true)
-      end
+      @in_queue_url = Aws::SQS::Client.new.get_queue_url(queue_name: @receive_queue_name).queue_url
+      @in_queue = Aws::SQS::QueuePoller.new(@in_queue_url)
+#       @in_queue = EZQ.exceptional_retry_with_backoff(4) do
+#         AWS::SQS::X_queue.new(EZQ.get_queue(@receive_queue_name,true).url)
+#       end
+#       if !@in_queue.exists?
+#         m = "Exception: No queue named #{@receive_queue_name} exists."
+#         @logger.fatal m
+#         send_error(m,true)
+#       end
     end
 
 
@@ -244,12 +244,8 @@ module EZQ
     def save_message(preamble_hash,msg,id)
       # Use @msg_contents instead of msg.body because body may have
       # already been mutated by this point.
-      mess = {'preamble'=>preamble_hash,
-              'body'=>@msg_contents,
-              'sender_id'=>msg.sender_id,
-              'sent_at'=>msg.sent_at,
-              'receive_count'=>msg.receive_count,
-              'first_received_at'=>msg.first_received_at}
+      mess = {'body'=>@msg_contents, 'preamble'=>preamble_hash}
+      mess = mess.merge(msg[:attributes])
       File.write("#{id}.message",mess.to_yaml)
     end
 
@@ -624,11 +620,8 @@ module EZQ
     def delete_file_as_body(bucket_comma_file)
       return nil if !bucket_comma_file # Why did this even get called?
       bucket,key = bucket_comma_file.split(',')
-      s3 = AWS::S3.new
-      b = s3.buckets[ bucket ]
-      obj = b.objects[ key ] if b
       begin
-        obj.delete if obj
+        EZQ.remove_s3_file(bucket,key)
       rescue
         @logger.warn "Failed to delete file as body #{bucket_comma_file}"
       end
@@ -645,21 +638,22 @@ module EZQ
         set_visibility(msg,10)
         return false
       end
+      @logger.unknown "-----------------Received message #{msg[:message_id]}-------------------------"
+      @input_filename = msg[:message_id] + '.in'
+      @id = msg[:message_id]
+      @msg_timeout = Aws::SQS::Client.new.get_queue_attributes(queue_url: @in_queue_url,
+        attribute_names: ['VisibilityTimeout'])
 
-      @logger.unknown "-----------------Received message #{msg.id}-------------------------"
-      @input_filename = msg.id + '.in'
-      @id = msg.id
-      @msg_timeout = msg.queue.visibility_timeout
-
-      override_configuration(msg.body)
-      if !fetch_s3(msg.body)
+      override_configuration(msg[:body])
+      if !fetch_s3(msg[:body])
         cleanup(@input_filename,@id)
         set_visibility(msg,10)
         return false
       end
-      fetch_uri(msg.body)
-      store_s3_endpoints(msg.body)
-      preamble_hash = EZQ.extract_preamble(msg.body)
+
+      fetch_uri(msg[:body])
+      store_s3_endpoints(msg[:body])
+      preamble_hash = EZQ.extract_preamble(msg[:body])
       strip_directives(msg)
 
       ## Split this out into separate method
@@ -667,7 +661,7 @@ module EZQ
       # sans preamble (the usual case) or the contents of the special
       # file_as_body that was pulled from S3 in the event that the message body
       # was too big to fit in SQS. @file_as_body is formatted as "bucket,key".
-      body = @file_as_body != nil ? File.read(@file_as_body.split(',')[1]) : msg.body
+      body = @file_as_body != nil ? File.read(@file_as_body.split(',')[1]) : msg[:body]
       if !body.empty? && @decompress_message
         @logger.info 'Decompressing message'
         zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
@@ -703,9 +697,11 @@ module EZQ
     protected
     def set_visibility(msg,timeout)
       begin
-        EZQ.exceptional_retry_with_backoff(3,1,1){msg.visibility_timeout = timeout}
+        Aws::SQS::Client.new.change_message_visibility(
+          queue_url: @in_queue_url, receipt_handle: msg[:receipt_handle],
+          visibility_timeout: timeout)
       rescue
-        @logger.warn "Failed to reset timeout on msg #{msg.id}"
+        @logger.warn "Failed to reset timeout on msg #{msg[:message_id]}"
       end
     end
 
@@ -713,9 +709,9 @@ module EZQ
     protected
     def delete_message(msg)
       begin
-        EZQ.exceptional_retry_with_backoff(3,1,1){msg.delete}
+        Aws::SQS::Client.new.delete_message(queue_url: @in_queue_url, receipt_handle: msg[:receipt_handle])
       rescue
-        @logger.warn "Failed to delete msg #{msg.id}"
+        @logger.warn "Failed to delete msg #{msg[:message_id]}"
       end
     end
 
@@ -730,11 +726,13 @@ module EZQ
       end
 
       @logger.unknown "-------------------Received molecule of #{mol.size} messages-----------------------"
-      @id = mol[0].id  # Use id of first message as the id for the entire op
+      @id = mol[0][:message_id]  # Use id of first message as the id for the entire op
       @input_filename = @id + '.in'
-      @msg_timeout = mol[0].queue.visibility_timeout
+      #@msg_timeout = mol[0].queue.visibility_timeout
+      @msg_timeout = Aws::SQS::Client.new.get_queue_attributes(queue_url: @in_queue_url,
+        attribute_names: ['VisibilityTimeout'])
 
-      preambles = mol.map{|msg| EZQ.extract_preamble(msg.body)}
+      preambles = mol.map{|msg| EZQ.extract_preamble(msg[:body])}
       # @file_as_body will be nil if one wasn't specified or if there were errors
       # getting it
       body_files = preambles.map{|pre| get_s3_file_as_body(pre); @file_as_body}
@@ -763,14 +761,14 @@ module EZQ
             @logger.error "process_molecule couldn't read file #{body_files[idx].split(',')[1]}"
             return false
           end
-          msg.body.sub!(/.*/,contents)
+          msg[:body] = msg[:body].sub(/.*/,contents)
         end
       end
 
       # FIXME: We're ignoring decompression here.
 
       # Concatenate all the message bodies into one big one.
-      body = mol.map{|msg| msg.body}.join("\n#####!@$$@!#####\n")
+      body = mol.map{|msg| msg[:body]}.join("\n#####!@$$@!#####\n")
       @msg_contents = body
       File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
 
@@ -808,16 +806,17 @@ module EZQ
         poll_queue_atom(@atomicity)
         return nil
       end
-      @in_queue.poll_no_delete(@polling_options) do |msg|
-        msgary = Array(msg)
+
+      @in_queue.poll(@polling_options) do |msg|
+        msgary = [msg].flatten(1)
         msgary.each {|item| process_message(item)}
         exit if !@run
       end
       return nil
-    rescue(AWS::SQS::Errors::ExpiredToken)
-      @logger.debug "Credentials expired. Re-initing rec. queue"
-      init_receive_queue()
-      retry
+#     rescue(AWS::SQS::Errors::ExpiredToken)
+#       @logger.debug "Credentials expired. Re-initing rec. queue"
+#       init_receive_queue()
+#       retry
     end
 
 
@@ -825,12 +824,14 @@ module EZQ
     def poll_queue_atom(a)
       opts = atom_opts(a)
       msgs = []
+      sqs = Aws::SQS::Client.new
       while @run
-        begin
-          msgs += Array(@in_queue.receive_message(opts))
+        #begin
+          #msgs += Array(@in_queue.receive_message(opts))
+          msgs += [sqs.receive_message(opts).messages].flatten(1)
           if msgs.size < a
             n = a - msgs.size
-            opts[:limit] = n > 10 ? 10 : n
+            opts[:max_number_of_messages] = n > 10 ? 10 : n
             next
           end
           msgs = remove_duplicates(msgs)
@@ -843,11 +844,11 @@ module EZQ
           # At this point, msgs may still contain fewer than 'a' entries. Don't do
           # anything that might clobber them! The idea is to continue polling for
           # messages until we get enough to form a molecule.
-        rescue(AWS::SQS::Errors::ExpiredToken)
-          @logger.debug "Credentials expired. Re-initing rec. queue"
-          init_receive_queue()
-          retry
-        end
+#         rescue(AWS::SQS::Errors::ExpiredToken)
+#           @logger.debug "Credentials expired. Re-initing rec. queue"
+#           init_receive_queue()
+#           retry
+#         end
       end
     end
 
@@ -870,9 +871,10 @@ module EZQ
     # Sets up an options hash for atomic polling.
     def atom_opts(a)
       opts = {}
-      opts[:limit] = a > 10 ? 10 : a
+      opts[:max_number_of_messages] = a > 10 ? 10 : a
       opts[:attributes] = @polling_options.fetch('attributes',nil)
       opts[:wait_time_seconds] = @polling_options.fetch('wait_time_seconds',20)
+      opts[:queue_url] = @in_queue_url
       return opts
     end
 

@@ -20,8 +20,8 @@ retries: 0
 
 polling_options:
   :wait_time_seconds: 20
-  :attributes:
-    - :all
+  :message_attribute_names:
+    - All
 
 # none, post_to_result_queue
 result_step: post_to_result_queue

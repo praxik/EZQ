@@ -4,6 +4,7 @@ require 'digest/md5'
 require 'yaml'
 
 require 'ezq/utils/common'
+require 'ezq/utils/s3'
 
 
 
@@ -31,7 +32,7 @@ module EZQ
     bucket_name = 'EZQ.Overflow' if bucket_name == nil
     key = SecureRandom.uuid if key == nil
     new_preamble = preamble.clone
-    send_data_to_s3( body,bucket_name,key )
+    EZQ.send_data_to_s3( body,bucket_name,key )
     new_preamble['EZQ'] = {} if !new_preamble.has_key?('EZQ') or new_preamble['EZQ'] == nil
     new_preamble['EZQ']['get_s3_file_as_body'] = {'bucket'=>bucket_name,'key'=>key}
     body = "Message body was diverted to S3 as s3://#{bucket_name}/#{key}"
@@ -69,10 +70,21 @@ module EZQ
                           bucket = nil,
                           key_ary = [] )
     @log.debug "EZQ::enqueue_batch" if @log
-    q = get_queue(queue,create_queue_if_needed)
+    #q = get_queue(queue,create_queue_if_needed)
+
+    sqs = Aws::SQS::Client.new()
+    begin
+      qurl = sqs.get_queue_url(queue_name: queue).queue_url
+    rescue Aws::Errors::QueueDoesNotExist
+      if create_queue_if_needed
+        qurl = sqs.create_queue(queue_name: queue).queue_url
+      else
+        return ['']*body_ary.size
+      end
+    end
 
     # Just to be safe; should never happen in practice.
-    return ['']*body_ary.size if !q.respond_to?( :send_message )
+    #return ['']*body_ary.size if !q.respond_to?( :send_message )
 
     preambles = cyclical_fill( Array(preamble_ary),body_ary.size )
     keys = fill_array( key_ary,body_ary.size,nil )
@@ -80,8 +92,19 @@ module EZQ
       map_slice(3){|body,preamble,key| prepare_message_for_queue( body,preamble,bucket,key )}
 
     digests = msgs.map{|msg| Digest::MD5.hexdigest( msg )}
+
+
     mdfives = []
-    msgs.each_slice(10){|batch| mdfives += q.batch_send( *batch ).map{|sent| sent.md5}}
+    #msgs.each_slice(10){|batch| mdfives += q.batch_send( *batch ).map{|sent| sent.md5}}
+
+    msgs.map.with_index{|msg,idx| {message_body: msg, id: idx.to_s}}.
+      each_slice(10) do |es|
+        mdfives += sqs.send_message_batch(queue_url: qurl, entries: es).
+                    successful.
+                    sort_by!{|el| el[:id]}.
+                    map{|r| r[:md5_of_message_body]}
+      end
+
     return digests if digests == mdfives
     # If any one message digest doesn't match, behave as though the whole
     # batch failed (because it probably did!)
@@ -155,29 +178,29 @@ module EZQ
   #
   # @raise Raises exception if the queue could not be created when it didn't
   #   already exist and create_if_needed was true.
-  def EZQ.get_queue( queue,create_if_needed=false )
-    @log.debug "EZQ::get_queue" if @log
-    # If it's an SQS::Queue already, treat it as such....
-    if queue.respond_to?( :send_message )
-      begin
-        return queue if queue.exists?
-      rescue(AWS::SQS::Errors::ExpiredToken)
-        return EZQ.get_queue( queue.name, create_if_needed)
-      end
-      return AWS::SQS.new.queues.create(queue.name) if create_if_needed
-      return nil
-    end
+#   def EZQ.get_queue( queue,create_if_needed=false )
+#     @log.debug "EZQ::get_queue" if @log
+#     # If it's an SQS::Queue already, treat it as such....
+#     if queue.respond_to?( :send_message )
+#       begin
+#         return queue if queue.exists?
+#       rescue(AWS::SQS::Errors::ExpiredToken)
+#         return EZQ.get_queue( queue.name, create_if_needed)
+#       end
+#       return AWS::SQS.new.queues.create(queue.name) if create_if_needed
+#       return nil
+#     end
 
-    # Nope, it's a string.
-    queue = queue.strip
-    sqs = AWS::SQS.new
-    begin
-      return sqs.queues.named( queue )
-    rescue
-      return sqs.queues.create( queue ) if create_if_needed
-      return nil
-    end
-  end
+#     # Nope, it's a string.
+#     queue = queue.strip
+#     sqs = AWS::SQS.new
+#     begin
+#       return sqs.queues.named( queue )
+#     rescue
+#       return sqs.queues.create( queue ) if create_if_needed
+#       return nil
+#     end
+#   end
 
 
 
@@ -203,7 +226,7 @@ module EZQ
     # 256k limit minus assumed metadata size of 6k:  (256-6)*1024 = 256000
     bc = body.clone
     if (body.bytesize + preamble.to_yaml.bytesize) > 256000
-      bc,preamble = divert_body_to_s3( bc,preamble,bucket,key )
+      bc,preamble = EZQ.divert_body_to_s3( bc,preamble,bucket,key )
     end
 
     return bc.insert( 0,"#{preamble.to_yaml}...\n" )
