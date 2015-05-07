@@ -367,7 +367,6 @@ module EZQ
   def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false)
     @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
     obj = Aws::S3::Object.new(bucket,key)
-
     # Do we already have a current version of this file?
     if File.exists?(key)
       dig = EZQ.md5file(key).hexdigest
@@ -396,7 +395,8 @@ module EZQ
   #rescue(AWS::S3::Errors::ExpiredToken)
   #    @s3 = nil
   #    retry
-  rescue
+  rescue => e
+      @log.error "EZQ::get_s3_file: #{e}" if @log
       return false
   end
 
