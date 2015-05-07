@@ -546,7 +546,7 @@ module EZQ
     # Sets value of @file_as_body as a side effect.
     def get_s3_file_as_body(preamble)
       @file_as_body = nil
-      if preamble.has_key?('get_s3_file_as_body')
+      if preamble && preamble.has_key?('get_s3_file_as_body')
         info = preamble['get_s3_file_as_body']
         bucket = info['bucket']
         key = info['key']
@@ -708,6 +708,7 @@ module EZQ
 
     protected
     def delete_message(msg)
+      puts "Deleting message"
       begin
         Aws::SQS::Client.new.delete_message(queue_url: @in_queue_url, receipt_handle: msg[:receipt_handle])
       rescue
@@ -732,12 +733,12 @@ module EZQ
       @msg_timeout = Aws::SQS::Client.new.get_queue_attributes(queue_url: @in_queue_url,
         attribute_names: ['VisibilityTimeout'])
 
-      preambles = mol.map{|msg| EZQ.extract_preamble(msg[:body])}
+      preambles = mol.map{|msg| EZQ.extract_preamble(msg[:body])}.compact
       # @file_as_body will be nil if one wasn't specified or if there were errors
       # getting it
       body_files = preambles.map{|pre| get_s3_file_as_body(pre); @file_as_body}
       uni_pre = preambles.reduce(&:merge)
-      uni_pre.delete('get_s3_file_as_body')
+      uni_pre.delete('get_s3_file_as_body') if uni_pre
       tmp = uni_pre
       uni_pre = {}
       uni_pre['EZQ'] = tmp
@@ -861,7 +862,7 @@ module EZQ
       tail = msgs.clone()
       while tail.size > 0
         keep << tail.shift
-        tail.delete_if{|m| m.body == keep.last.body ? (m.delete(); true) : false}
+        tail.delete_if{|m| m[:body] == keep.last[:body] ? (delete_message(m); true) : false}
       end
       return keep
     end
