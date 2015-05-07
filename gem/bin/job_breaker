@@ -81,8 +81,8 @@ class Job_Breaker
     @logger = logger
 
     # Set up AWS with the specified credentials
-    @credentials = credentials
-    AWS.config(credentials)
+    #@credentials = credentials
+    #AWS.config(credentials)
 
     @job_creator_command = config['job_creator_command']
     @task_queue_name = config['task_queue_name']
@@ -236,7 +236,7 @@ end #module
 ################################################################################
 # Run this bit if this file is being run directly as an executable rather than
 # being imported as a module.
-if __FILE__ == $0
+#if __FILE__ == $0
   require 'optparse'
 
   quiet = false
@@ -308,7 +308,7 @@ if __FILE__ == $0
                           :pid=>Process.pid})
 
     log.info "Parsing configuration file #{config_file}"
-    config_file = File.join(File.dirname(__FILE__),config_file)
+    #config_file = File.join(File.dirname(__FILE__),config_file)
     if !File.exist?(config_file)
       log.fatal "File #{config_file} does not exist."
       exit 1
@@ -326,18 +326,18 @@ if __FILE__ == $0
     #Override the job_creator_command if one was passed in on the cmdline
     config['job_creator_command'] = jcc if !jcc.empty?
 
-    if !File.exists?(creds_file)
-      warn "Credentials file '#{creds_file}' does not exist! Aborting."
-      exit 1
-    end
+#    if !File.exists?(creds_file)
+#      warn "Credentials file '#{creds_file}' does not exist! Aborting."
+#      exit 1
+#    end
 
-    credentials = YAML.load(File.read(creds_file))
-    if !credentials.kind_of?(Hash)
-      warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
-      exit 1
-    end
+#    credentials = YAML.load(File.read(creds_file))
+#    if !credentials.kind_of?(Hash)
+#      warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
+#      exit 1
+#    end
 
-    EZQ::Job_Breaker.new(config,credentials,job,log)
+    EZQ::Job_Breaker.new(config,nil,job,log)
   # Handle Ctrl-C gracefully
   rescue Interrupt
     warn "\nEZQ.Job_Breaker aborted!"
