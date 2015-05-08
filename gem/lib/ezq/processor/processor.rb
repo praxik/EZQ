@@ -236,10 +236,11 @@ module EZQ
     # Save the entire message in case processors need access to meta information
     # @param [AWS::SQS::ReceivedMessage] msg The message on which to operate
     # @param [String] id The id of this message to use for forming filename
-    def save_message(msg,id)
+    def save_message(preamble_hash,msg,id)
       # Use @msg_contents instead of msg.body because body may have
       # already been mutated by this point.
-      mess = {'body'=>@msg_contents,
+      mess = {'preamble'=>preamble_hash,
+              'body'=>@msg_contents,
               'sender_id'=>msg.sender_id,
               'sent_at'=>msg.sent_at,
               'receive_count'=>msg.receive_count,
@@ -639,6 +640,7 @@ module EZQ
       end
       fetch_uri(msg.body)
       store_s3_endpoints(msg.body)
+      preamble_hash = EZQ.extract_preamble(msg.body)
       strip_directives(msg)
 
       ## Split this out into separate method
@@ -656,7 +658,7 @@ module EZQ
       ##
       @msg_contents = body
       File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
-      save_message(msg,@id) if @store_message
+      save_message(preamble_hash,msg,@id) if @store_message
       success = run_process_command(@input_filename,@id)
       if success
         # Do result_step before deleting the message in case result_step fails.
@@ -756,7 +758,7 @@ module EZQ
       # Just save the first message since we have no concept of saving all of
       # them. Since save_message uses @msg_contents for the body, this is kind
       # of okay.
-      save_message(mol[0],id) if @store_message
+      save_message(uni_pre,mol[0],id) if @store_message
 
       success = run_process_command(@input_filename,@id)
       if success
