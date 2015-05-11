@@ -45,6 +45,7 @@ def start
     cmd = use_ids ? command.gsub('$pid',"#{idx}") : command
     log.info "Initial start of '#{cmd}'"
     pids << spawn(cmd)
+    sleep 2
   end
 
   # Check in on the processes and restart as needed
@@ -59,6 +60,7 @@ def start
         cmd = use_ids ? command.gsub('$pid',"#{idx}") : command
         log.info "Restarting '#{cmd}'"
         pids << spawn(cmd)
+        sleep 2
       end
     end
   end
