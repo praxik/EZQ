@@ -9,7 +9,7 @@ def start
   check_interval = 0
   use_ids = false
 
-  logger = Logger.new('keep_alive.log')
+  log = Logger.new('keep_alive.log')
 
   op = OptionParser.new do |opts|
     opts.banner = "Usage: keep_alive.rb [options]"
