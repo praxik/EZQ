@@ -28,6 +28,8 @@ end
 
 
 def start
+  stagger = ARGV.shift.to_i  # nil.to_i always returns 0
+
   log = Logger.new('processor_fan_out.log')
 
   command = 'processor -c receive_queue_config.yml'
@@ -62,6 +64,7 @@ def start
     log.info "Initial start of #{cmd}"
     pid = spawn(cmd)
     pids[pid] = idx
+    sleep stagger
   end
 
   # Check in on the processes every 30s and restart as needed
@@ -75,6 +78,7 @@ def start
         log.info "Detected failure with status '#{$?.to_i}'. Restarting '#{cmd}'"
         pid = spawn(cmd)
         pids[pid] = idx
+        sleep stagger
       end
     end
   end
