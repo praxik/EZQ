@@ -144,7 +144,7 @@ class DualLogger < MultiLogger
       local.level = opts.fetch(:local_level,Logger::INFO)
     end
 
-    loggly = if !opts.fetch(:loggly_token,'').empty? then LogglyWrapper.new(opts) else nil end
+    loggly = if !((opts.fetch(:loggly_token,'') || '').empty?) then LogglyWrapper.new(opts) else nil end
 
     logs = []
     logs << local if local
