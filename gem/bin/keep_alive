@@ -55,11 +55,10 @@ def start
       id = Process.wait(pid,Process::WNOHANG)
       if id
         idx = pids.find_index(id)
-        pids.delete(id)
         # Reuse the same id for $pid each time this process is restarted
         cmd = use_ids ? command.gsub('$pid',"#{idx}") : command
         log.info "Restarting '#{cmd}'"
-        pids << spawn(cmd)
+        pids[idx] = spawn(cmd)
         sleep 2
       end
     end
