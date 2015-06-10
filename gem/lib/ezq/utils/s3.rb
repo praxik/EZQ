@@ -272,7 +272,7 @@ module EZQ
         raise e
       ensure
         # Cleanup the temporary compressed file
-        File.unlink(key2) if compress2
+        File.unlink(local_file) if compress2 && File.exist?(local_file)
         return key2
       end
     end
