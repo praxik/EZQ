@@ -430,7 +430,7 @@ module EZQ
       # Non-destuctively add our s3 files to any that were previously set
       preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
                                         @s3_outs if !@s3_outs.empty?
-      digest = EZQ.enqueue_message(body,preamble,@result_queue_name,false,'EZQOverflow.praxik')
+      digest = EZQ.exceptional_retry_with_backoff(3){EZQ.enqueue_message(body,preamble,@result_queue_name,false,'EZQOverflow.praxik')}
       if !digest.empty?
         @logger.info "Posted result message to queue '#{@result_queue_name}'"
         return true
@@ -550,7 +550,7 @@ module EZQ
     def get_s3_file(bucket,key,msgbody = 'no input given')
       @logger.info "Getting object #{key} from bucket #{bucket}"
       @s3_files << key
-      if !EZQ.get_s3_file(bucket,key)
+      if !EZQ.boolean_retry_with_backoff(3,1,1){EZQ.get_s3_file(bucket,key)}
         issue = "Unable to fetch s3://#{bucket}/#{key}"
         @logger.error(issue)
         err = {'issue' => issue,
@@ -684,7 +684,7 @@ module EZQ
     protected
     def set_visibility(msg,timeout)
       begin
-        msg.visibility_timeout = timeout
+        EZQ.exceptional_retry_with_backoff(3,1,1){msg.visibility_timeout = timeout}
       rescue
         @logger.warn "Failed to reset timeout on msg #{msg.id}"
       end
@@ -694,7 +694,7 @@ module EZQ
     protected
     def delete_message(msg)
       begin
-        msg.delete
+        EZQ.exceptional_retry_with_backoff(3,1,1){msg.delete}
       rescue
         @logger.warn "Failed to delete msg #{msg.id}"
       end

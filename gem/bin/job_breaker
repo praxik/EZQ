@@ -140,7 +140,7 @@ class Job_Breaker
           # Don't push the same file multiple times during a job.
           bucket_comma_filename = msg.sub!(/^push_file\s*:\s*/,'')
           if !@already_pushed.include?(bucket_comma_filename)
-            push_threads << EZQ.send_bcf_to_s3_async(bucket_comma_filename)
+            push_threads << EZQ.exceptional_retry_with_backoff(3,1,1){EZQ.send_bcf_to_s3_async(bucket_comma_filename)}
             @already_pushed << bucket_comma_filename
             clean_threads(push_threads)
           end
@@ -206,11 +206,11 @@ class Job_Breaker
   protected
   # Does the true heavy-lifting of enqueueing a task
   def enqueue_task_impl(body,preamble)
-    dig = EZQ.enqueue_message( body,
+    dig = EZQ.exceptional_retry_with_backoff(3,1,1){EZQ.enqueue_message( body,
                                preamble,
                                @queue,
                                false,
-                               'EZQOverflow.praxik' )
+                               'EZQOverflow.praxik' )}
     #@logger.error "Error enqueuing message" if dig.epmty?()
   end
 
