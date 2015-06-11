@@ -70,10 +70,10 @@ module EZQ
     a = Float(first_delay) / Float(base)
     tries = 0
     result = false
-    while !result or result < 1
+    while !result or (result.kind_of?(Numeric) && (result < 1))
       tries += 1
       result = block.call()
-      if (!result or result < 1) and retries > 0
+      if (!result or (result.kind_of?(Numeric) && (result < 1))) and retries > 0
         amt = a * base ** tries
         @log.debug "Operation failed; sleeping #{amt}s then retrying" if @log
         sleep(amt)
