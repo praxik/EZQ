@@ -165,7 +165,9 @@ module EZQ
   # @return [Thread] Returns a handle to a Thread. You should ensure that
   #   Thread#join is called on this thread before exiting your application.
   def EZQ.send_bcf_to_s3_async( bucket_comma_filename, options: {},compress: false )
-    bucket,key = bucket_comma_filename.split(',').map{|s| s.strip}
+    b_k_ary = bucket_comma_filename.split(',').map{|s| s.strip}
+    bucket = b_k_ary.shift
+    key = b_k_ary.join(',')
     return send_file_to_s3_async( key,bucket,key,options: options,compress: compress )
   end
 
