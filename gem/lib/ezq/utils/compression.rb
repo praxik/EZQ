@@ -17,7 +17,10 @@ module EZQ
   def EZQ.decompress_file(filename, overwrite: true)
     Zip.on_exists_proc = true # Don't raise if extracted files already exist
     Zip::File.open(filename) do |zip_file|
-      zip_file.each { |entry| entry.extract(entry.name) if (overwrite || !File.exists?(entry.name)) }
+      zip_file.each do |entry|
+        FileUtils.mkdir_p(File.dirname(entry.name))
+        entry.extract(entry.name) if (overwrite || !File.exists?(entry.name))
+      end
     end
     return nil
   end
