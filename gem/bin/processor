@@ -12,6 +12,7 @@ severity = 'info'
 queue = nil
 result_queue = nil
 error_queue = nil
+error_topic = nil
 log_file = STDOUT
 loggly_token = nil
 loggly_severity = 'info'
@@ -47,6 +48,9 @@ op = OptionParser.new do |opts|
   end
   opts.on("-e", "--error_queue [QUEUE_NAME]","Report fatal errors to this queue rather than the error_queue specified in the config file") do |q|
     error_queue = q
+  end
+  opts.on("-i", "--error_topic [TOPIC_NAME]","Report fatal errors to this SNS topic rather than the error_topic specified in the config file") do |q|
+    error_topic = q
   end
   opts.on("-R", "--result_queue [QUEUE_NAME]","Send results to QUEUE_NAME rather than the queue specified in the config file") do |q|
     result_queue = q
@@ -104,6 +108,7 @@ begin
 
   overrides = queue ? {"receive_queue_name"=>queue} : {}
   overrides['error_queue_name'] = error_queue if error_queue
+  overrides['error_topic'] = error_topic if error_topic
   overrides['result_queue_name'] = result_queue if result_queue
   overrides['exit_port'] = exit_port
   EZQ::Processor.new(config_file,credentials,log,overrides).start

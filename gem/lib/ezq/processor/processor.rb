@@ -122,6 +122,7 @@ module EZQ
       @s3_endpoints = []
       @receive_queue_name = ''
       @error_queue_name = 'errors'
+      @error_topic = ''
       @polling_options = {:wait_time_seconds => 20}
       @halt_instance_on_timeout = false
       @smart_halt_when_idle_N_seconds = 0
@@ -311,16 +312,16 @@ module EZQ
     # @param [String] msg The message to put in the error queue
     # @param [Bool] failout Whether to raise an exception
     def send_error( msg, failout=false )
-      if @error_queue_name.empty?
-        if failout
-          raise msg
-        else
-          return
-        end
+      err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
+
+      if !@error_queue_name.empty?
+        EZQ.enqueue_message(err_msg.to_yaml,{},@error_queue_name,true)
       end
 
-      err_msg = {'timestamp' => Time.now.strftime('%F %T %N'), 'error' => msg}
-      EZQ.enqueue_message(err_msg.to_yaml,{},@error_queue_name,true)
+      if !@error_topic.empty?
+        AWS::SNS.new().topics[@error_topic].publish(err_msg.to_yaml)
+      end
+
       raise msg if failout
     end
 
