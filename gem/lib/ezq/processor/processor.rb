@@ -149,6 +149,8 @@ module EZQ
 
       @instance_id = ""
       @instance = nil
+      @instance_ip = ''
+      @instance_tags = []
       @launch_time = nil
     end
 
@@ -162,6 +164,8 @@ module EZQ
       @instance = AWS::EC2.new.instances[@instance_id]
       raise unless @instance.exists? # Either of the two previous calls can raise
       # an exception, and we want to do the same thing in either case.
+      @instance_ip = @instance.private_ip_address
+      @instance_tags = @instance.tags
       @launch_time = @instance.launch_time
       @logger.unknown "Running on EC2 instance #{@instance_id}"
     rescue
@@ -318,11 +322,25 @@ module EZQ
         EZQ.enqueue_message(err_msg.to_yaml,{},@error_queue_name,true)
       end
 
-      if !@error_topic.empty?
-        AWS::SNS.new().topics[@error_topic].publish(err_msg.to_yaml)
-      end
+      send_sns_error(msg) if !@error_topic.empty?
 
       raise msg if failout
+    end
+
+
+    protected
+    # Sends an error to an SNS topic
+    # @param [Hash] msg Error message
+    def send_sns_error(msg)
+      name = ''
+      if !@instance_tags.empty?
+        name = @instance_tags['Name']
+      end
+      sns_mess = {:error => msg['stdout_stderr'],
+                  :ip => @instance_ip,
+                  :name => name}
+      AWS::SNS.new().topics[@error_topic].publish(sns_mess.to_json)
+      return nil
     end
 
 
