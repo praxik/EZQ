@@ -80,10 +80,6 @@ class Job_Breaker
     end
     @logger = logger
 
-    # Set up AWS with the specified credentials
-    #@credentials = credentials
-    #AWS.config(credentials)
-
     @job_creator_command = config['job_creator_command']
     @task_queue_name = config['task_queue_name']
     @preamble = config['preamble']
@@ -93,7 +89,7 @@ class Job_Breaker
     @enqueued_tasks = []
     @already_pushed = []
 
-    get_queue unless @dry_run
+    @queue_url = get_queue(@task_queue_name) unless @dry_run
     if job_string.empty? && !@job_creator_command.empty?
       wrap_job_creator
     else
@@ -106,21 +102,9 @@ class Job_Breaker
 
 
   protected
-  # Call into AWS to get the result queue and put it into the variable
-  # @result_queue. No call to AWS is made if the result queue already exists
-  # and has the name of the currently-specified queue.
-  def get_queue
-	@logger.info "Getting queue '#{@task_queue_name}'"
-	begin
-		@queue = AWS::SQS.new.queues.named(@task_queue_name)
-	rescue
-	  @logger.fatal "No queue named #{@task_queue_name} exists."
-      raise "No queue named #{@task_queue_name} exists."
-	end
-    if !@queue.exists?
-      @logger.fatal "No queue named #{@task_queue_name} exists."
-      raise "No queue named #{@task_queue_name} exists."
-    end
+  def get_queue(name)
+    @logger.info "Getting queue '#{name}'"
+    return Aws::SQS::Client.new.get_queue_url(queue_name: name).queue_url
   end
 
 
@@ -150,7 +134,7 @@ class Job_Breaker
           # FIXME: this business of changing queues will break non-inline
           # message repetition.
           @task_queue_name = msg.sub!(/^set_queue\s*:\s*/,'').strip
-          get_queue()
+          @queue_url = get_queue(@task_queue_name)
         else
           body,preamble = make_preamble(msg)
           msg = enqueue_task(body,preamble)
@@ -204,14 +188,12 @@ class Job_Breaker
 
 
   protected
-  # Does the true heavy-lifting of enqueueing a task
   def enqueue_task_impl(body,preamble)
     dig = EZQ.exceptional_retry_with_backoff(3,1,1){EZQ.enqueue_message( body,
                                preamble,
-                               @queue,
+                               @queue_url,
                                false,
                                'EZQOverflow.praxik' )}
-    #@logger.error "Error enqueuing message" if dig.epmty?()
   end
 
 
@@ -243,7 +225,6 @@ end #module
   config_file = 'job_breaker_config.yml'
   jobs_file = ''
   preamble = ''
-  creds_file = 'credentials.yml'
   jcc = ''
   dry_run = false
   log_file = STDOUT
@@ -264,9 +245,6 @@ end #module
     end
     opts.on("-p", "--preamble [PREAMBLE]","Overrides the preamble set in the configuration file with contents of the string PREAMBLE") do |text|
       preamble = text
-    end
-    opts.on("-r", "--credentials [CREDS_FILE]","Use credentials file CREDS_FILE. The file ./credentials.yml is used if this option is not specified.") do |file|
-      creds_file = file
     end
     opts.on("-e", "--execute [COMMAND_STRING]","Override the job_creator_command specified in the configuration file with COMMAND_STRING") do |cmd|
       jcc = cmd
@@ -325,17 +303,6 @@ end #module
     config['preamble'] = preamble if !preamble.empty?
     #Override the job_creator_command if one was passed in on the cmdline
     config['job_creator_command'] = jcc if !jcc.empty?
-
-#    if !File.exists?(creds_file)
-#      warn "Credentials file '#{creds_file}' does not exist! Aborting."
-#      exit 1
-#    end
-
-#    credentials = YAML.load(File.read(creds_file))
-#    if !credentials.kind_of?(Hash)
-#      warn "Credentials file '#{creds_file}' is not properly formatted! Aborting."
-#      exit 1
-#    end
 
     EZQ::Job_Breaker.new(config,nil,job,log)
   # Handle Ctrl-C gracefully

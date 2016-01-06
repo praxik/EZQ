@@ -13,6 +13,8 @@ class TestEZQSQS < Minitest::Test
     # @log = Logger.new(STDOUT)
     # @log.level = Logger::DEBUG
     # EZQ.set_logger(@log)
+  rescue Aws::SQS::Errors::NonExistentQueue
+    return Aws::SQS::Client.new().create_queue(queue_name: @queue_name)
   end
 
   def get_message
@@ -21,6 +23,7 @@ class TestEZQSQS < Minitest::Test
     return resp
   end
 
+  # Also tests a get_message!
   def test_enqueue_message
     body = 'This is a test message'
     pre = {'EZQ'=>nil}

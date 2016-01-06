@@ -6,9 +6,36 @@ require 'yaml'
 require 'ezq/utils/common'
 require 'ezq/utils/s3'
 
+# TODO: Add a polling method to this, so that explicit Aws api use can be removed from
+# Processor and from the Nimbus apps
 
 
 module EZQ
+
+
+  def EZQ.set_message_visibility(queue_url, msg, timeout)
+    Aws::SQS::Client.new.change_message_visibility(
+        queue_url: queue_url, receipt_handle: msg[:receipt_handle],
+        visibility_timeout: timeout)
+    return nil
+  rescue
+    @log.warn "Failed to reset timeout on msg #{msg[:message_id]}"
+  end
+
+
+  def EZQ.delete_queue_message(queue_url, msg)
+    Aws::SQS::Client.new.delete_message(queue_url: queue_url, receipt_handle: msg[:receipt_handle])
+    return nil
+  rescue
+    @log.warn "Failed to delete msg #{msg[:message_id]}"
+  end
+
+
+  def EZQ.get_queue_timeout(queue_url)
+    return Aws::SQS::Client.new.get_queue_attributes(queue_url: queue_url,
+          attribute_names: ['VisibilityTimeout'])
+  end
+
 
   # Diverts the body of a message intended for SQS off to S3. This is useful
   # when the message size exceeds SQS's limit.
@@ -40,6 +67,19 @@ module EZQ
   end
 
 
+  def EZQ.create_queue(name)
+    sqs = Aws::SQS::Client.new()
+    return sqs.create_queue(queue_name: name)
+  end
+
+
+  def EZQ.delete_queue(name)
+    sqs = Aws::SQS::Client.new()
+    qurl = queue =~ /^http:|^https:/ ? name : sqs.get_queue_url(queue_name: name).queue_url
+    sqs.delete_queue(queue_url: qurl)
+    return nil
+  end
+
 
   # Enqueues an array of messages in SQS, automatically diverting each body to
   # S3 if it is larger than SQS allows.
@@ -50,8 +90,8 @@ module EZQ
   #   If this array is smaller than body_ary, the elements in it will be
   #   repeated cyclically to match up with body_ary.
   #
-  # @param [AWS::SQS::Queue,String] queue SQS::Queue object or name of an SQS
-  #   queue
+  # @param [AWS::SQS::Queue,String] queue URL or name of an SQS
+  #   queue. If a URL, the queue *must* already exist
   #
   # @param [Bool] create_queue_if_needed Create the queue if it doesn't exist?
   #
@@ -73,13 +113,18 @@ module EZQ
     #q = get_queue(queue,create_queue_if_needed)
 
     sqs = Aws::SQS::Client.new()
-    begin
-      qurl = sqs.get_queue_url(queue_name: queue).queue_url
-    rescue Aws::Errors::QueueDoesNotExist
-      if create_queue_if_needed
-        qurl = sqs.create_queue(queue_name: queue).queue_url
-      else
-        return ['']*body_ary.size
+
+    if queue =~ /^http:|^https:/ # Queue "name" is actually a url
+      qurl = queue
+    else
+      begin
+        qurl = sqs.get_queue_url(queue_name: queue).queue_url
+      rescue Aws::Errors::QueueDoesNotExist
+        if create_queue_if_needed
+          qurl = EZQ.create_queue(queue).queue_url
+        else
+          return ['']*body_ary.size
+        end
       end
     end
 

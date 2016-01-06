@@ -22,10 +22,6 @@ class TestEZQS3 < Minitest::Test
     File.unlink(file) if File.exist?(file)
   end
 
-  def test_get_s3
-    refute_equal nil, EZQ.get_s3, 'Could not get S3 object'
-  end
-
 
   def test_send_data_to_s3
     file = 'EZQ_unit_tests/test.txt'

@@ -181,14 +181,6 @@ module EZQ
     def init_receive_queue
       @in_queue_url = Aws::SQS::Client.new.get_queue_url(queue_name: @receive_queue_name).queue_url
       @in_queue = Aws::SQS::QueuePoller.new(@in_queue_url)
-#       @in_queue = EZQ.exceptional_retry_with_backoff(4) do
-#         AWS::SQS::X_queue.new(EZQ.get_queue(@receive_queue_name,true).url)
-#       end
-#       if !@in_queue.exists?
-#         m = "Exception: No queue named #{@receive_queue_name} exists."
-#         @logger.fatal m
-#         send_error(m,true)
-#       end
     end
 
 
@@ -335,8 +327,10 @@ module EZQ
       sns_mess = {:error => msg['stdout_stderr'],
                   :ip => @instance_ip,
                   :name => name}
-      AWS::SNS.new().topics[@error_topic].publish(sns_mess.to_json)
+      EZQ::SNS.publish(@error_topic, sns_mess.to_json)
       return nil
+    rescue => e
+      @logger.error "Failure publishing error to SNS: #{e}"
     end
 
 
@@ -641,8 +635,8 @@ module EZQ
       @logger.unknown "-----------------Received message #{msg[:message_id]}-------------------------"
       @input_filename = msg[:message_id] + '.in'
       @id = msg[:message_id]
-      @msg_timeout = Aws::SQS::Client.new.get_queue_attributes(queue_url: @in_queue_url,
-        attribute_names: ['VisibilityTimeout'])
+      @msg_timeout = EZQ.get_queue_timeout(@in_queue_url)
+      #Aws::SQS::Client.new.get_queue_attributes(queue_url: @in_queue_url,attribute_names: ['VisibilityTimeout'])
 
       override_configuration(msg[:body])
       if !fetch_s3(msg[:body])
@@ -679,7 +673,7 @@ module EZQ
           @logger.info "Processing successful. Deleting message #{@id}"
           delete_message(msg)
           delete_file_as_body(@file_as_body) if @file_as_body # This must stay linked to deleting
-          # message from queue
+                                                              # message from queue
         else
           # Since we've failed, make the message visible again in 10 seconds
           set_visibility(msg,10)
@@ -696,24 +690,13 @@ module EZQ
 
     protected
     def set_visibility(msg,timeout)
-      begin
-        Aws::SQS::Client.new.change_message_visibility(
-          queue_url: @in_queue_url, receipt_handle: msg[:receipt_handle],
-          visibility_timeout: timeout)
-      rescue
-        @logger.warn "Failed to reset timeout on msg #{msg[:message_id]}"
-      end
+      EZQ.set_message_visibility(@in_queue_url, msg, timeout)
     end
 
 
     protected
     def delete_message(msg)
-      puts "Deleting message"
-      begin
-        Aws::SQS::Client.new.delete_message(queue_url: @in_queue_url, receipt_handle: msg[:receipt_handle])
-      rescue
-        @logger.warn "Failed to delete msg #{msg[:message_id]}"
-      end
+      EZQ.delete_queue_message(@in_queue_url, msg)
     end
 
 
@@ -729,9 +712,7 @@ module EZQ
       @logger.unknown "-------------------Received molecule of #{mol.size} messages-----------------------"
       @id = mol[0][:message_id]  # Use id of first message as the id for the entire op
       @input_filename = @id + '.in'
-      #@msg_timeout = mol[0].queue.visibility_timeout
-      @msg_timeout = Aws::SQS::Client.new.get_queue_attributes(queue_url: @in_queue_url,
-        attribute_names: ['VisibilityTimeout'])
+      @msg_timeout = EZQ.get_queue_timeout(@in_queue_url)
 
       preambles = mol.map{|msg| EZQ.extract_preamble(msg[:body])}.compact
       # @file_as_body will be nil if one wasn't specified or if there were errors
@@ -814,10 +795,6 @@ module EZQ
         exit if !@run
       end
       return nil
-#     rescue(AWS::SQS::Errors::ExpiredToken)
-#       @logger.debug "Credentials expired. Re-initing rec. queue"
-#       init_receive_queue()
-#       retry
     end
 
 
@@ -845,11 +822,6 @@ module EZQ
           # At this point, msgs may still contain fewer than 'a' entries. Don't do
           # anything that might clobber them! The idea is to continue polling for
           # messages until we get enough to form a molecule.
-#         rescue(AWS::SQS::Errors::ExpiredToken)
-#           @logger.debug "Credentials expired. Re-initing rec. queue"
-#           init_receive_queue()
-#           retry
-#         end
       end
     end
 

@@ -15,7 +15,7 @@ module EZQ
   # Replaces the body of an AWS::SQS::RecievedMessage with a version of the
   # body that doesn't contain the **first** EZQ preamble. Returns nil.
   def EZQ.strip_preamble_msg!(msg)
-    msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
+    msg[:body].sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
     return nil
   end
 
