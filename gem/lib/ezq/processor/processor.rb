@@ -845,9 +845,9 @@ module EZQ
     def atom_opts(a)
       opts = {}
       opts[:max_number_of_messages] = a > 10 ? 10 : a
-      opts[:attributes] = @polling_options.fetch('attributes',nil)
+      opts[:message_attribute_names] = @polling_options.fetch('message_attribute_names',nil)
       opts[:wait_time_seconds] = @polling_options.fetch('wait_time_seconds',20)
-      opts[:queue_url] = @in_queue_url
+      #opts[:queue_url] = @in_queue_url
       return opts
     end
 

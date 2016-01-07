@@ -1,0 +1,7 @@
+---
+EZQ:
+  get_s3_file_as_body:
+    bucket: EZQOverflow.praxik
+    key: test.txt 
+...
+This won't show up in the stuff if everything is working, because the contents of test.txt will replace this as the body.
