@@ -75,7 +75,7 @@ module EZQ
 
   def EZQ.delete_queue(name)
     sqs = Aws::SQS::Client.new()
-    qurl = queue =~ /^http:|^https:/ ? name : sqs.get_queue_url(queue_name: name).queue_url
+    qurl = name =~ /^http:|^https:/ ? name : sqs.get_queue_url(queue_name: name).queue_url
     sqs.delete_queue(queue_url: qurl)
     return nil
   end
