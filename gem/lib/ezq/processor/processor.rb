@@ -94,6 +94,10 @@ module EZQ
       # the value specified in the config.
       config.each { |k,v| make_var("@#{k}",v) }
 
+      # All of Processor's retry and failsafe logic relies on :skip_delete = true,
+      # so make sure we absolutely, no doubt about it enforce that setting!
+      @polling_options[:skip_delete] = true
+
       # Grab the receive_queue
       init_receive_queue()
 
