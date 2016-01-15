@@ -322,7 +322,7 @@ module EZQ
     def send_sns_error(msg)
       name = ''
       if !@instance_tags.empty?
-        name = @instance_tags['Name']
+        name = @instance_tags.select{|el| el.key = 'Name'}.value
       end
       begin
         sns_mess = {:error => msg['stdout_stderr'],
@@ -337,6 +337,7 @@ module EZQ
       return nil
     rescue => e
       @logger.error "Failure publishing error to SNS: #{e}"
+      return nil
     end
 
 
