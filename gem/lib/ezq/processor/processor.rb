@@ -324,10 +324,16 @@ module EZQ
       if !@instance_tags.empty?
         name = @instance_tags['Name']
       end
-      sns_mess = {:error => msg['stdout_stderr'],
-                  :ip => @instance_ip,
-                  :name => name}
-      EZQ::SNS.publish(@error_topic, sns_mess.to_json)
+      begin
+        sns_mess = {:error => msg['stdout_stderr'],
+                    :ip => @instance_ip,
+                    :name => name}
+        txt = sns_mess.to_json
+      rescue => e
+        @logger.error "send_sns_error: #{e}, txt=#{txt}"
+        return nil
+      end
+      EZQ::SNS.publish(@error_topic, txt)
       return nil
     rescue => e
       @logger.error "Failure publishing error to SNS: #{e}"
