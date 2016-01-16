@@ -326,7 +326,8 @@ module EZQ
     def send_sns_error(msg)
       name = ''
       if !@instance_tags.empty?
-        name = @instance_tags.select{|el| el.key = 'Name'}.value
+        name = @instance_tags.select{|el| el.key = 'Name'}.first
+        name = name.value if name
       end
       begin
         sns_mess = {:error => msg['stdout_stderr'],
