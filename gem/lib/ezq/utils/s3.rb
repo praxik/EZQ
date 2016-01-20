@@ -213,7 +213,7 @@ module EZQ
       end
 
       s3 = EZQ.s3_resource()
-      s3.create_bucket( bucket_name ) if !s3.bucket(bucket_name).exists?
+      s3.create_bucket( {bucket: bucket_name} ) if !s3.bucket(bucket_name).exists?
       obj = s3.bucket(bucket_name).object(key)
       dig = Digest::MD5.hexdigest(data)
       if obj.exists? and ((obj.etag() == dig) or (obj.metadata.fetch('md5','') == dig ))
@@ -337,7 +337,7 @@ module EZQ
 
     def get_or_create_s3_obj(bucket_name,key)
       s3 = EZQ.s3_resource()
-      s3.create_bucket( bucket_name ) if !s3.bucket(bucket_name).exists?
+      s3.create_bucket( {bucket: bucket_name} ) if !s3.bucket(bucket_name).exists?
       return s3.bucket(bucket_name).object(key)
     end
 
