@@ -33,7 +33,7 @@ module EZQ
 
   def EZQ.get_queue_timeout(queue_url)
     return Aws::SQS::Client.new.get_queue_attributes(queue_url: queue_url,
-          attribute_names: ['VisibilityTimeout'])
+      attribute_names: ['VisibilityTimeout']).attributes['VisibilityTimeout']
   end
 
 
