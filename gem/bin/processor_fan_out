@@ -8,7 +8,7 @@
 require 'yaml'
 require 'parallel'
 require 'logger'
-
+require 'fileutils'
 
 def substitute(command,idx)
   dbp = @debug_port + idx
@@ -24,6 +24,7 @@ def substitute(command,idx)
   command += " --app_name #{@app_name}" if @app_name
   command += " --debug_port #{dbp}" if @pry_server
   command += " --exit_port #{exp}"
+
   return command
 end
 
@@ -59,12 +60,36 @@ def start
   @pry_server = userdata.fetch('pry_server',false)
   @debug_port = 7755
   @exit_port = 8642
+
+  sandbox = userdata.fetch('sandbox', false)
+  all_files = Dir.entries('.') - ['.', '..']
+
   pids = {}
 
   num.times do |idx|
     cmd = substitute(command,idx)
-    log.info "Initial start of #{cmd}"
-    pid = spawn(cmd)
+    log.info "Initial start of process #{idx}"
+
+    dirname = '.'
+    if sandbox
+      log.info "  --Creating sandbox directory for number #{idx}"
+      dirname = "sandbox_#{idx}"
+      begin
+        Dir.mkdir(dirname)
+      rescue
+        # blank on purpose
+      end
+
+      begin
+        log.info "  --Copying files into sandbox directory"
+        FileUtils.cp_r(all_files, dirname)
+      rescue
+        # blank on purpose
+      end
+    end
+
+    log.info "  --Starting #{cmd}"
+    pid = spawn(cmd,:chdir=>dirname)
     pids[pid] = idx
     sleep stagger
   end
@@ -78,7 +103,8 @@ def start
         pids.delete(pid)
         cmd = substitute(command,idx)
         log.info "Detected failure with status '#{$?.to_i}'. Restarting '#{cmd}'"
-        pid = spawn(cmd)
+        dirname = sandbox ? "sandbox_#{idx}" : '.'
+        pid = spawn(cmd, :chdir=>dirname)
         pids[pid] = idx
         sleep stagger
       end
