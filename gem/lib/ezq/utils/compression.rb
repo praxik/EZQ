@@ -1,5 +1,6 @@
 require 'zip'
 require 'zlib'
+require 'securerandom'
 
 require 'ezq/utils/common'
 
@@ -56,12 +57,11 @@ module EZQ
   # @return [String] Path to the decompressed file
   def EZQ.gunzip(filename,keep_name: false)
     @log.debug "EZQ::gunzip: #{filename}, #{keep_name}" if @log
-    return nil if !File.extname(filename) == '.gz'
     uncname = ''
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
       # Strip .gz from the end of the filename
-      uncname = filename.gsub(/\.gz$/,'')
+      uncname = "#{SecureRandom.hex(8)}.unc"
       @log.debug "EZQ::gunzip: decompressing to #{uncname}" if @log
       File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
       zi.close
@@ -71,8 +71,11 @@ module EZQ
       File.delete(filename)
       File.rename(uncname,filename)
       return filename
+    else
+      newname = filename.gsub(/\.gz$/,'')
+      File.rename(uncname, newname)
+      return newname
     end
-    return uncname
   end
 
 
