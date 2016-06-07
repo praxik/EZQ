@@ -376,9 +376,18 @@ module EZQ
     end
 
     FileUtils.mkdir_p(File.dirname(key))
-    obj.get(response_target: key)
+    resp = obj.get(response_target: key)
 
-    if decompress
+    already_decompressed = false
+    if (resp.content_encoding == "gzip") && (resp.content_type != "application/x-gzip")
+      # .gz file ext means leave compressed even if content_type wasn't set
+      if File.extname(key) != ".gz"
+        EZQ.gunzip(key, keep_name: true)
+        already_decompressed = true
+      end
+    end
+
+    if decompress && !already_decompressed
       type = File.extname(key)
       case type
       when '.gz'
