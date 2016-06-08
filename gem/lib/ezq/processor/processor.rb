@@ -538,7 +538,7 @@ module EZQ
           EZQ.decompress_file(key,overwrite: false)
         elsif File.extname(key) == '.gz'
           EZQ.gunzip(key)
-          @s3_files[@s3_file.find_index(key)] = key.gsub(/\.gz$/,'')
+          @s3_files[@s3_files.find_index(key)] = key.gsub(/\.gz$/,'')
         end
       end
 
@@ -903,4 +903,3 @@ module EZQ
 
   end # class
 end # module
-
