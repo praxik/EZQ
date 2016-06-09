@@ -369,7 +369,7 @@ module EZQ
     # Do we already have a current version of this file?
     if File.exists?(key)
       dig = EZQ.md5file(key).hexdigest
-      if ((obj.etag() == dig) || (obj.metadata.to_h.fetch('md5','') == dig ))
+      if ((obj.etag().gsub("\"","") == dig) || (obj.metadata.to_h.fetch('md5','').gsub("\"","") == dig ))
         @log.debug "EZQ::get_s3_file: local file is already current" if @log
         return true
       end
