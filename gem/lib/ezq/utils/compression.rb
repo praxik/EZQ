@@ -35,7 +35,7 @@ module EZQ
   #
   # @return [String] Path to uncompressed file
   def EZQ.decompress_headerless_file(filename)
-    uncname = filename + '.uc'
+    uncname = "#{Dir.tmpdir}/#{filename}.uc"
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
       File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
@@ -61,7 +61,7 @@ module EZQ
     File.open(filename) do |cf|
       zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
       # Strip .gz from the end of the filename
-      uncname = "#{SecureRandom.hex(8)}.unc"
+      uncname = "#{Dir.tmpdir}/#{SecureRandom.hex(8)}.unc"
       @log.debug "EZQ::gunzip: decompressing to #{uncname}" if @log
       File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
       zi.close
