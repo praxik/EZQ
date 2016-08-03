@@ -533,6 +533,7 @@ module EZQ
       files = preamble['get_s3_files']
       files.each do |props|
         key = props['key']
+        return false if key.nil? || key.empty? || key.strip.empty?
         return false if !get_s3_file(props['bucket'],key,msgbody)
         if props.has_key?('decompress') && props['decompress'] == true
           EZQ.decompress_file(key,overwrite: false)
