@@ -1,4 +1,5 @@
-
+# Ensure sane certs on used on Windows
+Aws.use_bundled_cert! if RUBY_PLATFORM =~ /mswin|mingw/
 
 # Not sure I want to monkey-patch like this. It might be better to have
 # a function rather than a method.
