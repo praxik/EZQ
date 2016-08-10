@@ -1,3 +1,5 @@
+require 'aws-sdk'
+
 # Ensure sane certs on used on Windows
 Aws.use_bundled_cert! if RUBY_PLATFORM =~ /mswin|mingw/
 
