@@ -1,6 +1,7 @@
 require 'zip'
 require 'zlib'
 require 'securerandom'
+require 'fileutils'
 
 require 'ezq/utils/common'
 
@@ -42,7 +43,8 @@ module EZQ
       zi.close
     end
     File.delete(filename)
-    File.rename(uncname, filename)
+    FileUtils.cp(uncname, filename)
+    FileUtils.rm(uncname)
     return filename
   end
 
@@ -69,11 +71,13 @@ module EZQ
 
     if keep_name
       File.delete(filename)
-      File.rename(uncname,filename)
+      FileUtils.cp(uncname, filename)
+      FileUtils.rm(uncname)
       return filename
     else
       newname = filename.gsub(/\.gz$/,'')
-      File.rename(uncname, newname)
+      FileUtils.cp(uncname, newname)
+      FileUtils.rm(uncname)
       return newname
     end
   end
