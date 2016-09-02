@@ -119,7 +119,7 @@ module EZQ
     else
       begin
         qurl = sqs.get_queue_url(queue_name: queue).queue_url
-      rescue Aws::Errors::QueueDoesNotExist
+      rescue Aws::SQS::Errors::QueueDoesNotExist
         if create_queue_if_needed
           qurl = EZQ.create_queue(queue).queue_url
         else
