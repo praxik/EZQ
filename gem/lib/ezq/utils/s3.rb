@@ -48,9 +48,16 @@ module EZQ
 #     return @s3
 #   end
 
-  def EZQ.s3_resource
-    @s3_res ||= Aws::S3::Resource.new()
-    return @s3_res
+  # Region is usually pulled from environment. Can be overridden for special
+  # requests.
+  def EZQ.s3_resource(region: nil)
+    if region.nil?
+      @s3_res ||= Aws::S3::Resource.new()
+      return @s3_res
+    else
+      # No memo-ization, since specific region request should be non-standard!
+      return Aws::S3::Resource.new(region: region)
+    end
   end
 
 
@@ -363,9 +370,9 @@ module EZQ
   #   extension. Note this is a *named* *parameter*.
   #
   # @return [Bool] true if successful, false otherwise
-  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false)
+  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false, region: nil)
     @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
-    obj = EZQ.s3_resource().bucket(bucket).object(key)
+    obj = EZQ.s3_resource(region: region).bucket(bucket).object(key)
     # Do we already have a current version of this file?
     if File.exists?(key)
       dig = EZQ.md5file(key).hexdigest
