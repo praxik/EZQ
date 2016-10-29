@@ -10,6 +10,7 @@ require 'digest/md5'
 require 'fileutils'
 require 'zip'
 require 'socket'
+require 'deep_merge'
 
 #require 'ezq/x_queue'
 require 'ezq/dual_log'
@@ -731,7 +732,7 @@ module EZQ
       # @file_as_body will be nil if one wasn't specified or if there were errors
       # getting it
       body_files = preambles.map{|pre| get_s3_file_as_body(pre); @file_as_body}
-      uni_pre = preambles.reduce(&:merge)
+      uni_pre = preambles.reduce(&:deep_merge)
       uni_pre.delete('get_s3_file_as_body') if uni_pre
       tmp = uni_pre
       uni_pre = {}
