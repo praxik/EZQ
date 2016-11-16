@@ -19,6 +19,7 @@ loggly_severity = 'info'
 app_name = 'EZQ::Processor'
 exit_port = '8642'
 debug_port = nil
+lambda_event = nil
 op = OptionParser.new do |opts|
   opts.banner = "Usage: processor.rb [options]"
 
@@ -60,6 +61,9 @@ op = OptionParser.new do |opts|
   end
   opts.on("-d", "--debug_port [PORT]","Starts a pry-remote server on the selected port. WARNING: This can be a gaping security hole if your port access rules are not sane.") do |p|
     debug_port = p
+  end
+  opts.on("-L", "--lambda_event [LAMBDA_EVENT]","Invoke lambda function with event source message.") do |p|
+    lambda_event = p
   end
 end
 
@@ -111,6 +115,7 @@ begin
   overrides['error_topic'] = error_topic if error_topic
   overrides['result_queue_name'] = result_queue if result_queue
   overrides['exit_port'] = exit_port
+  overrides[ 'lambda_event' ] = lambda_event if lambda_event
   EZQ::Processor.new(config_file,credentials,log,overrides).start
   # Handle Ctrl-C gracefully
 rescue Interrupt

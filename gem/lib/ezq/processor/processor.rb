@@ -95,6 +95,9 @@ module EZQ
       # the value specified in the config.
       config.each { |k,v| make_var("@#{k}",v) }
 
+      # If lambda function, skip the rest
+      return if( @lambda_event )
+
       # All of Processor's retry and failsafe logic relies on :skip_delete = true,
       # so make sure we absolutely, no doubt about it enforce that setting!
       @polling_options[:skip_delete] = true
@@ -131,6 +134,7 @@ module EZQ
       @halt_type = 'terminate'
       @store_message = false
       @decompress_message = false
+      @lambda_event = nil
       @process_command = ''
       @retry_on_failure = false
       @retries = 0
@@ -701,6 +705,49 @@ module EZQ
       return success
     end
 
+    # Do the actual processing of a single message
+    def process_event()
+      event = JSON.parse( @lambda_event )
+      sns = event[ 'Records' ].first[ 'Sns' ]
+      msg = sns[ 'Message' ]
+      msgid = sns[ 'MessageId' ]
+      @logger.unknown "-----------------Received message #{msgid}-------------------------"
+      @input_filename = msgid + '.in'
+      @id = msgid
+
+      override_configuration( msg )
+      unless fetch_s3( msg )
+        cleanup( @input_filename, @id )
+        #set_visibility( msg, 10 )
+        return false
+      end
+
+      #fetch_uri( msg )
+      store_s3_endpoints( msg )
+      preamble_hash = EZQ.extract_preamble( msg )
+      strip_directives( msg )
+
+      @msg_contents = msg
+      #File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
+      save_message( preamble_hash, msg, @id ) if @store_message
+      success = run_process_command( @input_filename, @id )
+      if success
+        # Do result_step before deleting the message in case result_step fails.
+        if do_result_step()
+          @logger.info "Processing successful: Message #{@id}"
+        else
+          # Since we've failed, make the message visible again in 10 seconds
+          #set_visibility( msg, 10 )
+        end
+      else
+        #set_visibility( msg, 10 )
+      end
+
+      # Cleanup even if processing otherwise failed.
+      cleanup( @input_filename, @id )
+      return success
+    end
+
 
     protected
     def set_visibility(msg,timeout)
@@ -885,6 +932,11 @@ module EZQ
     # pre-processes them according to queue type, passes that information to the
     # chosen processing command, calls the result_step, and then cleans up.
     def start
+      if( @lambda_event )
+        process_event
+        return
+      end
+
       @logger.info "Starting queue polling"
       if @smart_halt_when_idle_N_seconds > 0 && @instance
         @polling_options[:idle_timeout] = @smart_halt_when_idle_N_seconds
