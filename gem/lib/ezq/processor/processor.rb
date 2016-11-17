@@ -95,17 +95,14 @@ module EZQ
       # the value specified in the config.
       config.each { |k,v| make_var("@#{k}",v) }
 
-      # If lambda function, skip the rest
-      return if( @lambda_event )
-
       # All of Processor's retry and failsafe logic relies on :skip_delete = true,
       # so make sure we absolutely, no doubt about it enforce that setting!
       @polling_options[:skip_delete] = true
 
       # Grab the receive_queue
-      init_receive_queue()
+      init_receive_queue() unless @lambda_event
 
-      set_instance_details()
+      set_instance_details() unless @lambda_event
 
       @run = true
       # Setup to get graceful exit signal
@@ -283,7 +280,7 @@ module EZQ
                'input' => @msg_contents.byteslice(0..49999), # limit to 50kB
                'pid' => @pid}
         err['instance'] = @instance_id if !@instance_id.empty?
-        send_error(err.to_yaml)
+        send_error(err.to_yaml) unless @lambda_event # TODO: need to use @error_topic
       end
 
       return success
@@ -518,7 +515,7 @@ module EZQ
     protected
     # Strips out the message preamble containing explicit EZQ directives
     def strip_directives(msg)
-      msg.body.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
+      msg.sub!(/-{3}\nEZQ.+?\.{3}\n/m,'')
     end
 
 
@@ -666,7 +663,7 @@ module EZQ
       fetch_uri(msg[:body])
       store_s3_endpoints(msg[:body])
       preamble_hash = EZQ.extract_preamble(msg[:body])
-      strip_directives(msg)
+      strip_directives(msg.body)
 
       ## Split this out into separate method
       # Message "body" will be either the actual body from the queue message,
@@ -728,7 +725,7 @@ module EZQ
       strip_directives( msg )
 
       @msg_contents = msg
-      #File.open( "#{@input_filename}", 'w' ) { |output| output << body } unless @dont_hit_disk
+      File.open( "#{@input_filename}", 'w' ) { |output| output << msg } unless @dont_hit_disk
       save_message( preamble_hash, msg, @id ) if @store_message
       success = run_process_command( @input_filename, @id )
       if success
@@ -794,9 +791,9 @@ module EZQ
       fetch_uri(uni_pre.to_yaml)
       store_s3_endpoints(uni_pre.to_yaml)
 
-      #mol.each{|msg| strip_directives(msg)}
+      #mol.each{|msg| strip_directives(msg.body)}
       mol.each_with_index do |msg,idx|
-        strip_directives(msg)
+        strip_directives(msg.body)
         if body_files[idx] != nil
           begin
             contents = File.read(body_files[idx].split(',')[1])
