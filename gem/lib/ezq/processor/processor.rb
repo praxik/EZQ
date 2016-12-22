@@ -265,6 +265,8 @@ module EZQ
         success, output = exec_cmd_thread(commandline)
         break if success
       end
+      #Uncomment to see output in aws cloud watch
+      #output.each{ |line| @logger.info line }
 
 
       @logger.fatal "Command does not exist!" if success == nil
