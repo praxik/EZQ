@@ -59,27 +59,45 @@ module EZQ
   # @return [String] Path to the decompressed file
   def EZQ.gunzip(filename,keep_name: false)
     @log.debug "EZQ::gunzip: #{filename}, #{keep_name}" if @log
+
     uncname = ''
-    File.open(filename) do |cf|
-      zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
-      # Strip .gz from the end of the filename
-      uncname = "#{Dir.tmpdir}/#{SecureRandom.hex(8)}.unc"
-      @log.debug "EZQ::gunzip: decompressing to #{uncname}" if @log
-      File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
-      zi.close
+
+    if RUBY_PLATFORM =~ /mswin|mingw/  # Because Ruby's zlib on Windows is trash...
+      cmd = "gzip -d -f -k \"#{filename}\""
+      uncname = "#{filename.gsub(/\.gz$/,'')}"
+      system(cmd)
+      if keep_name
+        File.delete(filename)
+        FileUtils.cp(uncname, filename)
+        FileUtils.rm(uncname)
+        return filename
+      else
+        return uncname
+      end
+
+    else
+
+      File.open(filename) do |cf|
+        uncname = "#{Dir.tmpdir}/#{SecureRandom.hex(8)}.unc"
+        @log.debug "EZQ::gunzip: decompressing to #{uncname}" if @log
+        zi = Zlib::Inflate.new(Zlib::MAX_WBITS + 32)
+        File.open(uncname, "w+") {|ucf| ucf << zi.inflate(cf.read) }
+        zi.close
+      end
+
+      if keep_name
+        File.delete(filename)
+        FileUtils.cp(uncname, filename)
+        FileUtils.rm(uncname)
+        return filename
+      else
+        newname = filename.gsub(/\.gz$/,'')
+        FileUtils.cp(uncname, newname)
+        FileUtils.rm(uncname)
+        return newname
+      end
     end
 
-    if keep_name
-      File.delete(filename)
-      FileUtils.cp(uncname, filename)
-      FileUtils.rm(uncname)
-      return filename
-    else
-      newname = filename.gsub(/\.gz$/,'')
-      FileUtils.cp(uncname, newname)
-      FileUtils.rm(uncname)
-      return newname
-    end
   end
 
 
