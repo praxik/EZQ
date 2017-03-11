@@ -370,9 +370,11 @@ module EZQ
   #   extension. Note this is a *named* *parameter*.
   #
   # @return [Bool] true if successful, false otherwise
-  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false, region: nil)
+  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false, region: nil, response_target: nil)
     @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
     obj = EZQ.s3_resource(region: region).bucket(bucket).object(key)
+    key = response_target unless response_target.nil?
+
     # Do we already have a current version of this file?
     if File.exists?(key)
       dig = EZQ.md5file(key).hexdigest
