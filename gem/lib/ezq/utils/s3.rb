@@ -66,8 +66,10 @@ module EZQ
   # returns a complete ListObjectsV2Output
   def EZQ.s3_list(bucket, prefix, continuation_token: nil)
     opts = {bucket: bucket, prefix: prefix}
-    opts[:continuation_token] = continuation_token unless continuation_token.nil?
-    Aws::S3::Client.new.list_objects_v2(opts)
+    # opts[:continuation_token] = continuation_token unless continuation_token.nil?
+    # Aws::S3::Client.new.list_objects_v2(opts)
+    opts[:marker] = continuation_token unless continuation_token.nil?
+    Aws::S3::Client.new.list_objects(opts)
   end
 
 
