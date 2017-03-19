@@ -8,7 +8,10 @@ require 'ezq/utils/s3'
 
 # TODO: Add a polling method to this, so that explicit Aws api use can be removed from
 # Processor and from the Nimbus apps
-
+# TODO: All methods should accept both queue_url and queue_name, figure out the
+# difference, and convert names to urls when needed
+# TODO: Also need a receive_messages equivalent, a send_messages equivalent for
+# messages that already have preambles, and a delete_message_batch equivalent.
 
 module EZQ
 
@@ -67,9 +70,16 @@ module EZQ
   end
 
 
-  def EZQ.create_queue(name)
+  def EZQ.create_queue(name, timeout=30)
     sqs = Aws::SQS::Client.new()
-    return sqs.create_queue(queue_name: name)
+    q = sqs.create_queue({
+      queue_name: name,
+      attributes: {
+        'MessageRetentionPeriod' => (14*24*60*60).to_s,
+        'VisibilityTimeout' => timeout.to_s,
+      }
+    })
+    return q
   end
 
 
