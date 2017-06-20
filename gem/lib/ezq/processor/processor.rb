@@ -266,7 +266,7 @@ module EZQ
         break if success
       end
       #Uncomment to see output in aws cloud watch
-      output.each{ |line| @logger.info line } unless @lambda_event
+      output.each{ |line| @logger.info line } if @lambda_event
 
 
       @logger.fatal "Command does not exist!" if success == nil
