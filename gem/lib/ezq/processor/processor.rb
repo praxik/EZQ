@@ -226,6 +226,13 @@ module EZQ
       strc.gsub!('$input_file',input_filename)
       @s3_files.each_with_index { |file,idx| strc.gsub!("$s3_#{idx + 1}",file) }
       @uri_files.each_with_index { |file,idx| strc.gsub!("$uri_#{idx + 1}",file) }
+
+      # There might be unused (optional) $s3_ placeholders left over. We want
+      # to blank them out.
+      # Same for $uri_
+      strc.gsub!(/\$s3_[0-9]+/,'')
+      strc.gsub!(/\$uri_[0-9]+/,'')
+
       strc.gsub!('$id',id)
       strc.gsub!('$pid',@pid.to_s)
       strc.gsub!('$timeout',@msg_timeout.to_s) if @msg_timeout
@@ -937,11 +944,15 @@ module EZQ
       end
 
       @logger.info "Starting queue polling"
+      first = true # Flag to ensure at least one polling cycle if processor has
+                   # been re-started within the smart_halt window.
       if @smart_halt_when_idle_N_seconds > 0 && @instance
         @polling_options[:idle_timeout] = @smart_halt_when_idle_N_seconds
-        while ((Time.now - @launch_time) % 3600) < (3600-@smart_halt_when_idle_N_seconds) do
+        while ((Time.now - @launch_time) % 3600) < (3600-@smart_halt_when_idle_N_seconds) || first do
+          first = false
           poll_queue
         end
+        @logger.info "Attempting smart halt"
         halt_instance
       else
         poll_queue
