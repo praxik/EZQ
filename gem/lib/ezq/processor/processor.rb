@@ -12,9 +12,9 @@ require 'zip'
 require 'socket'
 require 'deep_merge'
 
-#require 'ezq/x_queue'
-require 'ezq/dual_log'
 require 'ezq'
+require 'ezq/dual_log'
+#require 'ezq/x_queue'
 
 
 
@@ -438,12 +438,15 @@ module EZQ
     # Perform result_step
     def do_result_step
       @logger.debug 'Result step'
-      put_s3_files
+      put_s3_files()
+
       case @result_step
       when 'none'
         return true
       when 'post_to_result_queue'
         return post_to_result_queue
+      #when 'post_result_notification'
+        #return EZQ::SNS.publish( topic, msg )
       else
         m = "Invalid result_step: #{@result_step}. Must be one of [none,post_to_result_queue]"
         @logger.error m
@@ -456,13 +459,15 @@ module EZQ
     protected
     # Post a message to result_queue
     def post_to_result_queue
-      preamble = {'EZQ'=>{}}
-      body = make_raw_result(preamble)
-      preamble['EZQ']['processed_message_id'] = @id
+      preamble = { 'EZQ' => {} }
+      body = make_raw_result( preamble )
+      preamble[ 'EZQ' ][ 'processed_message_id' ] = @id
       # Non-destuctively add our s3 files to any that were previously set
-      preamble['EZQ']['get_s3_files'] = Array(preamble['EZQ']['get_s3_files']) +
-                                        @s3_outs if !@s3_outs.empty?
-      digest = EZQ.exceptional_retry_with_backoff(3){EZQ.enqueue_message(body,preamble,@result_queue_name,false,'EZQOverflow.praxik')}
+      preamble[ 'EZQ' ][ 'get_s3_files'] =
+        preamble[ 'EZQ' ][ 'get_s3_files' ].to_a + @s3_outs if !@s3_outs.empty?
+      digest = EZQ.exceptional_retry_with_backoff( 3 ) do
+        EZQ.enqueue_message( body, preamble, @result_queue_name, false, 'EZQOverflow.praxik' )
+      end
       if !digest.empty?
         @logger.info "Posted result message to queue '#{@result_queue_name}'"
         return true
