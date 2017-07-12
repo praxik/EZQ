@@ -73,6 +73,25 @@ module EZQ
   end
 
 
+  # prefix: this/that/those/ will list all objects in this/that/those/
+  #         this/that/those  will list all objects in this/that/ which begin with those
+  # returns a complete ListObjectsV2Output
+  def EZQ.s3_list_all( bucket, prefix: nil )
+    contents = []
+    continuation_token = nil
+    begin
+      resp = Aws::S3::Client.new.list_objects_v2( {
+        bucket: bucket,
+        continuation_token: continuation_token,
+        max_keys: 1000,
+        prefix: prefix } )
+      contents += resp.contents
+      continuation_token = resp.next_continuation_token
+    end while continuation_token
+    return contents
+  end
+
+
   # Returns a list of s3 keys from a ListObjectsV2Output object. Does not automatically
   # handle continuations!
   # Mainly intended to be used as:
