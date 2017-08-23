@@ -864,7 +864,7 @@ module EZQ
       @in_queue.poll(@polling_options) do |msg|
         msgary = [msg].flatten(1)
         msgary.each {|item| process_message(item)}
-        exit if !@run
+        break unless( @run )
       end
       return nil
     end
