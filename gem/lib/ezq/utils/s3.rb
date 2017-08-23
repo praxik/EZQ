@@ -368,7 +368,9 @@ module EZQ
     end
 
     def set_md5(local_file,options)
-      options[:metadata] = {:md5=>EZQ.md5file(local_file).hexdigest}
+      md5 = EZQ.md5file(local_file)
+      options[:metadata] = {:md5=>md5.hexdigest}
+      options[:content_md5] = md5.base64digest  # Feature 9018
     end
 
     def up_to_date?(obj,options)
