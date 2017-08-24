@@ -245,7 +245,7 @@ module EZQ
   # as a thread object.
   class DataPusher
     def push( data,bucket_name,key,compress=false,log=nil )
-      @retries ||= 10
+      @retries ||= 5
       options = {:content_type => EZQ.get_content_type(key)}
 
       if compress
@@ -273,6 +273,7 @@ module EZQ
       return key
     rescue => e
       log.warn "EZQ::DataPusher: #{e}" if log
+      sleep(1)
       retry if (@retries -= 1) > -1
       log.error "EZQ::DataPusher: #{e}" if log
       raise e
@@ -313,7 +314,7 @@ module EZQ
     # @return [String] The key that was sent to S3. Notice the key might be
     #   different from the one passed in if +compress+ was +true+.
     def push( filename,bucket_name,key,options={},compress=false,log=nil )
-      @retries ||= 10
+      @retries ||= 5
       @log = log
       raise_if_no_file(filename)
       set_content_type(filename,options) # mutates options
@@ -329,6 +330,7 @@ module EZQ
         end
       rescue => e
         @log.warn "EZQ::FilePusher: #{e}" if @log
+        sleep(1)
         retry if (@retries -= 1) > -1
         @log.error "EZQ::FilePusher: #{e}" if @log
         raise e
@@ -370,7 +372,10 @@ module EZQ
     def set_md5(local_file,options)
       md5 = EZQ.md5file(local_file)
       options[:metadata] = {:md5=>md5.hexdigest}
-      options[:content_md5] = md5.base64digest  # Feature 9018
+      # Add content_md5 option only if we're sure not to trigger multipart upload
+      if File.size(local_file) < (15 * 1024 * 1024)
+        options[:content_md5] = md5.base64digest  # Feature 9018
+      end
     end
 
     def up_to_date?(obj,options)
