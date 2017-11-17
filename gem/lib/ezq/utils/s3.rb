@@ -75,7 +75,7 @@ module EZQ
 
   # prefix: this/that/those/ will list all objects in this/that/those/
   #         this/that/those  will list all objects in this/that/ which begin with those
-  # returns a complete ListObjectsV2Output
+  # returns an array of Aws::S2::Types::Object, so does not play nicely with s3_keys_from
   def EZQ.s3_list_all( bucket, prefix: nil )
     contents = []
     continuation_token = nil
