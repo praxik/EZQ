@@ -9,6 +9,7 @@ require 'yaml'
 require 'parallel'
 require 'logger'
 require 'fileutils'
+require 'sys/filesystem'
 
 def substitute(command,idx)
   dbp = @debug_port + idx
@@ -104,6 +105,7 @@ def start
         cmd = substitute(command,idx)
         log.info "Detected failure with status '#{$?.to_i}'. Restarting '#{cmd}'"
         dirname = sandbox ? "sandbox_#{idx}" : '.'
+        ensure_free_space(dirname)
         pid = spawn(cmd, :chdir=>dirname)
         pids[pid] = idx
         sleep stagger
@@ -111,6 +113,33 @@ def start
     end
   end
 
+end
+
+
+def ensure_free_space(dirname)
+  s = Sys::Filesystem.stat(Dir.pwd)
+  gb_free = s.block_size * s.blocks_available / (1024.0 ** 3)
+  if gb_free < 1  # Have we dropped below 1 GB?
+    # This is a bit hacky. We're going to delete sets of files and directories
+    # that we know ahead of time might exist in this dir. Ideally we would
+    # stop *all* processors, back up out of the run dir, delete everything, pull
+    # down fresh archives and basically start over. That strategy has the following
+    # downsides:
+    # 1. It contains a LOT of steps, so there are lots of places for stuff to go wrong
+    # 2. In the case of machines running lots of processors, it means signalling to
+    #    all of them to gracefully exit. Doable, but not trivial (esp. on Windows).
+    # 3. Due to the way Windows handles dangling file handles, you can't safely
+    #    delete the file you're currently running. That would mean pushing the process
+    #    monitor up a directory, which complicates environment and dir handling.
+    #
+    # So, we go the slightly hacky way for now: delete files that match
+    # specific glob patterns.
+    globs = ["md", "enterprise", "*.in", "*.message", "out*.txt", "*.pdf"]
+    globs.each do |glob|
+      fs = Dir.glob(File.join(dirname, glob))
+      fs.each{ |f| FileUtils.rm_rf(f) }
+    end
+  end
 end
 
 

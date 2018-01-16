@@ -17,6 +17,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "pry", ["~>0"]
   s.add_runtime_dependency "pry-remote", ["~>0"]
   s.add_runtime_dependency "mimemagic", ["~>0.2"]
+  s.add_runtime_dependency "sys-filesystem", ["~>1"]
   s.license     = 'Private'
   s.homepage    = 'http://stop.warning.me'
   s.executables = ['processor','processor_fan_out','keep_alive','job_breaker','term_processor']
