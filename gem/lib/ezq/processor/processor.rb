@@ -16,6 +16,29 @@ require 'ezq'
 require 'ezq/dual_log'
 #require 'ezq/x_queue'
 
+####################################################################
+# Monkey patch Aws-sdk's xml parsing logic to
+# fix issues with Ox
+module Aws
+  module Xml
+    class Parser
+      class OxEngine
+
+        def initialize(stack)
+          @stack = stack
+        end
+
+        def parse(xml)
+          Ox.sax_parse(@stack, StringIO.new(xml), :convert_special => true,
+                       :skip => :skip_off)
+        end
+
+      end
+    end
+  end
+end
+####################################################################
+
 
 
 module EZQ
