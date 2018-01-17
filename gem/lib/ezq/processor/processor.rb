@@ -307,10 +307,22 @@ module EZQ
 
       loop do
         break if thr.join(5)
+        check_termination_status unless @instance.nil?  # Only do this when running on EC2
         thr.kill if !@run
       end
 
       return thr[:retval]
+    end
+
+
+    protected
+    def check_termination_status
+      # This URL req will succeed ONLY if termination has been requested
+      uri = URI.parse("http://169.254.169.254/latest/meta-data/spot/instance-action")
+      Net::HTTP.get_response(uri).value # Raises if resp code is not 2XX
+      @run = false
+    rescue
+      # Do not alter @run flag if URL request or value fails for ANY reason
     end
 
 
