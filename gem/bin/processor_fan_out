@@ -9,6 +9,7 @@ require 'yaml'
 require 'parallel'
 require 'logger'
 require 'fileutils'
+require 'net/http'
 require 'sys/filesystem'
 
 def substitute(command,idx)
@@ -106,13 +107,26 @@ def start
         log.info "Detected failure with status '#{$?.to_i}'. Restarting '#{cmd}'"
         dirname = sandbox ? "sandbox_#{idx}" : '.'
         ensure_free_space(dirname)
-        pid = spawn(cmd, :chdir=>dirname)
-        pids[pid] = idx
-        sleep stagger
+        if !termination_requested # Don't try to restart if proc exited due to term warning!
+          pid = spawn(cmd, :chdir=>dirname)
+          pids[pid] = idx
+          sleep stagger
+        end
       end
     end
   end
 
+end
+
+
+# WARNING: AWS-specific
+def termination_requested
+  # This URL req will succeed ONLY if termination has been requested
+  uri = URI.parse("http://169.254.169.254/latest/meta-data/spot/instance-action")
+  Net::HTTP.get_response(uri).value # Raises if resp code is not 2XX
+  return true
+rescue
+  return false
 end
 
 
