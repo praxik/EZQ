@@ -70,7 +70,7 @@ module EZQ
   end
 
 
-  def EZQ.create_queue(name, timeout=30)
+  def EZQ.create_queue(name, timeout=30, bill_to: '')
     sqs = Aws::SQS::Client.new()
     q = sqs.create_queue({
       queue_name: name,
@@ -79,6 +79,22 @@ module EZQ
         'VisibilityTimeout' => timeout.to_s,
       }
     })
+
+    # Block until the queue is *actually* created, rather than assuming the url
+    # returned in create_queue response is valid
+    begin
+      qurl = sqs.get_queue_url(queue_name: name).queue_url
+    rescue Aws::SQS::Errors::QueueDoesNotExist
+      sleep(0.25)
+      retry
+    end
+
+    if !bill_to.empty?
+      sqs.tag_queue({ queue_url: qurl,
+                      tags: { "bill_to" => bill_to }
+                    })
+    end
+
     return q
   end
 
