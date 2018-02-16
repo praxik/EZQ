@@ -14,11 +14,12 @@ require 'deep_merge'
 
 require 'ezq'
 require 'ezq/dual_log'
-#require 'ezq/x_queue'
 
 ####################################################################
 # Monkey patch Aws-sdk's xml parsing logic to
 # fix issues with Ox
+require 'ox/node'   # Windows barks about Ox::Raw without these requires. Unclear why.
+require 'ox/raw'
 module Aws
   module Xml
     class Parser
