@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'ezq'
-  s.version     = '0.2.0'
-  s.date        = '2015-03-20'
+  s.version     = '0.2.1'
+  s.date        = '2018-02-17'
   s.summary     = "EZQ"
   s.description = "EZQ is e-z"
   s.author      = "Penn Taylor"
