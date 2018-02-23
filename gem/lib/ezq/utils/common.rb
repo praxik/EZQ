@@ -1,4 +1,8 @@
 require 'aws-sdk'
+# These strange ox includes are to deal with a namespacing issue on Windows
+# that is most likely not worth the trouble to fully track down.
+require 'ox/node'
+require 'ox/raw'
 
 # Ensure sane certs on used on Windows
 Aws.use_bundled_cert! if RUBY_PLATFORM =~ /mswin|mingw/

@@ -8,7 +8,7 @@ class Preamble
   attr_accessor :result_queue_name
   attr_accessor :process_command
 
-  def initialize(data)
+  def initialize(data={})
     pre = data
     if data.kind_of?(String)
       pre = YAML.load(data)
