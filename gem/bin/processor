@@ -5,6 +5,7 @@ require 'optparse'
 
 require 'ezq/dual_log'
 require 'ezq/processor/processor'
+require 'ezq/utils/userdata'
 
 quiet = false
 config_file = 'queue_config.yml'
@@ -110,16 +111,35 @@ begin
 
   credentials = {}
 
-  overrides = queue ? {"receive_queue_name"=>queue} : {}
-  overrides['error_queue_name'] = error_queue if error_queue
-  overrides['error_topic'] = error_topic if error_topic
-  overrides['result_queue_name'] = result_queue if result_queue
-  overrides['exit_port'] = exit_port
-  overrides[ 'lambda_event' ] = lambda_event if lambda_event
+  userdata = {}
+
+  begin
+    userdata = EZQ::UserData.load
+  rescue
+    warn 'Error opening or parsing userdata'
+  end
+
+  # Prefer grabbing overrides from userdata, but fall back to command-line overrides
+  # if the desired property is not present in userdata.
+  #
+  # This approach is a tad ugly and will bloat the hash with `nil` values that
+  # immediately get removed, but I'm ok with that.
+  #
+  overrides = {}
+  overrides['receive_queue_name'] = userdata.fetch('receive_queue_name', queue)
+  overrides['error_queue_name']   = userdata.fetch('error_queue_name', error_queue)
+  overrides['error_topic']        = userdata.fetch('error_topic', error_topic)
+  overrides['result_queue_name']  = userdata.fetch('result_queue_name', result_queue)
+  overrides['exit_port']          = userdata.fetch('exit_port', exit_port)
+  overrides['lambda_event']       = userdata.fetch('lambda_event', lambda_event)
+
+  # Purge `nil` values from the hash, so we don't clobber a value from the queue
+  # config file if no override is present in either userdata or the command line.
+  overrides.delete_if { |k, v| v.nil? }
+
   EZQ::Processor.new(config_file,credentials,log,overrides).start
   # Handle Ctrl-C gracefully
 rescue Interrupt
   warn "\nEZQ.Processor aborted!"
   exit 1
 end
-
