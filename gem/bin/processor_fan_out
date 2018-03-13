@@ -11,6 +11,7 @@ require 'logger'
 require 'fileutils'
 require 'net/http'
 require 'sys/filesystem'
+require 'ezq/utils/userdata'
 
 def substitute(command,idx)
   dbp = @debug_port + idx
@@ -40,7 +41,7 @@ def start
 
   userdata = ''
   begin
-    userdata = YAML.load_file('userdata.yml')
+    userdata = EZQ::UserData.load
   rescue => e
     warn "Error opening or parsing 'userdata.yml': #{e}. Aborting"
     exit(1)

@@ -274,7 +274,12 @@ end #module
       level = Logger::UNKNOWN
     end
 
-    userdata = YAML.load(File.read('userdata.yml'))
+    begin
+      userdata = EZQ::UserData.load
+    rescue => e
+      warn "Error opening or parsing 'userdata.yml': #{e}. Aborting"
+      exit(1)
+    end
     loggly_token = userdata.fetch('loggly_token','')
 
     log = DualLogger.new({:progname=>"job_breaker",
