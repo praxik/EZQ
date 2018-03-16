@@ -15,9 +15,10 @@ module EZQ
         end
       else
         search_paths = [
-          '/tmp/userdata.yml',
           File.join(__dir__, 'userdata.yml'),
-          File.join(Dir.pwd, 'userdata.yml')
+          File.join(Dir.pwd, 'userdata.yml'),
+          '/var/task/userdata.yml',
+          '/tmp/userdata.yml'
         ]
 
         search_paths.each do |path|
