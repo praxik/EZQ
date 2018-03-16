@@ -16,6 +16,7 @@ module EZQ
       else
         search_paths = [
           '/tmp/userdata.yml',
+          File.join(ENV.fetch('LAMBDA_TASK_ROOT','/var/task'),'userdata.yml'),
           File.join(__dir__, 'userdata.yml'),
           File.join(Dir.pwd, 'userdata.yml')
         ]
