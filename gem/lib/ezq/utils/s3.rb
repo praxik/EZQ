@@ -416,7 +416,7 @@ module EZQ
   #   extension. Note this is a *named* *parameter*.
   #
   # @return [Bool] true if successful, false otherwise
-  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false, region: nil, response_target: nil)
+  def EZQ.get_s3_file(bucket,key,decompress: false, keep_name: false, region: nil, response_target: nil, version_id: nil)
     @log.debug "EZQ::get_s3_file '#{bucket}/#{key}'" if @log
     obj = EZQ.s3_resource(region: region).bucket(bucket).object(key)
     key = response_target unless response_target.nil?
@@ -431,7 +431,7 @@ module EZQ
     end
 
     FileUtils.mkdir_p(File.dirname(key))
-    resp = obj.get(response_target: key)
+    resp = obj.get(response_target: key, version_id: version_id)
 
     already_decompressed = false
     if (resp.content_encoding == "gzip") && (resp.content_type != "application/x-gzip")
