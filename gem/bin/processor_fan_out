@@ -12,6 +12,7 @@ require 'fileutils'
 require 'net/http'
 require 'sys/filesystem'
 require 'ezq/utils/userdata'
+require 'aws-sdk'
 
 def substitute(command,idx)
   dbp = @debug_port + idx
@@ -105,15 +106,24 @@ def start
       if exited
         pids.delete(pid)
         cmd = substitute(command,idx)
+        exit_status = $?.exitstatus
         log.info "Detected failure with status '#{$?.to_i}'. Restarting '#{cmd}'"
         dirname = sandbox ? "sandbox_#{idx}" : '.'
         ensure_free_space(dirname)
-        if !termination_requested # Don't try to restart if proc exited due to term warning!
+        if !termination_requested && (exit_status != 0) # Don't try to restart if proc exited due to term warning OR if proc exited with success status
           pid = spawn(cmd, :chdir=>dirname)
           pids[pid] = idx
           sleep stagger
         end
       end
+    end
+
+    # If all processes have exited with success, we should attempt to terminate the instance
+    if pids.empty?
+      uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
+      @instance_id = Net::HTTP.get_response(uri).body
+      @instance = Aws::EC2::Instance.new(@instance_id)
+      @instance.terminate
     end
   end
 

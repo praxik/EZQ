@@ -969,6 +969,8 @@ module EZQ
         @instance.stop
       when 'terminate'
         @instance.terminate
+      when 'exit'
+        exit 0
       end
     end
 
