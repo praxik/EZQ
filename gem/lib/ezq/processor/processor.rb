@@ -332,7 +332,7 @@ module EZQ
       end
 
       loop do
-        if @instance.is_nil?
+        if @instance.nil?
           break if thr.join(5)
         else
           begin
