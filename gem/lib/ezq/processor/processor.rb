@@ -339,13 +339,14 @@ module EZQ
             #This will throw Waiters::Errors::WaiterFailed after 5 attempts
             @instance.wait_until_terminated{|w|
               w.delay = 1
-              w.max_attempts = 5
+              w.max_attempts = 4
             }
             #we have been terminated
             @run = false
           rescue
             #Do nothing failure and continue the outer loop
           end
+          break if thr.join(1)
         end
         check_termination_status unless @instance.nil?  # Only do this when running on EC2
         thr.kill if !@run
