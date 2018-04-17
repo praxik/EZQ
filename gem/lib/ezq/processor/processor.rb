@@ -49,6 +49,8 @@ module EZQ
   # +process_command+ specified in the configuration. Processor can then take
   # results from this processing and optionally post them to a +result_queue+.
   class Processor
+    #Used to control the current state of this Processor thread
+    attr_accessor :run
 
     protected
     def open_exit_port(port)
@@ -330,7 +332,21 @@ module EZQ
       end
 
       loop do
-        break if thr.join(5)
+        if @instance.is_nil?
+          break if thr.join(5)
+        else
+          begin
+            #This will throw Waiters::Errors::WaiterFailed after 5 attempts
+            @instance.wait_until_terminated{|w|
+              w.delay = 1
+              w.max_attempts = 5
+            }
+            #we have been terminated
+            @run = false
+          rescue
+            #Do nothing failure and continue the outer loop
+          end
+        end
         check_termination_status unless @instance.nil?  # Only do this when running on EC2
         thr.kill if !@run
       end

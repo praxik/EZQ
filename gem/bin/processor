@@ -137,9 +137,12 @@ begin
   # config file if no override is present in either userdata or the command line.
   overrides.delete_if { |k, v| v.nil? }
 
-  EZQ::Processor.new(config_file,credentials,log,overrides).start
+  ezq_proc = EZQ::Processor.new(config_file,credentials,log,overrides)
+  ezq_proc.start
   # Handle Ctrl-C gracefully
 rescue Interrupt
+  ezq_proc.run = false
+  sleep(5)
   warn "\nEZQ.Processor aborted!"
   exit 1
 end
