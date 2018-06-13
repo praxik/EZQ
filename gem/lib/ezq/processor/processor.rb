@@ -276,7 +276,7 @@ module EZQ
       # Use @msg_contents instead of msg.body because body may have
       # already been mutated by this point.
       mess = {'body'=>@msg_contents, 'preamble'=>preamble_hash}
-      mess = mess.merge(msg[:attributes])
+      mess = mess.merge(msg[:attributes]) unless msg.kind_of?(String)
       File.write("#{id}.message",mess.to_yaml)
     end
 
