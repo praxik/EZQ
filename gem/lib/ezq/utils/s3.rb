@@ -337,8 +337,8 @@ module EZQ
       ensure
         # Cleanup the temporary compressed file
         File.unlink(local_file) if compress2 && File.exist?(local_file)
-        return key2
       end
+      return key2
     end
 
     protected # Everything in this class below this line is protected
