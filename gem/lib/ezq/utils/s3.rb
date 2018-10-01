@@ -282,6 +282,8 @@ module EZQ
 
     def allow_existence_check?
       return !EZQ::UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
+    rescue RuntimeError # Don't fail just because userdata is inaccessible
+      true
     end
   end
 
@@ -401,6 +403,8 @@ module EZQ
 
     def allow_existence_check?
       return !EZQ::UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
+    rescue RuntimeError # Don't fail just because userdata is inaccessible
+      true
     end
 
   end
