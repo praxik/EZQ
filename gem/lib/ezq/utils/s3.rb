@@ -6,6 +6,7 @@ require 'mimemagic'
 require 'ezq/utils/common'
 require 'ezq/utils/retry'
 require 'ezq/utils/compression'
+require 'ezq/utils/userdata'
 
 # TODO: refactor most of this into service-agnostic calls
 # ...actually, this file should stay as-is, and there should be a higher
@@ -262,7 +263,7 @@ module EZQ
       s3.create_bucket( {bucket: bucket_name} ) if !s3.bucket(bucket_name).exists?
       obj = s3.bucket(bucket_name).object(key)
       dig = Digest::MD5.hexdigest(data)
-      if obj.exists? and ((obj.etag() == dig) or (obj.metadata.fetch('md5','') == dig ))
+      if allow_existence_check? and obj.exists? and ((obj.etag() == dig) or (obj.metadata.fetch('md5','') == dig ))
         log.debug "Remote file is up-to-date; skipping send." if log
         return key
       end
@@ -277,6 +278,10 @@ module EZQ
       retry if (@retries -= 1) > -1
       log.error "EZQ::DataPusher: #{e}" if log
       raise e
+    end
+
+    def allow_existence_check?
+      return !EZQ.UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
     end
   end
 
@@ -381,7 +386,7 @@ module EZQ
     def up_to_date?(obj,options)
       utd = false
       file_dig = options[:metadata][:md5]
-      if obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
+      if allow_existence_check? and obj.exists? and ((obj.etag() == file_dig) or (obj.metadata.to_h.fetch('md5','') == file_dig ))
         @log.debug "Remote file is up-to-date; skipping send." if @log
         utd = true
       end
@@ -392,6 +397,10 @@ module EZQ
       s3 = EZQ.s3_resource()
       s3.create_bucket( {bucket: bucket_name} ) if !s3.bucket(bucket_name).exists?
       return s3.bucket(bucket_name).object(key)
+    end
+
+    def allow_existence_check?
+      return !EZQ.UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
     end
 
   end
