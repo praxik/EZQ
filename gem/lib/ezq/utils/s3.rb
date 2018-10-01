@@ -281,7 +281,7 @@ module EZQ
     end
 
     def allow_existence_check?
-      return !EZQ.UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
+      return !EZQ::UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
     end
   end
 
@@ -400,7 +400,7 @@ module EZQ
     end
 
     def allow_existence_check?
-      return !EZQ.UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
+      return !EZQ::UserData.load.fetch("EZQ_skip_s3_object_existence_check", false)
     end
 
   end
