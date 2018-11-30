@@ -37,7 +37,7 @@ module EZQ
       raise RuntimeError, 'No userdata found' if userdata.nil?
 
       # Lift a subset of userdata into separate environment variables
-      userdata["ENV"].each{ |k, v| ENV[k.to_s] = v.to_s }
+      userdata["ENV"].each{ |k, v| ENV[k.to_s] = v.to_s } if userdata["ENV"]
 
       userdata
     end
