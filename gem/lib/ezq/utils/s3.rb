@@ -343,10 +343,24 @@ module EZQ
         raise e
       ensure
         # Cleanup the temporary compressed file
-        File.unlink(local_file) if compress2 && File.exist?(local_file)
+        if compress2 && File.exist?(local_file)
+          unlink(local_file)
+        end
       end
       return key2
     end
+
+
+    def unlink(f)
+      if RUBY_PLATFORM =~ /mswin|mingw/
+        cmd = 'del /f /q "' + f.gsub( "/", "\\" ) + '"'
+        res = %x[ #{cmd}" ]
+        @log.error( "EZQ::FilePusher::unlink: #{res}" ) unless( @log.nil? || res.nil? || res =~ /\S/ )
+      else
+        File.unlink(f)
+      end
+    end
+
 
     protected # Everything in this class below this line is protected
     def raise_if_no_file(filename)
