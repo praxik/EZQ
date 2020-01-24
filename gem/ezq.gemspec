@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.files       =  Dir.glob("{bin,lib}/**/*")
   s.add_runtime_dependency "aws-sdk", ["2.10.125"]
   s.add_runtime_dependency "deep_merge", ["~>1"]
-  s.add_runtime_dependency "rubyzip", ["~>1"]
+  s.add_runtime_dependency "rubyzip", ["1.2.1"] # for symlink support
   s.add_runtime_dependency "parallel", ["~>1"]
   s.add_runtime_dependency "logglier", ["~>0"]
   s.add_runtime_dependency "multi_json", ["~>1"]
