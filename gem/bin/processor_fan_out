@@ -34,9 +34,14 @@ end
 
 
 def start
+
+
   stagger = ARGV.shift.to_i  # nil.to_i always returns 0
 
   log = Logger.new('processor_fan_out.log')
+
+  run = true
+  Signal.trap('SIGTERM'){run = false; log.info "Caught SIGTERM"}
 
   command = 'processor -c receive_queue_config.yml'
 
@@ -101,6 +106,24 @@ def start
   # Check in on the processes every 30s and restart as needed
   loop do
     sleep(30)
+
+    # If we've received SIGTERM, ask all subprocesses to end, wait for them to
+    # do so, and then exit
+    if !run
+      # Send TERM to all children
+      pids.keys do |pid|
+        Process.kill("TERM", pid)
+      end
+      # Wait for children to finish
+      while pids.size > 0
+        sleep(5)
+        pids.keys do |pid|
+          pids.delete(pid) if Process.wait(pid,Process::WNOHANG)
+        end
+      end
+      exit(0)
+    end
+
     pids.to_a.each do |pid,idx|
       exited = Process.wait(pid,Process::WNOHANG)
       if exited
@@ -110,7 +133,7 @@ def start
         log.info "Detected failure with status '#{$?.to_i}'. Restarting '#{cmd}'"
         dirname = sandbox ? "sandbox_#{idx}" : '.'
         ensure_free_space(dirname)
-        if !termination_requested && (exit_status != 0) # Don't try to restart if proc exited due to term warning OR if proc exited with success status
+        if run && !termination_requested && (exit_status != 0) # Don't try to restart if proc exited due to term warning OR if proc exited with success status
           pid = spawn(cmd, :chdir=>dirname)
           pids[pid] = idx
           sleep stagger
@@ -118,13 +141,17 @@ def start
       end
     end
 
-    # If all processes have exited with success, we should attempt to terminate the instance
-    if pids.empty?
-      uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
-      @instance_id = Net::HTTP.get_response(uri).body
-      @instance = Aws::EC2::Instance.new(@instance_id)
-      @instance.terminate
-    end
+    # 2021-08-25 Commenting this out since it won't play well with running all of this as
+    # a system service on Linux. It's what we want to do in the general case, but not when
+    # running as a service, since the service's stop request already indicates we're being
+    # controlled by a uid that has the power to terminate the instance.
+    # # If all processes have exited with success, we should attempt to terminate the instance
+    # if pids.empty?
+    #   uri = URI.parse("http://169.254.169.254/latest/meta-data/instance-id")
+    #   @instance_id = Net::HTTP.get_response(uri).body
+    #   @instance = Aws::EC2::Instance.new(@instance_id)
+    #   @instance.terminate
+    # end
   end
 
 end
