@@ -139,6 +139,7 @@ begin
 
   ezq_proc = EZQ::Processor.new(config_file,credentials,log,overrides)
   ezq_proc.start
+
   # Handle Ctrl-C gracefully
 rescue Interrupt
   ezq_proc.run = false
