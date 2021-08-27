@@ -111,6 +111,7 @@ def start
     # do so, and then exit
     if !run
       # Send TERM to all children
+      log.info "Sending SIGTERM to all child processes"
       pids.keys do |pid|
         Process.kill("TERM", pid)
       end
