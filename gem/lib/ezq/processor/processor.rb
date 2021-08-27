@@ -107,7 +107,7 @@ module EZQ
       @run = true
       # Setup to get graceful exit signal
       # For *nix:
-      Signal.trap('SIGTERM'){@run = false; @logger.info "Caught SIGTERM"}
+      Signal.trap('SIGTERM'){@run = false}
       # For Windows:
       open_exit_port(config.fetch('exit_port',8642)) if RUBY_PLATFORM =~ /mswin|mingw/
     end
