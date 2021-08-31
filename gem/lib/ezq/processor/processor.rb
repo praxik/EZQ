@@ -25,6 +25,7 @@ module EZQ
   class Processor
     #Used to control the current state of this Processor thread
     attr_accessor :run
+    attr_accessor :completed
 
     protected
     def open_exit_port(port)
@@ -104,10 +105,14 @@ module EZQ
 
       set_instance_details() unless @lambda_event
 
+      # This will be set to true when the curent task (if any) is completed.
+      # This flag, along with @run, can be examined from outside to determine when
+      # it is safe to exit.
+      @completed = true
       @run = true
       # Setup to get graceful exit signal
       # For *nix:
-      Signal.trap('SIGTERM'){@run = false}
+      # Signal.trap('SIGTERM'){@run = false}
       # For Windows:
       open_exit_port(config.fetch('exit_port',8642)) if RUBY_PLATFORM =~ /mswin|mingw/
     end
@@ -891,9 +896,13 @@ module EZQ
       end
 
       @in_queue.poll(@polling_options) do |msg|
+        @completed = false
         msgary = [msg].flatten(1)
         msgary.each {|item| process_message(item)}
-        break unless( @run )
+        if !@run
+          @completed = true
+          break
+        end
       end
       return nil
     end

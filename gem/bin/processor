@@ -138,7 +138,19 @@ begin
   overrides.delete_if { |k, v| v.nil? }
 
   ezq_proc = EZQ::Processor.new(config_file,credentials,log,overrides)
-  ezq_proc.start
+  Thread.new{ezq_proc.start}
+
+  Signal.trap('SIGTERM'){ezq_proc.run = false}
+
+  # waits for sigterm trap to be activated
+  while ezq_proc.run
+    sleep(1)
+  end
+
+  # waits for current task to finish processing
+  while !ezq_proc.completed
+    sleep(1)
+  end
 
   # Handle Ctrl-C gracefully
 rescue Interrupt
