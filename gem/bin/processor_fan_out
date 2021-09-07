@@ -41,7 +41,7 @@ def start
   log = Logger.new('processor_fan_out.log')
 
   run = true
-  Signal.trap('SIGTERM'){run = false; log.info "Caught SIGTERM"}
+  Signal.trap('SIGTERM'){run = false }
 
   command = 'processor -c receive_queue_config.yml'
 
@@ -111,13 +111,13 @@ def start
     # do so, and then exit
     if !run
       # Send TERM to all children
-      log.info "Sending SIGTERM to all child processes"
       pids.keys do |pid|
         Process.kill("TERM", pid)
       end
       # Wait for children to finish
       while pids.size > 0
         sleep(5)
+        puts "Checking child processes for termination"
         pids.keys do |pid|
           pids.delete(pid) if Process.wait(pid,Process::WNOHANG)
         end

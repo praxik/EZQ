@@ -138,19 +138,32 @@ begin
   overrides.delete_if { |k, v| v.nil? }
 
   ezq_proc = EZQ::Processor.new(config_file,credentials,log,overrides)
-  Thread.new{ezq_proc.start}
+  ezq_thread = Thread.new{ezq_proc.start}
 
   Signal.trap('SIGTERM'){ezq_proc.run = false}
+
+  # Normally you'd expect to just join() the thread and be done.
+  # We can't do that here because the thread is polling in a loop
+  # we don't explicitly control, thus can't break out of. Instead,
+  # we monitor the pair of flags `run` and `completed` to figure out
+  # when it is safe to kill the polling thread.
 
   # waits for sigterm trap to be activated
   while ezq_proc.run
     sleep(1)
   end
 
-  # waits for current task to finish processing
+  puts "Trapped SIGTERM"
+
+  # waits for current (if any) task to finish processing
   while !ezq_proc.completed
+    puts "Waiting for process to complete"
     sleep(1)
   end
+
+  puts "Joining thread..."
+  ezq_thread.exit().join()
+  puts "Thread joined; exiting."
 
   # Handle Ctrl-C gracefully
 rescue Interrupt
