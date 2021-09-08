@@ -117,9 +117,20 @@ def start
       # Wait for children to finish
       while pids.size > 0
         sleep(5)
-        puts "Checking child processes for termination"
-        pids.keys do |pid|
-          pids.delete(pid) if Process.wait(pid,Process::WNOHANG)
+        puts "Checking #{pids.size} child processes for termination"
+        pids.keys.each do |pid|
+          puts "Checking pid #{pid}"
+          begin
+            if Process.wait(pid, Process::WNOHANG)
+              puts "#{pid} has exited"
+              pids.delete(pid)
+            else
+              puts "#{pid} has not exited yet"
+            end
+          rescue Errno::ECHILD
+              puts "Deleting pid #{pid} because we got Errno::ECHILD"
+              pids.delete(pid)
+          end
         end
       end
       exit(0)
