@@ -899,8 +899,8 @@ module EZQ
         @completed = false
         msgary = [msg].flatten(1)
         msgary.each {|item| process_message(item)}
+        @completed = true
         if !@run
-          @completed = true
           break
         end
       end
